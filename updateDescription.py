@@ -1,3 +1,6 @@
+# There are programs here to get your Account ID and GJP2,
+# which you will need to add to the data variable before using this.
+
 import requests
 import base64
 import sys
