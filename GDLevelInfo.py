@@ -4069,6 +4069,7 @@ def get_level_info(meta, raw_data, decoded, object_string, counts):
     info['Level Name'] = meta.get('2', 'NA')
     # Level ID
     info['Level ID'] = meta.get('1', 'NA')
+    info['Original ID'] = meta.get('30', 'NA')
     desc_b64 = meta.get('3', '')
     try:
         info['Description'] = base64.urlsafe_b64decode(desc_b64.encode()).decode(errors='replace')
