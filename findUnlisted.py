@@ -69,7 +69,7 @@ sys.stdout = Logger(log_filename)
 init(autoreset=True)
 
 Tries = 1
-waitTime = 3
+waitTime = 2
 
 while True:
     found_ids = []
@@ -95,7 +95,7 @@ while True:
         headers = {
             "User-Agent": ""
         }
-
+        sleep(waitTime)
         print(f"[Request] Getting levels for page: {randPage}")
         response = requests.post(url, data=data, headers=headers)
         result = response.text
@@ -131,7 +131,6 @@ while True:
                         "secret": "Wmfd2893gb7",
                         "levelID": missing_id
                     }
-                    sleep(waitTime)
                     check_response = requests.post(check_url, data=check_data, headers=headers)
                     if check_response.text.strip() != "-1":
                         found_ids.append(missing_id)
@@ -192,7 +191,6 @@ while True:
                     "secret": "Wmfd2893gb7",
                     "str": username
                 }
-                sleep(waitTime)
                 response = requests.post(url, data=data, headers=headers)
                 if response.text.strip() == "-1":
                     print(f"[Response] Username {username} not found.")
