@@ -12,7 +12,7 @@ How does this work?
 This program finds unlisted ids by:
 1. Loading a recent tab page.
 2. Checking which ids are returned.
-3. Looking for gaps between adjacent levels.
+3. Looking for gaps between adjacent ids.
    These gaps are caused by levels being
    deleted or uploaded unlisted.
 4. It then tries to download these levels.
