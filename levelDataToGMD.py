@@ -1,40 +1,24 @@
 import os
-import re
 
-# Map output k-tags to raw keys or 'lookup'
 k_tag_map = [
     ("kCEK", "static", 4),
     ("k1", "1"),
-    ("k18", "static", 1),      # hardcoded
-    ("k36", "static", 12),     # hardcoded
     ("k23", "15"),
     ("k2", "2"),
     ("k4", "4"),
-    ("k5", "creator"),
-    ("k95", "57"),
+    ("k3", "3"),
     ("k6", "6"),
-    ("k60", "accountID"),
-    ("k21", "15"),             # length (from :15)
-    ("k16", "5"),              # level version (from :5)
-    ("k17", "13"),             # game version (from :13)
+    ("k21", "static", 3),
+    ("k16", "5"),
+    ("k17", "13"),
     ("k80", "46"),
     ("k81", "47"),
-    ("k83", "static", 134),    # hardcoded
     ("k64", "37"),
-    ("k41", "41"),
     ("k42", "30"),
     ("k45", "35"),
-    ("k50", "static", 45),     # hardcoded
+    ("k50", "static", 45),
     ("k48", "45"),
 ]
-
-# Example lookups (replace with your real data)
-creator_lookup = {
-    "123297488": "Yetta1"
-}
-account_id_lookup = {
-    "123297488": "23965199"
-}
 
 def parse_level_data(data):
     pairs = {}
@@ -52,15 +36,11 @@ def make_gmd(level_id, pairs):
     for ktag, rawkey, *staticval in k_tag_map:
         if rawkey == "static":
             v = staticval[0]
-        elif rawkey == "creator":
-            v = creator_lookup.get(level_id)
-        elif rawkey == "accountID":
-            v = account_id_lookup.get(level_id)
         else:
             v = pairs.get(rawkey)
         if v is None or v == "":
             continue
-        tagtype = "s" if ktag in ("k2", "k4", "k5") else "i"
+        tagtype = "s" if ktag in ("k2", "k4", "k3") else "i"
         xml.append(f'<k>{ktag}</k><{tagtype}>{v}</{tagtype}>')
     xml.append('</dict></plist>')
     return ''.join(xml)
@@ -80,4 +60,4 @@ def main():
             print(f"Converted {filename} to {filename[:-4]}.gmd")
 
 if __name__ == "__main__":
-    main() 
+    main()
