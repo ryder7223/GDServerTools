@@ -4136,15 +4136,9 @@ def download_level(level_id):
     return response.text
 
 def decode_level(level_data):
-    start_marker = ':4:'
-    end_marker = ':5:'
-    start = level_data.find(start_marker)
-    end = level_data.find(end_marker, start + len(start_marker))
-    if start == -1 or end == -1:
-        print('Level data markers not found.')
-        input()
-        raise ValueError('Level data markers not found.')
-    level_str = level_data[start + len(start_marker):end]
+    parts = level_data.split("#")[0].split(":")
+    parsed = {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
+    level_str = parsed.get("4", "")
     if not level_str or level_str in ('0', 'Aw=='):
         print('Level is not copyable or has no data.')
         input()
