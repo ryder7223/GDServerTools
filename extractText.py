@@ -38,13 +38,9 @@ def download_level(level_id):
     return response.text
 
 def decode_level(level_data):
-    start_marker = ':4:'
-    end_marker = ':5:'
-    start = level_data.find(start_marker)
-    end = level_data.find(end_marker, start + len(start_marker))
-    if start == -1 or end == -1:
-        raise ValueError('Level data markers not found.')
-    level_str = level_data[start + len(start_marker):end]
+    parts = level_data.split("#")[0].split(":")
+    parsed = {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
+    level_str = parsed.get("4", "")
     b64_decoded = base64.urlsafe_b64decode(level_str.encode())
     if level_str.startswith('H4sIA'):
         with gzip.GzipFile(fileobj=io.BytesIO(b64_decoded)) as f:
