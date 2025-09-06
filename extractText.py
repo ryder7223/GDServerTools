@@ -42,11 +42,8 @@ def decode_level(level_data):
     parsed = {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
     level_str = parsed.get("4", "")
     b64_decoded = base64.urlsafe_b64decode(level_str.encode())
-    if level_str.startswith('H4sIA'):
-        with gzip.GzipFile(fileobj=io.BytesIO(b64_decoded)) as f:
-            decompressed = f.read()
-    else:
-        decompressed = zlib.decompress(b64_decoded, -zlib.MAX_WBITS)
+    with gzip.GzipFile(fileobj=io.BytesIO(b64_decoded)) as f:
+        decompressed = f.read()
     return decompressed.decode()
 
 def extract_object_string(decoded_level):
@@ -78,11 +75,8 @@ def main():
         level_string = get_level_string_from_gmd(arg)
         decoded = base64.urlsafe_b64decode(level_string.encode())
         try:
-            if level_string.startswith('H4sIA'):
-                with gzip.GzipFile(fileobj=io.BytesIO(decoded)) as f:
-                    decompressed = f.read()
-            else:
-                decompressed = zlib.decompress(decoded, -zlib.MAX_WBITS)
+            with gzip.GzipFile(fileobj=io.BytesIO(decoded)) as f:
+                decompressed = f.read()
             decoded_level = decompressed.decode()
         except Exception as e:
             print('Error decoding level string from file:', e)
