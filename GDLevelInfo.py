@@ -4145,11 +4145,8 @@ def decode_level(level_data):
         raise ValueError('Level is not copyable or has no data.')
     try:
         b64_decoded = base64.urlsafe_b64decode(level_str.encode())
-        if level_str.startswith('H4sIA'):
-            with gzip.GzipFile(fileobj=io.BytesIO(b64_decoded)) as f:
-                decompressed = f.read()
-        else:
-            decompressed = zlib.decompress(b64_decoded, -zlib.MAX_WBITS)
+        with gzip.GzipFile(fileobj=io.BytesIO(b64_decoded)) as f:
+            decompressed = f.read()
         return decompressed.decode()
     except Exception as e:
         print('Error decoding level data:', e)
