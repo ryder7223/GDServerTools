@@ -4114,6 +4114,13 @@ def get_level_info(meta, raw_data, decoded, object_string, counts, coin_count):
     else:
         info['Game Version'] = 'NA'
     info['Requested Rating'] = meta.get('39', 'NA')
+    info['songIDs'] = (
+	meta.get("12", "")
+	if meta.get("12", "") != "0"
+	else meta.get("52", "")
+	if meta.get("52", "")
+	else meta.get("35", "")
+	)
     info['Two-Player'] = 'Yes' if meta.get('31', '0') == '1' else 'No'
     # Creator
     player_id = meta.get('6', '')
