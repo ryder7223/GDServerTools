@@ -1,6 +1,6 @@
 """
 You need these files to be in the same folder as this script:
-objects.json
+object.json
 GJ_GameSheet-uhd.plist
 GJ_GameSheet02-uhd.plist
 GJ_GameSheet.plist
