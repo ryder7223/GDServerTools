@@ -58,12 +58,29 @@ def make_gmd(level_id, pairs):
     xml.append('</dict></plist>')
     return ''.join(xml)
 
-def find_level_file(level_id):
-    """Find a file like '{ID} - name.txt' in SAVE_DIR recursively."""
-    for root, _, files in os.walk(SAVE_DIR):
-        for f in files:
-            if f.startswith(f"{level_id} - ") and f.endswith(".txt"):
-                return os.path.join(root, f)
+def find_level_file(levelId):
+    """Find a file like '{ID} - name.txt' in SAVE_DIR recursively.
+    If not found, check I:\\Personal\\Games\\Geometry Dash\\Other\\ServerRip if accessible.
+    """
+    def searchDirectory(directory):
+        for root, _, files in os.walk(directory):
+            for f in files:
+                if f.startswith(f"{levelId} - ") and f.endswith(".txt"):
+                    return os.path.join(root, f)
+        return None
+
+    # First, search the normal save directory
+    result = searchDirectory(SAVE_DIR)
+    if result:
+        return result
+
+    # If not found, try the alternative path if accessible
+    altPath = r"I:\Personal\Games\Geometry Dash\Other\ServerRip"
+    if os.path.exists(altPath) and os.access(altPath, os.R_OK):
+        result = searchDirectory(altPath)
+        if result:
+            return result
+
     return None
 
 def format_size(size_str):
@@ -187,6 +204,7 @@ HTML = """
     </select>
     <input type="number" name="min_object_count" placeholder="Min ObjectCount" value="{{min_object_count}}">
     <input type="number" name="max_object_count" placeholder="Max ObjectCount" value="{{max_object_count}}">
+    <input type="number" name="player_id" placeholder="Player ID" value="{{player_id}}">
 
     <input type="number" name="min_cp" placeholder="Min CP" value="{{min_cp}}">
     <input type="number" name="max_cp" placeholder="Max CP" value="{{max_cp}}">
@@ -222,6 +240,7 @@ HTML = """
       <h3>{{row[1]}}</h3>
       <p><b>ID:</b> {{row[0]}}</p>
       <p><b>Creator:</b> {{row[2]}}</p>
+      <p><b>Player ID:</b> {{row[17]}}</p>
       <p><b>CP:</b> {{row[3]}}</p>
       <p><b>Description:</b> {{row[4]}}</p>
       <p><b>Song IDs:</b> 
@@ -279,7 +298,9 @@ HTML = """
 
     <p>Page {{page}} of {{total_pages}}</p>
   </div>
-
+    <footer style="margin-top:3em; padding:1em; text-align:center; color:#555; font-size:0.9em;">
+    Contact: <a href="https://discord.com/users/965846070229884938" style="color:#007bff; text-decoration:none;">Ryder7223</a>
+  </footer>
   {% elif searched %}
     <p>No results found.</p>
   {% endif %}
@@ -292,7 +313,7 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
                   sort_by, sort_order, page, page_size,
                   original_id, rcoins, scoins, version, length,
                   min_editor_time, max_editor_time, editor_ctime,
-                  requested_rating, two_player, min_object_count, max_object_count):
+                  requested_rating, two_player, min_object_count, max_object_count, player_id):
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
@@ -300,7 +321,7 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
         SELECT
           ID, Name, Username, CreatorPoints, Description, Size, songID,
           OriginalID, rCoins, sCoins, Version, Length, EditorTime, EditorCTime,
-          RequestedRating, TwoPlayer, ObjectCount
+          RequestedRating, TwoPlayer, ObjectCount, PlayerID
         FROM levels
         WHERE 1=1
     """
@@ -312,21 +333,25 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
     def exact_text(field, value):
         if value is None or value == "":
             return
+        # exact match: use COLLATE to control case for equality (works reliably)
         if case_sensitive == "sensitive":
-            where.append(f"{field} = ?")
+            where.append(f"{field} = ? COLLATE BINARY")
             params.append(value)
         else:
-            where.append(f"LOWER({field}) = LOWER(?)")
+            where.append(f"{field} = ? COLLATE NOCASE")
             params.append(value)
 
     def contains_text(field, value):
         if value is None or value == "":
             return
         if case_sensitive == "sensitive":
-            where.append(f"{field} LIKE ?")
-            params.append(f"%{value}%")
+            # Use instr(...) > 0 for a reliable case-sensitive substring check
+            # This avoids relying on LIKE's platform-dependent case rules
+            where.append(f"instr({field}, ?) > 0")
+            params.append(value)
         else:
-            where.append(f"LOWER({field}) LIKE LOWER(?)")
+            # Case-insensitive substring: use LIKE with NOCASE collation
+            where.append(f"{field} LIKE ? COLLATE NOCASE")
             params.append(f"%{value}%")
 
     def text_filter(field, value, exclusive=None):
@@ -391,6 +416,7 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
         text_filter("TwoPlayer", two_player, exclusive=True)
     range_min("ObjectCount", min_object_count)
     range_max("ObjectCount", max_object_count)
+    text_filter("PlayerID", player_id)
 
     # CP range
     range_min("CreatorPoints", min_cp)
@@ -442,6 +468,7 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
         row[14], # RequestedRating
         row[15], # TwoPlayer
         row[16], # ObjectCount
+        row[17]  # PlayerID
     ) for row in results]
 
     return results, total_count
@@ -472,11 +499,12 @@ def index():
     max_cp = request.args.get("max_cp")
     min_size = request.args.get("min_size")
     max_size = request.args.get("max_size")
+    player_id = request.args.get("player_id")
     search_mode = request.args.get("search_mode", "contains")
     case_sensitive = request.args.get("case_sensitive", "insensitive")
     sort_by = request.args.get("sort_by", "ID")
     sort_order = request.args.get("sort_order", "desc")
-    page_size = int(request.args.get("page_size", 10))
+    page_size = int(request.args.get("page_size") or 10)
     page = int(request.args.get("page", 1))
 
     results, total_count = search_levels(
@@ -486,7 +514,7 @@ def index():
         sort_order, page, page_size,
         original_id, rcoins, scoins, version, length,
         min_editor_time, max_editor_time, editor_ctime,
-        requested_rating, two_player, min_object_count, max_object_count
+        requested_rating, two_player, min_object_count, max_object_count, player_id
     )
 
     total_pages = max(1, math.ceil(total_count / page_size))
@@ -507,14 +535,14 @@ def index():
         min_editor_time=min_editor_time, max_editor_time=max_editor_time,
         editor_ctime=editor_ctime, requested_rating=requested_rating,
         two_player=two_player, min_object_count=min_object_count,
-        max_object_count=max_object_count
+        max_object_count=max_object_count, player_id=player_id
     )
 
 @app.route("/download/<int:level_id>")
 def download(level_id):
     file_path = find_level_file(str(level_id))
     if not file_path:
-        abort(404, description="Level file not found")
+        abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
 
     filename = os.path.splitext(os.path.basename(file_path))[0]  # remove extension
     if " - " in filename:
@@ -544,7 +572,7 @@ def getSongURL(songID):
         if songID >= 10000000:
             # Direct CDN OGG file
             songURL = f"https://geometrydashfiles.b-cdn.net/music/{songID}.ogg"
-            songName = MUSIC_LIBRARY.get(songID, f"song_{songID}")
+            songName = songID #MUSIC_LIBRARY.get(songID, f"song_{songID}")
             mimetype = "audio/ogg"
             ext = "ogg"
         else:
@@ -557,7 +585,7 @@ def getSongURL(songID):
             }
             headers = {"User-Agent": ""}
             response = requests.post(url, data=data, headers=headers)
-            print("\n\n\n\n" + response.text + "\n\n\n\n")
+            #print("\n\n\n\n" + response.text + "\n\n\n\n")
             response.raise_for_status()
             if "-2" in response.text:
                 return Response(f"Error: File Not Found. No Audio Project exists with ID {songID}. It may have been deleted, or possibly never existed at all.", status=404)
@@ -567,7 +595,7 @@ def getSongURL(songID):
             parsed = {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
 
             songURL = urllib.parse.unquote(parsed.get("10"))
-            songName = parsed.get("2", f"song_{songID}")
+            songName = songID #parsed.get("2", f"song_{songID}")
             mimetype = "audio/mpeg"
             ext = "mp3"
 
@@ -575,13 +603,17 @@ def getSongURL(songID):
         r = requests.get(songURL, stream=True)
         r.raise_for_status()
         file_data = BytesIO(r.content)
-
+        def streamRemoteFile(remoteResponse):
+            for chunk in remoteResponse.iter_content(chunk_size=4096):
+                if chunk:
+                    yield chunk
+        headers = {"Content-Disposition": f"attachment; filename={songName}.{ext}"}
         # Send back to client
-        return send_file(
-            file_data,
-            as_attachment=True,
-            download_name=f"{songName}.{ext}",
-            mimetype=mimetype
+        return Response(
+            streamRemoteFile(r),
+            headers=headers,
+            mimetype=mimetype,
+            direct_passthrough=True
         )
 
     except Exception as e:
