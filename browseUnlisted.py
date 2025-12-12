@@ -6,6 +6,11 @@ import math
 import urllib.parse
 import requests
 import base64, zlib, os
+import time
+import logging
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 # Paths
 DB_FILE = "levels.db"
@@ -57,6 +62,77 @@ def make_gmd(level_id, pairs):
         xml.append(f'<k>{ktag}</k><{tagtype}>{v}</{tagtype}>')
     xml.append('</dict></plist>')
     return ''.join(xml)
+
+def getClientIp():
+    if request.headers.get("X-Forwarded-For"):
+        # Handles proxies/load balancers
+        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
+    return request.remote_addr
+
+def collectRequestAnalytics():
+    requestStart = time.time()
+    requestTimestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(requestStart))
+
+    clientIp = request.headers.get("X-Forwarded-For", request.remote_addr)
+    userAgent = request.user_agent
+
+    data = []
+
+    # Timestamp
+    data.append(f"{requestTimestamp}")
+
+    # Client metadata
+    data.append(f"clientIp: {clientIp}")
+    data.append(f"userAgentString: {userAgent.string}")
+    data.append(f"userAgentPlatform: {userAgent.platform}")
+    data.append(f"userAgentBrowser: {userAgent.browser}")
+    data.append(f"userAgentVersion: {userAgent.version}")
+    data.append(f"acceptLanguages: {request.accept_languages}")
+    data.append(f"acceptCharsets: {request.accept_charsets}")
+    data.append(f"acceptEncodings: {request.accept_encodings}")
+    data.append(f"referrer: {request.referrer}")
+
+    # Request details
+    data.append(f"method: {request.method}")
+    data.append(f"path: {request.path}")
+    data.append(f"fullPath: {request.full_path}")
+    data.append(f"url: {request.url}")
+    data.append(f"{request.query_string.decode(errors='ignore')}")
+    data.append(f"contentLength: {request.content_length}")
+    data.append(f"mimeType: {request.mimetype}")
+
+    # Headers
+    for key, value in request.headers.items():
+        data.append(f"header_{key}: {value}")
+
+    # Server context
+    data.append(f"processId: {os.getpid()}")
+
+    # Timing
+    requestEnd = time.time()
+    elapsedMs = (requestEnd - requestStart) * 1000
+    data.append(f"processingDurationMs: {elapsedMs:.3f}")
+
+    return data
+
+def convertTime(timeText):
+    parts = timeText.split(":")
+    hour = int(parts[0])
+    minute = parts[1]
+    second = parts[2]
+
+    if hour == 0:
+        hour = 12
+        suffix = " AM"
+    elif hour < 12:
+        suffix = " AM"
+    elif hour == 12:
+        suffix = " PM"
+    else:
+        hour = hour % 12
+        suffix = " PM"
+
+    return f"{hour}:{minute}:{second}{suffix}"
 
 def find_level_file(levelId):
     """Find a file like '{ID} - name.txt' in SAVE_DIR recursively.
@@ -475,6 +551,9 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
 
 @app.route("/")
 def index():
+    print(f"\nIP: {getClientIp()}")
+    info = collectRequestAnalytics()
+    print(f"[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {info[14]}")
     level_id = request.args.get("level_id", "")
     name = request.args.get("name", "")
     username = request.args.get("username", "")
@@ -540,6 +619,8 @@ def index():
 
 @app.route("/download/<int:level_id>")
 def download(level_id):
+    info = collectRequestAnalytics()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] IP {getClientIp()} downloaded level {level_id}")
     file_path = find_level_file(str(level_id))
     if not file_path:
         abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
@@ -566,8 +647,12 @@ def download(level_id):
         mimetype="application/octet-stream"
     )
 
+
+
 @app.route("/downloadSong/<int:songID>")
-def getSongURL(songID):
+def downloadSong(songID):
+    info = collectRequestAnalytics()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] IP {getClientIp()} requested song {songID}")
     try:
         if songID >= 10000000:
             # Direct CDN OGG file
@@ -618,6 +703,93 @@ def getSongURL(songID):
 
     except Exception as e:
         return Response(f"Error downloading song: {e}", status=500)
-    
+
+@app.route("/playID/<int:levelID>")
+def playID(levelID):
+    try:
+        url = "http://www.boomlings.com/database/getGJLevels21.php"
+
+        data = {
+            "secret": "Wmfd2893gb7",
+            "type": 0,
+            "str": levelID
+        }
+
+        headers = {"User-Agent": ""}
+        response = requests.post(url, data=data, headers=headers)
+        response.raise_for_status()
+
+        raw = response.text
+
+        if "~|~" not in raw:
+            return Response("Error: Unexpected response format.", status=500)
+
+        parts = raw.split("~|~")
+        if len(parts) < 2:
+            return Response("Error: Missing song ID section.", status=500)
+
+        # Song ID is immediately after the "~|~" and before the next "~"
+        songID = parts[1].split("~")[0]
+
+        if not songID.isdigit():
+            return Response(f"Error extracting song ID: {songID}", status=400)
+
+        return downloadSong(int(songID))
+
+    except Exception as e:
+        return Response(f"Error handling playID request: {e}", status=500)
+
+def parseDailyLevels(rawString):
+    levelsPart = rawString.split("~|~")[0]
+    levelBlocks = levelsPart.split("|")
+
+    parsedLevels = []
+
+    for block in levelBlocks:
+        if not block:
+            continue
+
+        segments = block.split(":")
+        if len(segments) % 2 != 0:
+            segments = segments[:-1]
+
+        levelDict = {}
+        for i in range(0, len(segments), 2):
+            key = segments[i]
+            value = segments[i + 1]
+            levelDict[key] = value
+
+        parsedLevels.append(levelDict)
+
+    return parsedLevels
+
+def getDailySongID(weekly):
+    url = "http://www.boomlings.com/database/getGJLevels21.php"
+    if weekly == 0:
+        version = 21
+    else:
+        version = 22
+    data = {
+        "secret": "Wmfd2893gb7",
+        "type": version
+    }
+
+    headers = {"User-Agent": ""}
+
+    response = requests.post(url, data=data, headers=headers)
+    levels = parseDailyLevels(response.text)
+    songID = levels[0].get("35")
+    return int(songID)
+
+@app.route("/currentDailySong")
+def getDailySong():
+    songID = getDailySongID(0)
+    return downloadSong(songID)
+
+@app.route("/currentWeeklySong")
+def getWeeklySong():
+    songID = getDailySongID(1)
+    return downloadSong(songID)
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
