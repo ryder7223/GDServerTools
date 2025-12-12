@@ -36,11 +36,11 @@ import subprocess
 import importlib
 import sys
 
-required_modules = ['urllib3', 'idna', 'charset_normalizer', 'certifi', 'requests', 'colorama']
+requiredModules = ['urllib3', 'idna', 'charset_normalizer', 'certifi', 'requests', 'colorama']
 
-def install_missing_modules(modules):
+def installMissingModules(modules):
+    pip = 'pip'
     try:
-        pip = 'pip'
         importlib.import_module(pip)
     except ImportError:
         print(f"{pip} is not installed. Installing...")
@@ -52,7 +52,7 @@ def install_missing_modules(modules):
             print(f"{module} is not installed. Installing...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", module])
 
-install_missing_modules(required_modules)
+installMissingModules(requiredModules)
 
 import requests, random
 from colorama import init, Fore
@@ -215,6 +215,7 @@ def parse_fields(level_data, file_path):
         "RequestedRating": parsed.get("39", ""),
         "TwoPlayer": "Yes" if parsed.get("31", "0") == "1" else "No",
         "ObjectCount": object_count,
+        "PlayerID": parsed.get("6", "")
     }
     return fields
 
@@ -233,7 +234,7 @@ def create_database():
     conn.close()
 
 def ensure_columns(fields):
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_FILE, timeout=30)
     cur = conn.cursor()
     cur.execute("PRAGMA table_info(levels)")
     existing_cols = [row[1] for row in cur.fetchall()]
@@ -245,7 +246,7 @@ def ensure_columns(fields):
     conn.close()
 
 def insert_level(level_id, username, creator_points, fields):
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_FILE, timeout=30)
     cur = conn.cursor()
     cols = ["ID", "Username", "CreatorPoints"] + list(fields.keys())
     placeholders = ", ".join("?" * len(cols))
@@ -288,6 +289,7 @@ def update_csv(username, creator_points, level_id):
 
 # --- Network helper ---
 def safe_post(url, data, headers, retries=3, timeout=10):
+    sleep(0.2)
     for attempt in range(1, retries + 1):
         try:
             return requests.post(url, data=data, headers=headers, timeout=timeout)
@@ -299,7 +301,7 @@ def safe_post(url, data, headers, retries=3, timeout=10):
             return None
 
 def update_creator_points(username, new_cp):
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_FILE, timeout=30)
     cur = conn.cursor()
     cur.execute("SELECT DISTINCT CreatorPoints FROM levels WHERE Username=?", (username,))
     rows = cur.fetchall()
