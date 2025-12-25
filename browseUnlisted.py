@@ -223,27 +223,135 @@ HTML = """
 <head>
   <title>Level Browser</title>
   <style>
-    body { font-family: sans-serif; margin: 2em; background: #f8f9fa; }
+    :root {
+      --bg: #f8f9fa;
+      --text: #111;
+      --card: #ffffff;
+      --border: #ccc;
+      --muted: #555;
+      --accent: #007bff;
+      --accentHover: #0056b3;
+      --success: #28a745;
+      --successHover: #1e7e34;
+      --infoBg: #f1f3f5;
+    }
+
+    body.dark {
+      --bg: #0f1115;
+      --text: #cfd3da;
+      --card: #1a1d23;
+      --border: #2c313a;
+      --muted: #9aa0aa;
+      --accent: #4da3ff;
+      --accentHover: #2f82da;
+      --success: #3fbf6f;
+      --successHover: #2f9a59;
+      --infoBg: #22262e;
+    }
+
+    body {
+      font-family: sans-serif;
+      margin: 2em;
+      background: var(--bg);
+      color: var(--text);
+      transition: background 0.0s, color 0.0s;
+    }
+
+    h1 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
     .search-bar { margin-bottom: 2em; }
-    input, select, button { padding: 0.5em; margin: 0.3em; border: 1px solid #ccc; border-radius: 6px; }
-    button { background: #007bff; color: white; border: none; cursor: pointer; }
-    button:hover { background: #0056b3; }
-    .results { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1em; }
-    .card { background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); padding: 1em; position: relative; }
+
+    input, select, button {
+      padding: 0.5em;
+      margin: 0.3em;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--text);
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover { background: var(--accentHover); }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1em;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      padding: 1em;
+      position: relative;
+    }
+
     .card h3 { margin: 0; font-size: 1.2em; }
     .card p { margin: 0.3em 0; }
-    .download-btn { display: inline-block; margin-top: 0.5em; padding: 0.4em 0.8em; background: #28a745; color: white; text-decoration: none; border-radius: 5px; }
-    .download-btn:hover { background: #1e7e34; }
-    .pagination { margin-top: 1em; }
-    .pagination form { display: inline; }
-    .pagination input[type="number"] { width: 50px; }
 
-    /* (i) info button + panel */
-    .info-btn { position: absolute; top: 6px; right: 8px; background: none; border: none; cursor: pointer; font-weight: bold; color: #007bff; }
-    .extra-info { display: none; margin-top: 0.6em; font-size: 0.9em; background: #f1f3f5; padding: 0.6em; border-radius: 6px; }
+    .download-btn {
+      display: inline-block;
+      margin-top: 0.5em;
+      padding: 0.4em 0.8em;
+      background: var(--success);
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+
+    .download-btn:hover { background: var(--successHover); }
+
+    .pagination { margin-top: 1em; }
+    .pagination input[type="number"] { width: 60px; }
+
+    .info-btn {
+      position: absolute;
+      top: 6px;
+      right: 8px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .extra-info {
+      display: none;
+      margin-top: 0.6em;
+      font-size: 0.9em;
+      background: var(--infoBg);
+      padding: 0.6em;
+      border-radius: 6px;
+    }
+
     .extra-info p { margin: 0.2em 0; }
-  </style>
-  <script>
+
+    .theme-toggle {
+      font-size: 0.9em;
+      padding: 0.4em 0.8em;
+    }
+
+    footer {
+      margin-top: 3em;
+      padding: 1em;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9em;
+    }
+
+    a { color: var(--accent); }
+  </style>  <script>
     function toggleInfo(id) {
       var e = document.getElementById("info-" + id);
       if (e.style.display === "none" || e.style.display === "") {
@@ -252,10 +360,34 @@ HTML = """
         e.style.display = "none";
       }
     }
+    function toggleInfo(id) {
+      var e = document.getElementById("info-" + id);
+      e.style.display = (e.style.display === "block") ? "none" : "block";
+    }
+
+    function applyTheme(theme) {
+      if (theme === "dark") {
+        document.body.classList.add("dark");
+      } else {
+        document.body.classList.remove("dark");
+      }
+      localStorage.setItem("theme", theme);
+    }
+
+    function toggleTheme() {
+      var isDark = document.body.classList.contains("dark");
+      applyTheme(isDark ? "light" : "dark");
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      var savedTheme = localStorage.getItem("theme") || "light";
+      applyTheme(savedTheme);
+    });
   </script>
 </head>
 <body>
   <h1>Level Browser</h1>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
   <form class="search-bar" method="get">
     <input type="text" name="level_id" placeholder="Level ID" value="{{level_id}}">
     <input type="text" name="name" placeholder="Level Name" value="{{name}}">
@@ -374,7 +506,7 @@ HTML = """
 
     <p>Page {{page}} of {{total_pages}}</p>
   </div>
-    <footer style="margin-top:3em; padding:1em; text-align:center; color:#555; font-size:0.9em;">
+  <footer style="margin-top:3em; padding:1em; text-align:center; color:#555; font-size:0.9em;">
     Contact: <a href="https://discord.com/users/965846070229884938" style="color:#007bff; text-decoration:none;">Ryder7223</a>
   </footer>
   {% elif searched %}
