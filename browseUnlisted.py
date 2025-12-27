@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sqlite3
 from flask import Flask, request, render_template_string, send_file, abort, jsonify, Response
 from io import BytesIO
@@ -133,6 +134,14 @@ def convertTime(timeText):
         suffix = " PM"
 
     return f"{hour}:{minute}:{second}{suffix}"
+
+def getRaspberryPiTemperature():
+    result = subprocess.run(
+        ["vcgencmd", "measure_temp"],
+        capture_output=True,
+        text=True
+    )
+    return str(result.stdout.split("=")[1])
 
 def find_level_file(levelId):
     """Find a file like '{ID} - name.txt' in SAVE_DIR recursively.
@@ -755,7 +764,8 @@ def download(level_id):
     print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] IP {getClientIp()} downloaded level {level_id}")
     file_path = find_level_file(str(level_id))
     if not file_path:
-        abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
+        #abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
+        abort(404, description="Level file not found\n\nOlder levels are archived seperately and are thus harder to serve, contact me for specific requests.")
 
     filename = os.path.splitext(os.path.basename(file_path))[0]  # remove extension
     if " - " in filename:
@@ -922,6 +932,11 @@ def getDailySong():
 def getWeeklySong():
     songID = getDailySongID(1)
     return downloadSong(songID)
+
+@app.route("/howHotIsMaServer")
+def getTheTemp():
+    temp = getRaspberryPiTemperature()
+    return temp
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
