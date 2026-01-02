@@ -9,6 +9,9 @@ import requests
 import base64, zlib, os
 import time
 import logging
+from functools import wraps
+from flask import request, Response
+import base64
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -18,6 +21,46 @@ DB_FILE = "levels.db"
 SAVE_DIR = "./save"
 MUSIC_LIB_URL = "https://geometrydashfiles.b-cdn.net/music/musiclibrary_02.dat"
 MUSIC_LIB_FILE = "musiclibrary.dat"
+
+AUTH_USERS = {
+    "Username": "Password"
+}
+
+def checkAuth(authHeader):
+    if not authHeader:
+        return False
+
+    try:
+        scheme, encoded = authHeader.split(" ", 1)
+        if scheme.lower() != "basic":
+            return False
+
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        username, password = decoded.split(":", 1)
+
+        storedPassword = AUTH_USERS.get(username)
+        if storedPassword is None:
+            return False
+
+        return storedPassword == password
+    except Exception:
+        return False
+
+def authenticate():
+    return Response(
+        "Authentication required",
+        401,
+        {"WWW-Authenticate": 'Basic realm="Protected"'}
+    )
+
+def requireAuth(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        authHeader = request.headers.get("Authorization")
+        if not checkAuth(authHeader):
+            return authenticate()
+        return func(*args, **kwargs)
+    return wrapper
 
 # --- GMD Conversion Logic ---
 k_tag_map = [
@@ -39,7 +82,7 @@ k_tag_map = [
     ("k48", "45"),
 ]
 
-def parse_level_data(data):
+def parseLevelData(data):
     pairs = {}
     parts = data.strip().split(":")
     i = 0
@@ -50,7 +93,7 @@ def parse_level_data(data):
         i += 2
     return pairs
 
-def make_gmd(level_id, pairs):
+def makeGmd(level_id, pairs):
     xml = ['<?xml version="1.0"?><plist version="1.0" gjver="2.0"><dict>']
     for ktag, rawkey, *staticval in k_tag_map:
         if rawkey == "static":
@@ -143,7 +186,12 @@ def getRaspberryPiTemperature():
     )
     return str(result.stdout.split("=")[1])
 
-def find_level_file(levelId):
+def fetchPublicIp():
+    response = requests.get("https://api.ipify.org", timeout=5)
+    response.raise_for_status()
+    return response.text
+
+def findLevelFile(levelId):
     """Find a file like '{ID} - name.txt' in SAVE_DIR recursively.
     If not found, check I:\\Personal\\Games\\Geometry Dash\\Other\\ServerRip if accessible.
     """
@@ -160,7 +208,7 @@ def find_level_file(levelId):
         return result
 
     # If not found, try the alternative path if accessible
-    altPath = r"I:\Personal\Games\Geometry Dash\Other\ServerRip"
+    altPath = "/media/ryder7223/New Volume/Personal/Games/Geometry Dash/Other/ServerRip"
     if os.path.exists(altPath) and os.access(altPath, os.R_OK):
         result = searchDirectory(altPath)
         if result:
@@ -168,7 +216,7 @@ def find_level_file(levelId):
 
     return None
 
-def format_size(size_str):
+def formatSize(size_str):
     """Convert '11601 B' to readable B/KB/MB."""
     if not size_str:
         return ""
@@ -183,28 +231,28 @@ def format_size(size_str):
     except Exception:
         return size_str
 
-def parse_size_to_int(size_str):
+def parseSizeToInt(size_str):
     """Convert size like '11601 B' to integer bytes for filtering."""
     try:
         return int(size_str.split()[0])
     except:
         return 0
 
-def download_musiclibrary(file_name=MUSIC_LIB_FILE):
+def downloadMusiclibrary(file_name=MUSIC_LIB_FILE):
     if not os.path.exists(file_name):
         r = requests.get(MUSIC_LIB_URL)
         r.raise_for_status()
         with open(file_name, "wb") as f:
             f.write(r.content)
 
-def decode_and_inflate(file_name):
+def decodeAndInflate(file_name):
     with open(file_name, "rb") as f:
         encoded = f.read()
     decoded = base64.urlsafe_b64decode(encoded)
     inflated = zlib.decompress(decoded)
     return inflated.decode("utf-8")
 
-def parse_music_library(content):
+def parseMusicLibrary(content):
     version, artists_str, songs_str, tags_str = content.split("|", 3)
     songs = {}
     for entry in songs_str.split(";"):
@@ -219,9 +267,9 @@ def parse_music_library(content):
         songs[song_id] = song_name
     return songs
 
-download_musiclibrary()
-_music_content = decode_and_inflate(MUSIC_LIB_FILE)
-MUSIC_LIBRARY = parse_music_library(_music_content)
+downloadMusiclibrary()
+_music_content = decodeAndInflate(MUSIC_LIB_FILE)
+MUSIC_LIBRARY = parseMusicLibrary(_music_content)
 
 # --- Flask App ---
 app = Flask(__name__)
@@ -515,9 +563,9 @@ HTML = """
 
     <p>Page {{page}} of {{total_pages}}</p>
   </div>
+  <!-- -->
   <footer style="margin-top:3em; padding:1em; text-align:center; color:#555; font-size:0.9em;">
     Contact: <a href="https://discord.com/users/965846070229884938" style="color:#007bff; text-decoration:none;">Ryder7223</a>
-  </footer>
   {% elif searched %}
     <p>No results found.</p>
   {% endif %}
@@ -673,7 +721,7 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
 
     results = [(
         row[0], row[1], row[2], row[3], row[4],
-        format_size(row[5]),  # Size formatted
+        formatSize(row[5]),  # Size formatted
         row[6],  # songID
         row[7],  # OriginalID
         row[8],  # rCoins
@@ -691,6 +739,7 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
     return results, total_count
 
 @app.route("/")
+@requireAuth
 def index():
     print(f"\nIP: {getClientIp()}")
     info = collectRequestAnalytics()
@@ -759,13 +808,14 @@ def index():
     )
 
 @app.route("/download/<int:level_id>")
+@requireAuth
 def download(level_id):
     info = collectRequestAnalytics()
     print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] IP {getClientIp()} downloaded level {level_id}")
-    file_path = find_level_file(str(level_id))
+    file_path = findLevelFile(str(level_id))
     if not file_path:
-        #abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
-        abort(404, description="Level file not found\n\nOlder levels are archived seperately and are thus harder to serve, contact me for specific requests.")
+        abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
+        #abort(404, description="Level file not found\n\nOlder levels are archived seperately and are thus harder to serve, contact me for specific requests.")
 
     filename = os.path.splitext(os.path.basename(file_path))[0]  # remove extension
     if " - " in filename:
@@ -777,8 +827,8 @@ def download(level_id):
 
     with open(file_path, "r", encoding="utf-8") as f:
         data = f.read()
-    pairs = parse_level_data(data)
-    xml_content = make_gmd(level_id, pairs)
+    pairs = parseLevelData(data)
+    xml_content = makeGmd(level_id, pairs)
 
     buf = BytesIO(xml_content.encode("utf-8"))
     buf.seek(0)
@@ -789,9 +839,8 @@ def download(level_id):
         mimetype="application/octet-stream"
     )
 
-
-
 @app.route("/downloadSong/<int:songID>")
+@requireAuth
 def downloadSong(songID):
     info = collectRequestAnalytics()
     print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] IP {getClientIp()} requested song {songID}")
@@ -847,6 +896,7 @@ def downloadSong(songID):
         return Response(f"Error downloading song: {e}", status=500)
 
 @app.route("/playID/<int:levelID>")
+@requireAuth
 def playID(levelID):
     try:
         url = "http://www.boomlings.com/database/getGJLevels21.php"
@@ -924,19 +974,28 @@ def getDailySongID(weekly):
     return int(songID)
 
 @app.route("/currentDailySong")
+@requireAuth
 def getDailySong():
     songID = getDailySongID(0)
     return downloadSong(songID)
 
 @app.route("/currentWeeklySong")
+@requireAuth
 def getWeeklySong():
     songID = getDailySongID(1)
     return downloadSong(songID)
 
 @app.route("/howHotIsMaServer")
+@requireAuth
 def getTheTemp():
     temp = getRaspberryPiTemperature()
     return temp
+
+@app.route("/IP")
+@requireAuth
+def getIP():
+    publicIp = fetchPublicIp()
+    return publicIp
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
