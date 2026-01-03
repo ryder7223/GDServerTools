@@ -12,6 +12,11 @@ import logging
 from functools import wraps
 from flask import request, Response
 import base64
+import json
+from threading import Lock
+
+downloadLogPath = "downloadLogs.json"
+downloadLogLock = Lock()
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
@@ -26,13 +31,126 @@ AUTH_USERS = {
     "Username": "Password"
 }
 
+def getUsername():
+    authHeader = request.headers.get("Authorization")
+    scheme, encoded = authHeader.split(" ", 1)
+    decoded = base64.b64decode(encoded).decode("utf-8")
+    username, password = decoded.split(":", 1)
+    return username
+
+def logLevelDownload(levelId, username=None):
+    logEntry = {
+        "timestamp": getFormattedTimestamp(),
+        "event": "level_download",
+        "levelId": levelId,
+        "username": username,
+        "clientIp": getClientIp(),
+        "userAgent": request.user_agent.string,
+        "path": request.path
+    }
+
+    with downloadLogLock:
+        with open(downloadLogPath, "a", encoding="utf-8") as f:
+            f.write(json.dumps(logEntry, ensure_ascii=False) + "\n")
+
+def collectRequestAnalytics():
+    requestStart = time.time()
+    requestTimestamp = getFormattedTimestamp(requestStart)
+
+    clientIp = request.headers.get("X-Forwarded-For", request.remote_addr)
+    userAgent = request.user_agent
+
+    data = []
+
+    # Timestamp
+    data.append(f"{requestTimestamp}")
+
+    # Client metadata
+    data.append(f"clientIp: {clientIp}")
+    data.append(f"userAgentString: {userAgent.string}")
+    data.append(f"userAgentPlatform: {userAgent.platform}")
+    data.append(f"userAgentBrowser: {userAgent.browser}")
+    data.append(f"userAgentVersion: {userAgent.version}")
+    data.append(f"acceptLanguages: {request.accept_languages}")
+    data.append(f"acceptCharsets: {request.accept_charsets}")
+    data.append(f"acceptEncodings: {request.accept_encodings}")
+    data.append(f"referrer: {request.referrer}")
+
+    # Request details
+    data.append(f"method: {request.method}")
+    data.append(f"path: {request.path}")
+    data.append(f"fullPath: {request.full_path}")
+    data.append(f"url: {request.url}")
+    data.append(f"{request.query_string.decode(errors='ignore')}")
+    data.append(f"contentLength: {request.content_length}")
+    data.append(f"mimeType: {request.mimetype}")
+
+    # Headers
+    for key, value in request.headers.items():
+        data.append(f"header_{key}: {value}")
+
+    # Server context
+    data.append(f"processId: {os.getpid()}")
+
+    # Timing
+    requestEnd = time.time()
+    elapsedMs = (requestEnd - requestStart) * 1000
+    data.append(f"processingDurationMs: {elapsedMs:.3f}")
+
+    return data
+
+def convertTime(timeText):
+    parts = timeText.split(":")
+    hour = int(parts[0])
+    minute = parts[1]
+    second = parts[2]
+
+    if hour == 0:
+        hour = 12
+        suffix = " AM"
+    elif hour < 12:
+        suffix = " AM"
+    elif hour == 12:
+        suffix = " PM"
+    else:
+        hour = hour % 12
+        suffix = " PM"
+
+    return f"{hour}:{minute}:{second}{suffix}"
+
+def getFormattedTimestamp(epochTime=None):
+    if epochTime is None:
+        epochTime = time.time()
+
+    localTime = time.localtime(epochTime)
+
+    datePart = time.strftime("%Y-%m-%d", localTime)
+    time24 = time.strftime("%H:%M:%S", localTime)
+    time12 = convertTime(time24)
+
+    return f"{datePart} {time12}"
+
+def getClientIp():
+    if request.headers.get("X-Forwarded-For"):
+        # Handles proxies/load balancers
+        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
+    return request.remote_addr
+
+def logAuthEvent(event, username=None):
+    clientIp = getClientIp()
+    timestamp = getFormattedTimestamp()
+    print(f"\n[{timestamp}] AUTH {event} | user={username} | ip={clientIp}")
+
+
 def checkAuth(authHeader):
     if not authHeader:
+        logAuthEvent("missing_auth_header")
         return False
 
     try:
         scheme, encoded = authHeader.split(" ", 1)
         if scheme.lower() != "basic":
+            logAuthEvent("invalid_scheme")
             return False
 
         decoded = base64.b64decode(encoded).decode("utf-8")
@@ -40,10 +158,19 @@ def checkAuth(authHeader):
 
         storedPassword = AUTH_USERS.get(username)
         if storedPassword is None:
+            logAuthEvent("unknown_user", username)
             return False
 
-        return storedPassword == password
-    except Exception:
+        if storedPassword != password:
+            logAuthEvent("bad_password", username)
+            return False
+
+        # THIS is the successful "login"
+        logAuthEvent("success", username)
+        return True
+
+    except Exception as e:
+        logAuthEvent(f"auth_exception:{e}")
         return False
 
 def authenticate():
@@ -106,77 +233,6 @@ def makeGmd(level_id, pairs):
         xml.append(f'<k>{ktag}</k><{tagtype}>{v}</{tagtype}>')
     xml.append('</dict></plist>')
     return ''.join(xml)
-
-def getClientIp():
-    if request.headers.get("X-Forwarded-For"):
-        # Handles proxies/load balancers
-        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
-    return request.remote_addr
-
-def collectRequestAnalytics():
-    requestStart = time.time()
-    requestTimestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(requestStart))
-
-    clientIp = request.headers.get("X-Forwarded-For", request.remote_addr)
-    userAgent = request.user_agent
-
-    data = []
-
-    # Timestamp
-    data.append(f"{requestTimestamp}")
-
-    # Client metadata
-    data.append(f"clientIp: {clientIp}")
-    data.append(f"userAgentString: {userAgent.string}")
-    data.append(f"userAgentPlatform: {userAgent.platform}")
-    data.append(f"userAgentBrowser: {userAgent.browser}")
-    data.append(f"userAgentVersion: {userAgent.version}")
-    data.append(f"acceptLanguages: {request.accept_languages}")
-    data.append(f"acceptCharsets: {request.accept_charsets}")
-    data.append(f"acceptEncodings: {request.accept_encodings}")
-    data.append(f"referrer: {request.referrer}")
-
-    # Request details
-    data.append(f"method: {request.method}")
-    data.append(f"path: {request.path}")
-    data.append(f"fullPath: {request.full_path}")
-    data.append(f"url: {request.url}")
-    data.append(f"{request.query_string.decode(errors='ignore')}")
-    data.append(f"contentLength: {request.content_length}")
-    data.append(f"mimeType: {request.mimetype}")
-
-    # Headers
-    for key, value in request.headers.items():
-        data.append(f"header_{key}: {value}")
-
-    # Server context
-    data.append(f"processId: {os.getpid()}")
-
-    # Timing
-    requestEnd = time.time()
-    elapsedMs = (requestEnd - requestStart) * 1000
-    data.append(f"processingDurationMs: {elapsedMs:.3f}")
-
-    return data
-
-def convertTime(timeText):
-    parts = timeText.split(":")
-    hour = int(parts[0])
-    minute = parts[1]
-    second = parts[2]
-
-    if hour == 0:
-        hour = 12
-        suffix = " AM"
-    elif hour < 12:
-        suffix = " AM"
-    elif hour == 12:
-        suffix = " PM"
-    else:
-        hour = hour % 12
-        suffix = " PM"
-
-    return f"{hour}:{minute}:{second}{suffix}"
 
 def getRaspberryPiTemperature():
     result = subprocess.run(
@@ -741,9 +797,8 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
 @app.route("/")
 @requireAuth
 def index():
-    print(f"\nIP: {getClientIp()}")
     info = collectRequestAnalytics()
-    print(f"[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {info[14]}")
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {info[14]}")
     level_id = request.args.get("level_id", "")
     name = request.args.get("name", "")
     username = request.args.get("username", "")
@@ -811,7 +866,9 @@ def index():
 @requireAuth
 def download(level_id):
     info = collectRequestAnalytics()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] IP {getClientIp()} downloaded level {level_id}")
+    username = getUsername()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} downloaded level {level_id}")
+    logLevelDownload(level_id, username)
     file_path = findLevelFile(str(level_id))
     if not file_path:
         abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
@@ -843,7 +900,8 @@ def download(level_id):
 @requireAuth
 def downloadSong(songID):
     info = collectRequestAnalytics()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] IP {getClientIp()} requested song {songID}")
+    username = getUsername()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested song {songID}")
     try:
         if songID >= 10000000:
             # Direct CDN OGG file
@@ -898,6 +956,9 @@ def downloadSong(songID):
 @app.route("/playID/<int:levelID>")
 @requireAuth
 def playID(levelID):
+    info = collectRequestAnalytics()
+    username = getUsername()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested song for level {levelID}")
     try:
         url = "http://www.boomlings.com/database/getGJLevels21.php"
 
@@ -976,23 +1037,31 @@ def getDailySongID(weekly):
 @app.route("/currentDailySong")
 @requireAuth
 def getDailySong():
+    info = collectRequestAnalytics()
+    username = getUsername()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested Daily")
     songID = getDailySongID(0)
     return downloadSong(songID)
 
 @app.route("/currentWeeklySong")
 @requireAuth
 def getWeeklySong():
+    info = collectRequestAnalytics()
+    username = getUsername()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested Weekly")
     songID = getDailySongID(1)
     return downloadSong(songID)
 
 @app.route("/howHotIsMaServer")
 @requireAuth
 def getTheTemp():
+    info = collectRequestAnalytics()
+    username = getUsername()
+    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested server temperature")
     temp = getRaspberryPiTemperature()
     return temp
 
 @app.route("/IP")
-@requireAuth
 def getIP():
     publicIp = fetchPublicIp()
     return publicIp
