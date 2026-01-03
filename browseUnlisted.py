@@ -798,7 +798,7 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
 @requireAuth
 def index():
     info = collectRequestAnalytics()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {info[14]}")
+    print(f"\n[{getFormattedTimestamp()}] {info[14]}")
     level_id = request.args.get("level_id", "")
     name = request.args.get("name", "")
     username = request.args.get("username", "")
@@ -867,7 +867,7 @@ def index():
 def download(level_id):
     info = collectRequestAnalytics()
     username = getUsername()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} downloaded level {level_id}")
+    print(f"\n[{getFormattedTimestamp()}] {username} downloaded level {level_id}")
     logLevelDownload(level_id, username)
     file_path = findLevelFile(str(level_id))
     if not file_path:
@@ -901,7 +901,7 @@ def download(level_id):
 def downloadSong(songID):
     info = collectRequestAnalytics()
     username = getUsername()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested song {songID}")
+    print(f"\n[{getFormattedTimestamp()}] {username} requested song {songID}")
     try:
         if songID >= 10000000:
             # Direct CDN OGG file
@@ -958,7 +958,7 @@ def downloadSong(songID):
 def playID(levelID):
     info = collectRequestAnalytics()
     username = getUsername()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested song for level {levelID}")
+    print(f"\n[{getFormattedTimestamp()}] {username} requested song for level {levelID}")
     try:
         url = "http://www.boomlings.com/database/getGJLevels21.php"
 
@@ -1039,7 +1039,7 @@ def getDailySongID(weekly):
 def getDailySong():
     info = collectRequestAnalytics()
     username = getUsername()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested Daily")
+    print(f"\n[{getFormattedTimestamp()}] {username} requested Daily")
     songID = getDailySongID(0)
     return downloadSong(songID)
 
@@ -1048,7 +1048,7 @@ def getDailySong():
 def getWeeklySong():
     info = collectRequestAnalytics()
     username = getUsername()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested Weekly")
+    print(f"\n[{getFormattedTimestamp()}] {username} requested Weekly")
     songID = getDailySongID(1)
     return downloadSong(songID)
 
@@ -1057,7 +1057,7 @@ def getWeeklySong():
 def getTheTemp():
     info = collectRequestAnalytics()
     username = getUsername()
-    print(f"\n[{info[0].split(" ")[0] + " " + convertTime(info[0].split(" ")[1])}] {username} requested server temperature")
+    print(f"\n[{getFormattedTimestamp()}] {username} requested server temperature")
     temp = getRaspberryPiTemperature()
     return temp
 
