@@ -33,6 +33,8 @@ AUTH_USERS = {
 
 def getUsername():
     authHeader = request.headers.get("Authorization")
+    if authHeader is None:
+        return "None"
     scheme, encoded = authHeader.split(" ", 1)
     decoded = base64.b64decode(encoded).decode("utf-8")
     username, password = decoded.split(":", 1)
@@ -220,7 +222,7 @@ def parseLevelData(data):
         i += 2
     return pairs
 
-def makeGmd(level_id, pairs):
+def makeGmd(level_id, pairs, username):
     xml = ['<?xml version="1.0"?><plist version="1.0" gjver="2.0"><dict>']
     for ktag, rawkey, *staticval in k_tag_map:
         if rawkey == "static":
@@ -231,6 +233,9 @@ def makeGmd(level_id, pairs):
             continue
         tagtype = "s" if ktag in ("k2", "k4", "k3") else "i"
         xml.append(f'<k>{ktag}</k><{tagtype}>{v}</{tagtype}>')
+    if username:
+        encodedUsername = base64.b64encode(username.encode("utf-8")).decode("ascii")
+        xml.append(f"<k>k9988</k><s>{encodedUsername}</s>")
     xml.append('</dict></plist>')
     return ''.join(xml)
 
@@ -885,7 +890,7 @@ def download(level_id):
     with open(file_path, "r", encoding="utf-8") as f:
         data = f.read()
     pairs = parseLevelData(data)
-    xml_content = makeGmd(level_id, pairs)
+    xml_content = makeGmd(level_id, pairs, username)
 
     buf = BytesIO(xml_content.encode("utf-8"))
     buf.seek(0)
@@ -897,7 +902,6 @@ def download(level_id):
     )
 
 @app.route("/downloadSong/<int:songID>")
-@requireAuth
 def downloadSong(songID):
     info = collectRequestAnalytics()
     username = getUsername()
@@ -954,7 +958,6 @@ def downloadSong(songID):
         return Response(f"Error downloading song: {e}", status=500)
 
 @app.route("/playID/<int:levelID>")
-@requireAuth
 def playID(levelID):
     info = collectRequestAnalytics()
     username = getUsername()
@@ -1035,7 +1038,6 @@ def getDailySongID(weekly):
     return int(songID)
 
 @app.route("/currentDailySong")
-@requireAuth
 def getDailySong():
     info = collectRequestAnalytics()
     username = getUsername()
@@ -1044,7 +1046,6 @@ def getDailySong():
     return downloadSong(songID)
 
 @app.route("/currentWeeklySong")
-@requireAuth
 def getWeeklySong():
     info = collectRequestAnalytics()
     username = getUsername()
