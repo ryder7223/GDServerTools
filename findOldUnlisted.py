@@ -321,12 +321,10 @@ create_database()
 
 while True:
     found_ids = []
-    used_pages = set()
-
-    currentStartId = targetStartId
 
     for _ in range(Tries):
-        endId = currentStartId
+        endId = targetStartId
+
         startId = max(1, endId - windowSize)
     
         requestIds = [str(i) for i in range(startId, endId)]
@@ -345,7 +343,7 @@ while True:
     
         response = safe_post(url, data, headers)
         if not response:
-            currentStartId = startId
+            targetStartId = startId
             continue
     
         result = response.text
@@ -444,6 +442,7 @@ while True:
                         update_csv(username, creatorPoints, missing_id)
                         insert_level(missing_id, username, creatorPoints, fields)
                         print(Fore.GREEN + f"Added {missing_id} ({title}) to database and CSV.\n")
-        currentStartId = startId
+        targetStartId = startId - 1
+
 
     sleep(3)
