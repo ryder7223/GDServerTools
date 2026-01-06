@@ -10,7 +10,7 @@
 How does this work?
 
 This program finds unlisted ids by:
-1. Loading a recent tab page.
+1. Requesting a 100 ID list for listed levels.
 2. Checking which ids are returned.
 3. Looking for gaps between adjacent ids.
    These gaps are caused by levels being
@@ -19,6 +19,7 @@ This program finds unlisted ids by:
 5. It will then check if the creator of each level
    has creator points so that it's easier
    to find interesting levels.
+5. It then repeats with the 100 earlier ids.
 6. All levels and logs are saved, so
    even if someone deletes their level, you'll
    have a copy.
