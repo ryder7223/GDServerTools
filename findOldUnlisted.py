@@ -316,7 +316,7 @@ def update_creator_points(username, new_cp):
 
 # --- Main Scraper ---
 Tries = 1
-waitTime = 1.3
+waitTime = 3
 create_database()
 
 while True:
@@ -446,4 +446,5 @@ while True:
 
 
     sleep(3)
+
 
