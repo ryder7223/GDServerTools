@@ -96,7 +96,7 @@ LOGS_DIR = "./logs"
 SAVE_DIR = "./save"
 CSV_FILE = os.path.join(LOGS_DIR, "unlistedLevelsCreator.csv")
 DB_FILE = "levels.db"
-targetStartId = 123306097
+targetStartId = 123306096
 windowSize = 100
 
 # --- Helpers for parsing level data ---
@@ -446,3 +446,4 @@ while True:
 
 
     sleep(3)
+
