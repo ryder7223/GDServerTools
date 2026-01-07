@@ -26,10 +26,48 @@ DB_FILE = "levels.db"
 SAVE_DIR = "./save"
 MUSIC_LIB_URL = "https://geometrydashfiles.b-cdn.net/music/musiclibrary_02.dat"
 MUSIC_LIB_FILE = "musiclibrary.dat"
+REMOTE_SEARCH_URLS = [
+    "http://129.146.187.13:5000/api/search"
+]
+
+def getRemoteBaseUrl():
+    if REMOTE_SEARCH_URLS:
+        base_url = REMOTE_SEARCH_URLS[0].replace("/api/search", "")
+        return base_url
+    return None
 
 AUTH_USERS = {
     "Username": "Password"
 }
+
+def searchRemoteDatabases(queryArgs, auth_header=None, client_ip=None, user_agent=None):
+    combinedResults = []
+    totalCount = 0
+
+    # Forward authentication and client information headers
+    headers = {}
+    if auth_header:
+        headers["Authorization"] = auth_header
+    
+    # Forward original client IP
+    if client_ip:
+        headers["X-Forwarded-For"] = client_ip
+    
+    # Forward User-Agent
+    if user_agent:
+        headers["User-Agent"] = user_agent
+
+    for url in REMOTE_SEARCH_URLS:
+        try:
+            r = requests.get(url, params=queryArgs, headers=headers, timeout=3)
+            r.raise_for_status()
+            data = r.json()
+            combinedResults.extend(data["results"])
+            totalCount += data["total"]
+        except Exception:
+            pass
+
+    return combinedResults, totalCount
 
 def getUsername():
     authHeader = request.headers.get("Authorization")
@@ -836,7 +874,7 @@ def index():
     page_size = int(request.args.get("page_size") or 10)
     page = int(request.args.get("page", 1))
 
-    results, total_count = search_levels(
+    localResults, localCount = search_levels(
         level_id, name, username, description, song_id,
         min_cp, max_cp, min_size, max_size,
         search_mode, case_sensitive, sort_by,
@@ -845,6 +883,32 @@ def index():
         min_editor_time, max_editor_time, editor_ctime,
         requested_rating, two_player, min_object_count, max_object_count, player_id
     )
+    # Forward authentication header and client information to remote search
+    auth_header = request.headers.get("Authorization")
+    client_ip = getClientIp()
+    user_agent = request.headers.get("User-Agent")
+    remoteResults, remoteCount = searchRemoteDatabases(
+        request.args, 
+        auth_header=auth_header,
+        client_ip=client_ip,
+        user_agent=user_agent
+    )
+
+    results = localResults + remoteResults
+    total_count = localCount + remoteCount
+    reverse = (sort_order == "desc")
+
+    if sort_by == "ID":
+        results.sort(key=lambda r: r[0], reverse=reverse)
+    elif sort_by == "CreatorPoints":
+        results.sort(key=lambda r: r[3], reverse=reverse)
+    elif sort_by == "Size":
+        results.sort(key=lambda r: parseSizeToInt(r[5]), reverse=reverse)
+
+    # Paginate after merging local and remote results
+    start = (page - 1) * page_size
+    end = start + page_size
+    results = results[start:end]
 
     total_pages = max(1, math.ceil(total_count / page_size))
 
@@ -876,7 +940,44 @@ def download(level_id):
     logLevelDownload(level_id, username)
     file_path = findLevelFile(str(level_id))
     if not file_path:
-        abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
+        # Try remote download from old level index
+        remote_base_url = getRemoteBaseUrl()
+        if remote_base_url:
+            try:
+                remote_url = f"{remote_base_url}/download/{level_id}"
+                auth_header = request.headers.get("Authorization")
+                client_ip = getClientIp()
+                user_agent = request.headers.get("User-Agent")
+                
+                headers = {}
+                if auth_header:
+                    headers["Authorization"] = auth_header
+                if client_ip:
+                    headers["X-Forwarded-For"] = client_ip
+                if user_agent:
+                    headers["User-Agent"] = user_agent
+                
+                r = requests.get(remote_url, headers=headers, timeout=10, stream=True)
+                r.raise_for_status()
+                
+                # Forward the remote response
+                def generate():
+                    for chunk in r.iter_content(chunk_size=4096):
+                        if chunk:
+                            yield chunk
+                
+                return Response(
+                    generate(),
+                    mimetype=r.headers.get("Content-Type", "application/octet-stream"),
+                    headers={
+                        "Content-Disposition": r.headers.get("Content-Disposition", f"attachment; filename={level_id}.gmd")
+                    }
+                )
+            except requests.exceptions.RequestException as e:
+                # If remote download fails, return 404
+                abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
+        else:
+            abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
         #abort(404, description="Level file not found\n\nOlder levels are archived seperately and are thus harder to serve, contact me for specific requests.")
 
     filename = os.path.splitext(os.path.basename(file_path))[0]  # remove extension
@@ -1066,6 +1167,24 @@ def getTheTemp():
 def getIP():
     publicIp = fetchPublicIp()
     return publicIp
+
+@app.route("/api/auth/verify", methods=["POST"])
+def verifyAuth():
+    """Centralized authentication verification endpoint.
+    This allows remote servers to verify credentials without storing them locally.
+    """
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return jsonify({"valid": False, "error": "Missing Authorization header"}), 401
+    
+    # Verify the credentials using the local checkAuth function
+    is_valid = checkAuth(auth_header)
+    
+    if is_valid:
+        username = getUsername()
+        return jsonify({"valid": True, "username": username})
+    else:
+        return jsonify({"valid": False, "error": "Invalid credentials"}), 401
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
