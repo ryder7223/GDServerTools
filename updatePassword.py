@@ -19,7 +19,7 @@ Then to run the program, open a terminal in the folder of the script, and run th
 Windows: py -3.12 updatePassword.py
 macOS: python3.12 updatePassword.py
 
-The mac option will work for ios, you just need access to the folder cobtaining the save file.
+The mac option will work for ios, you just need access to the folder containing the save file.
 """
 
 
@@ -189,3 +189,4 @@ if __name__ == "__main__":
     except:
 
         input("\nEnter to exit...")
+
