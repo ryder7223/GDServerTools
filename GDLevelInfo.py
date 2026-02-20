@@ -4002,292 +4002,300 @@ IDnames = """
 # Parse IDnames into a dictionary for fast lookup
 IDname_dict = {}
 for line in IDnames.strip().split('\n'):
-    if ',' in line:
-        id_, name = line.split(',', 1)
-        IDname_dict[id_.strip()] = name.strip()
+	if ',' in line:
+		id_, name = line.split(',', 1)
+		IDname_dict[id_.strip()] = name.strip()
 # Password extraction logic from getPassword.py
 def extract_password(raw_data):
-    start_index = raw_data.find(':27:') + len(':27:')
-    end_index = raw_data.find('#', start_index)
-    if start_index == -1 or end_index == -1:
-        return '(none)'
-    encoded_data = raw_data[start_index:end_index]
-    if encoded_data == '0' or encoded_data == 'Aw==' or not encoded_data:
-        return '(none)'
-    try:
-        # If it's a number, just return it
-        if encoded_data.isdigit():
-            return encoded_data
-        # Otherwise, decode with xor
-        decoded_bytes = base64.b64decode(encoded_data)
-        key = '26364'
-        key_len = len(key)
-        key_bytes = key.encode()
-        decrypted_bytes = bytearray(len(decoded_bytes))
-        for i in range(len(decoded_bytes)):
-            decrypted_bytes[i] = decoded_bytes[i] ^ key_bytes[i % key_len]
-        decrypted_str = decrypted_bytes.decode(errors='ignore')[1:].lstrip('0')
-        return decrypted_str if decrypted_str else '(free copy)'
-    except Exception:
-        return '(error)'
+	start_index = raw_data.find(':27:') + len(':27:')
+	end_index = raw_data.find('#', start_index)
+	if start_index == -1 or end_index == -1:
+		return '(none)'
+	encoded_data = raw_data[start_index:end_index]
+	if encoded_data == '0' or encoded_data == 'Aw==' or not encoded_data:
+		return '(none)'
+	try:
+		# If it's a number, just return it
+		if encoded_data.isdigit():
+			return encoded_data
+		# Otherwise, decode with xor
+		decoded_bytes = base64.b64decode(encoded_data)
+		key = '26364'
+		key_len = len(key)
+		key_bytes = key.encode()
+		decrypted_bytes = bytearray(len(decoded_bytes))
+		for i in range(len(decoded_bytes)):
+			decrypted_bytes[i] = decoded_bytes[i] ^ key_bytes[i % key_len]
+		decrypted_str = decrypted_bytes.decode(errors='ignore')[1:].lstrip('0')
+		return decrypted_str if decrypted_str else '(free copy)'
+	except Exception:
+		return '(error)'
 
 def format_bytes(size):
-    try:
-        size = int(size)
-    except Exception:
-        return 'NA'
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size < 1024:
-            return f"{size:.1f} {unit}"
-        size /= 1024
-    return f"{size:.1f} PB"
+	try:
+		size = int(size)
+	except Exception:
+		return 'NA'
+	for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+		if size < 1024:
+			return f"{size:.1f} {unit}"
+		size /= 1024
+	return f"{size:.1f} PB"
 
 def seconds_to_hms(seconds):
-    try:
-        seconds = int(seconds)
-    except Exception:
-        return 'NA'
-    h = seconds // 3600
-    m = (seconds % 3600) // 60
-    s = seconds % 60
-    return f"{h}h {m}m {s}s"
+	try:
+		seconds = int(seconds)
+	except Exception:
+		return 'NA'
+	h = seconds // 3600
+	m = (seconds % 3600) // 60
+	s = seconds % 60
+	return f"{h}h {m}m {s}s"
 
 def parse_level_metadata(raw_data):
-    # Split by colons, build dict
-    parts = raw_data.split(':')
-    meta = {}
-    i = 0
-    while i < len(parts) - 1:
-        key = parts[i]
-        value = parts[i+1]
-        meta[key] = value
-        i += 2
-    return meta
+	# Split by colons, build dict
+	parts = raw_data.split(':')
+	meta = {}
+	i = 0
+	while i < len(parts) - 1:
+		key = parts[i]
+		value = parts[i+1]
+		meta[key] = value
+		i += 2
+	return meta
 
 def get_level_info(meta, raw_data, decoded, object_string, counts, coin_count):
-    # Extract and format all requested fields
-    info = {}
-    info['Level Name'] = meta.get('2', 'NA')
-    # Level ID
-    info['Level ID'] = meta.get('1', 'NA')
-    info['Original ID'] = meta.get('30', 'NA')
-    desc_b64 = meta.get('3', '')
-    try:
-        info['Description'] = base64.urlsafe_b64decode(desc_b64.encode()).decode(errors='replace')
-    except Exception:
-        info['Description'] = desc_b64 or 'NA'
-    info['Coins (Real)'] = coin_count
-    info['Coins (Server)'] = meta.get('37', 'NA')
-    # Likes/Dislikes logic
-    likes = int(meta.get('14', '0')) if meta.get('14', '').lstrip('-').isdigit() else 0
-    dislikes = int(meta.get('16', '0')) if meta.get('16', '').lstrip('-').isdigit() else 0
-    if likes == 0 and dislikes == 0:
-        info['Likes'] = '0'
-    elif likes > dislikes:
-        info['Likes'] = str(likes - dislikes)
-    elif dislikes > likes:
-        info['Dislikes'] = str(dislikes - likes)
-    else:
-        info['Likes'] = str(likes)
-    info['Downloads'] = meta.get('10', 'NA')
-    info['Level Version'] = meta.get('5', 'NA')
-    # Length
-    length_map = {
-        '0': 'Tiny', '1': 'Short', '2': 'Medium', '3': 'Long', '4': 'XL', '5': 'Platformer'
-    }
-    info['Length'] = length_map.get(meta.get('15', ''), 'NA')
-    # Editor times
-    info['Editor Time'] = seconds_to_hms(meta.get('46', 'NA'))
-    info['Editor (C) Time'] = seconds_to_hms(meta.get('47', 'NA'))
-    # Dates: show as-is
-    info['Uploaded'] = meta.get('28', meta.get('17', 'NA'))
-    info['Updated'] = meta.get('29', meta.get('18', 'NA'))
-    # Game version: 21 = 2.1, 22 = 2.2, etc.
-    gv = meta.get('13', '')
-    if gv.isdigit():
-        if int(gv) <= 7:
-            info['Game Version'] = f"1.{int(gv)-1}"
-        elif int(gv) == 10:
-            info['Game Version'] = '1.7'
-        else:
-            info['Game Version'] = f"{int(gv)//10}.{int(gv)%10}"
-    else:
-        info['Game Version'] = 'NA'
-    info['Requested Rating'] = meta.get('39', 'NA')
-    info['songIDs'] = (
+	# Extract and format all requested fields
+	info = {}
+	info['Level Name'] = meta.get('2', 'NA')
+	# Level ID
+	info['Level ID'] = meta.get('1', 'NA')
+	info['Original ID'] = meta.get('30', 'NA')
+	desc_b64 = meta.get('3', '')
+	try:
+		info['Description'] = base64.urlsafe_b64decode(desc_b64.encode()).decode(errors='replace')
+	except Exception:
+		info['Description'] = desc_b64 or 'NA'
+	info['Coins (Real)'] = coin_count
+	info['Coins (Server)'] = meta.get('37', 'NA')
+	# Likes/Dislikes logic
+	likes = int(meta.get('14', '0')) if meta.get('14', '').lstrip('-').isdigit() else 0
+	dislikes = int(meta.get('16', '0')) if meta.get('16', '').lstrip('-').isdigit() else 0
+	if likes == 0 and dislikes == 0:
+		info['Likes'] = '0'
+	elif likes > dislikes:
+		info['Likes'] = str(likes - dislikes)
+	elif dislikes > likes:
+		info['Dislikes'] = str(dislikes - likes)
+	else:
+		info['Likes'] = str(likes)
+	info['Downloads'] = meta.get('10', 'NA')
+	info['Level Version'] = meta.get('5', 'NA')
+	# Length
+	length_map = {
+		'0': 'Tiny', '1': 'Short', '2': 'Medium', '3': 'Long', '4': 'XL', '5': 'Platformer'
+	}
+	info['Length'] = length_map.get(meta.get('15', ''), 'NA')
+	# Editor times
+	info['Editor Time'] = seconds_to_hms(meta.get('46', 'NA'))
+	info['Editor (C) Time'] = seconds_to_hms(meta.get('47', 'NA'))
+	# Dates: show as-is
+	info['Uploaded'] = meta.get('28', meta.get('17', 'NA'))
+	info['Updated'] = meta.get('29', meta.get('18', 'NA'))
+	# Game version: 21 = 2.1, 22 = 2.2, etc.
+	gv = meta.get('13', '')
+	if gv.isdigit():
+		if int(gv) <= 7:
+			info['Game Version'] = f"1.{int(gv)-1}"
+		elif int(gv) == 10:
+			info['Game Version'] = '1.7'
+		else:
+			info['Game Version'] = f"{int(gv)//10}.{int(gv)%10}"
+	else:
+		info['Game Version'] = 'NA'
+	info['Requested Rating'] = meta.get('39', 'NA')
+	info['songIDs'] = (
 	meta.get("12", "")
 	if meta.get("12", "") != "0"
 	else meta.get("52", "")
 	if meta.get("52", "")
 	else meta.get("35", "")
 	)
-    info['Two-Player'] = 'Yes' if meta.get('31', '0') == '1' else 'No'
-    # Creator
-    player_id = meta.get('6', '')
-    info['Feature Score'] = meta.get('19', 'NA')
-    # Level size: show both decoded and object string sizes
-    info['Level Size'] = f"{format_bytes(len(object_string.encode('utf-8')))}"
-    # Password
-    info['Password'] = extract_password(raw_data)
-    # Use the counted object total instead of server metadata
-    info['Object Count'] = sum(counts.values())
-    return info
+	info['Two-Player'] = 'Yes' if meta.get('31', '0') == '1' else 'No'
+	# Creator
+	player_id = meta.get('6', '')
+	info['Feature Score'] = meta.get('19', 'NA')
+	# Level size: show both decoded and object string sizes
+	info['Level Size'] = f"{format_bytes(len(object_string.encode('utf-8')))}"
+	# Password
+	info['Password'] = extract_password(raw_data)
+	# Use the counted object total instead of server metadata
+	info['Object Count'] = sum(counts.values())
+	return info
 
 def download_level(level_id):
-    data = {
-        'levelID': level_id,
-        'secret': SECRET
-    }
-    headers = {'User-Agent': ''}
-    response = requests.post(GD_LEVEL_URL, data=data, headers=headers)
-    return response.text
+	data = {
+		'levelID': level_id,
+		'secret': SECRET
+	}
+	headers = {'User-Agent': ''}
+	response = requests.post(GD_LEVEL_URL, data=data, headers=headers)
+	return response.text
+
+def fix_padding(encoded: str) -> str:
+	needed = len(encoded) % 4
+	if needed != 0:
+		encoded += '=' * (4 - needed)
+	return encoded
 
 def decode_level(level_data):
-    parts = level_data.split("#")[0].split(":")
-    parsed = {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
-    level_str = parsed.get("4", "")
-    if not level_str or level_str in ('0', 'Aw=='):
-        print('Level is not copyable or has no data.')
-        input()
-        raise ValueError('Level is not copyable or has no data.')
-    try:
-        b64_decoded = base64.urlsafe_b64decode(level_str.encode())
-        with gzip.GzipFile(fileobj=io.BytesIO(b64_decoded)) as f:
-            decompressed = f.read()
-        return decompressed.decode()
-    except Exception as e:
-        print('Error decoding level data:', e)
-        input()
-        raise
+	parts = level_data.split("#")[0].split(":")
+	parsed = {parts[i]: parts[i + 1] for i in range(0, len(parts) - 1, 2)}
+	level_str = parsed.get("4", "")
+	if not level_str or level_str in ('0', 'Aw=='):
+		print('Level is not copyable or has no data.')
+		input()
+		raise ValueError('Level is not copyable or has no data.')
+	try:
+		level_str = fix_padding(level_str)
+		with gzip.GzipFile(fileobj=io.BytesIO(base64.urlsafe_b64decode(level_str.encode()))) as f:
+			decompressed = f.read()
+		return str(decompressed)
+	except Exception as e:
+		print('Error decoding level data:', e)
+		input()
+		raise
 
 def extract_object_string(decoded_level):
-    first_semi = decoded_level.find(';')
-    if first_semi != -1 and first_semi + 1 < len(decoded_level):
-        return decoded_level[first_semi+1:]
-    print('Object string not found in decoded level.')
-    input()
-    raise ValueError('Object string not found in decoded level.')
+	first_semi = decoded_level.find(';')
+	if first_semi != -1 and first_semi + 1 < len(decoded_level):
+		return decoded_level[first_semi+1:]
+	print('Object string not found in decoded level.')
+	input()
+	raise ValueError('Object string not found in decoded level.')
 
 def count_object_ids(object_string):
-    objects = object_string.split(';')
-    object_ids = []
-    for obj in objects:
-        if not obj.strip():
-            continue
-        fields = obj.split(',')
-        for i in range(0, len(fields) - 1, 2):
-            if fields[i] == '1':
-                obj_id = fields[i+1]
-                # Linked Teleport Portals
-                if obj_id == '747':
-                    object_ids.append(obj_id)
-                    object_ids.append(obj_id)
-                # Start Position
-                elif obj_id == '31':
-                    pass
-                else:
-                    object_ids.append(obj_id)
-                break
-    return Counter(object_ids)
+	objects = object_string.split(';')
+	object_ids = []
+	for obj in objects:
+		if not obj.strip():
+			continue
+		fields = obj.split(',')
+		for i in range(0, len(fields) - 1, 2):
+			if fields[i] == '1':
+				obj_id = fields[i+1]
+				# Linked Teleport Portals
+				if obj_id == '747':
+					object_ids.append(obj_id)
+					object_ids.append(obj_id)
+				# Start Position
+				elif obj_id == '31':
+					pass
+				else:
+					object_ids.append(obj_id)
+				break
+	return Counter(object_ids)
 
 def countObjectIdsStats(object_string):
-    # For stats: count all objects as they appear, no edge cases
-    objects = object_string.split(';')
-    object_ids = []
-    for obj in objects:
-        if not obj.strip():
-            continue
-        fields = obj.split(',')
-        for i in range(0, len(fields) - 1, 2):
-            if fields[i] == '1':
-                obj_id = fields[i+1]
-                object_ids.append(obj_id)
-                break
-    return Counter(object_ids)
+	# For stats: count all objects as they appear, no edge cases
+	objects = object_string.split(';')
+	object_ids = []
+	for obj in objects:
+		if not obj.strip():
+			continue
+		fields = obj.split(',')
+		for i in range(0, len(fields) - 1, 2):
+			if fields[i] == '1':
+				obj_id = fields[i+1]
+				object_ids.append(obj_id)
+				break
+	return Counter(object_ids)
 
 def getCreatorUsername(level_id):
-    url = "http://www.boomlings.com/database/getGJLevels21.php"
-    data = {
-        "secret": SECRET,
-        "str": str(level_id),
-        "type": 0
-    }
-    headers = {"User-Agent": ""}
-    try:
-        response = requests.post(url, data=data, headers=headers, timeout=10)
-        if response.text:
-            # Find the first hashtag
-            hash_index = response.text.find('#')
-            if hash_index != -1:
-                # Get the substring after the first hashtag
-                after_hash = response.text[hash_index+1:]
-                # The username is after the first colon
-                colon_index = after_hash.find(':')
-                if colon_index != -1:
-                    # The username is between the colon and the next colon or hash
-                    next_colon = after_hash.find(':', colon_index+1)
-                    if next_colon != -1:
-                        return after_hash[colon_index+1:next_colon]
-        return 'NA'
-    except Exception:
-        return 'NA'
+	url = "http://www.boomlings.com/database/getGJLevels21.php"
+	data = {
+		"secret": SECRET,
+		"str": str(level_id),
+		"type": 0
+	}
+	headers = {"User-Agent": ""}
+	try:
+		response = requests.post(url, data=data, headers=headers, timeout=10)
+		if response.text:
+			# Find the first hashtag
+			hash_index = response.text.find('#')
+			if hash_index != -1:
+				# Get the substring after the first hashtag
+				after_hash = response.text[hash_index+1:]
+				# The username is after the first colon
+				colon_index = after_hash.find(':')
+				if colon_index != -1:
+					# The username is between the colon and the next colon or hash
+					next_colon = after_hash.find(':', colon_index+1)
+					if next_colon != -1:
+						return after_hash[colon_index+1:next_colon]
+		return 'NA'
+	except Exception:
+		return 'NA'
 
 if __name__ == '__main__':
-    level_id = input('Enter the level ID to analyze: ').strip()
-    os.system('cls')
-    raw_data = download_level(level_id)
-    meta = parse_level_metadata(raw_data)
-    decoded = decode_level(raw_data)
-    object_string = extract_object_string(decoded)
-    counts = count_object_ids(object_string)  # For internal logic with edge cases
-    counts_stats = countObjectIdsStats(object_string)  # For stats table count with no edge cases
-
-    # Count coins (object ID 1329)
-    coin_count = 0
-    objects = object_string.split(';')
-    for obj in objects:
-        if not obj.strip():
-            continue
-        fields = obj.split(',')
-        for i in range(0, len(fields) - 1, 2):
-            if fields[i] == '1' and fields[i+1] == '1329':
-                coin_count += 1
-                break
-
-    # Pass counts to get_level_info
-    info = get_level_info(meta, raw_data, decoded, object_string, counts, coin_count)
-
-    # Fetch creator username
-    creator_username = getCreatorUsername(level_id)
-
-    # Print all raw metadata key-value pairs for debugging
-    if debug:
-        print('--- RAW METADATA KEYS ---')
-        for k, v in sorted(meta.items(), key=lambda x: (int(x[0]) if x[0].isdigit() else x[0])):
-            if k == '4':
-                print(f"{k}: {v[:50]}")
-            else:
-                print(f"{k}: {v}")
-        print('--- END RAW METADATA ---\n')
-
-    # Print formatted metadata
-    print('Level Information:')
-    print(f"Creator Username: {creator_username}")
-    for k, v in info.items():
-        print(f"{k}: {v}")
-
-    if objectTable:
-    	print()
-    	# Prepare table header and row formatting (use counts_stats for stats table)
-    	header_id = 'Object ID'
-    	header_name = 'Name'
-    	header_count = 'Count'
-    	id_width = max(len(header_id), max((len(str(obj_id)) for obj_id in counts_stats), default=0))
-    	name_width = max(len(header_name), max((len(IDname_dict.get(str(obj_id), 'Unknown')) for obj_id in counts_stats), default=0))
-    	count_width = max(len(header_count), max((len(str(count)) for count in counts_stats.values()), default=0))
-    	print(f"{header_id:<{id_width}} | {header_name:<{name_width}} | {header_count:<{count_width}}")
-    	print(f"{'-'*id_width}-+-{'-'*name_width}-+-{'-'*count_width}")
-    	for obj_id, count in counts_stats.most_common():
-    	    name = IDname_dict.get(str(obj_id), 'Unknown')
-    	    print(f"{obj_id:<{id_width}} | {name:<{name_width}} | x{count:<{count_width-1}}")
-    input()
+	while True:
+		os.system('cls')
+		level_id = input('Enter the level ID to analyze: ').strip()
+		os.system('cls')
+		raw_data = download_level(level_id)
+		meta = parse_level_metadata(raw_data)
+		decoded = decode_level(raw_data)
+		object_string = extract_object_string(decoded)
+		counts = count_object_ids(object_string)  # For internal logic with edge cases
+		counts_stats = countObjectIdsStats(object_string)  # For stats table count with no edge cases
+		
+		# Count coins (object ID 1329)
+		coin_count = 0
+		objects = object_string.split(';')
+		for obj in objects:
+			if not obj.strip():
+				continue
+			fields = obj.split(',')
+			for i in range(0, len(fields) - 1, 2):
+				if fields[i] == '1' and fields[i+1] == '1329':
+					coin_count += 1
+					break
+		
+		# Pass counts to get_level_info
+		info = get_level_info(meta, raw_data, decoded, object_string, counts, coin_count)
+		
+		# Fetch creator username
+		creator_username = getCreatorUsername(level_id)
+		
+		# Print all raw metadata key-value pairs for debugging
+		if debug:
+			print('--- RAW METADATA KEYS ---')
+			for k, v in sorted(meta.items(), key=lambda x: (int(x[0]) if x[0].isdigit() else x[0])):
+				if k == '4':
+					print(f"{k}: {v[:50]}")
+				else:
+					print(f"{k}: {v}")
+			print('--- END RAW METADATA ---\n')
+		
+		# Print formatted metadata
+		print('Level Information:')
+		print(f"Creator Username: {creator_username}")
+		for k, v in info.items():
+			print(f"{k}: {v}")
+		
+		if objectTable:
+			print()
+			# Prepare table header and row formatting (use counts_stats for stats table)
+			header_id = 'Object ID'
+			header_name = 'Name'
+			header_count = 'Count'
+			id_width = max(len(header_id), max((len(str(obj_id)) for obj_id in counts_stats), default=0))
+			name_width = max(len(header_name), max((len(IDname_dict.get(str(obj_id), 'Unknown')) for obj_id in counts_stats), default=0))
+			count_width = max(len(header_count), max((len(str(count)) for count in counts_stats.values()), default=0))
+			print(f"{header_id:<{id_width}} | {header_name:<{name_width}} | {header_count:<{count_width}}")
+			print(f"{'-'*id_width}-+-{'-'*name_width}-+-{'-'*count_width}")
+			for obj_id, count in counts_stats.most_common():
+				name = IDname_dict.get(str(obj_id), 'Unknown')
+				print(f"{obj_id:<{id_width}} | {name:<{name_width}} | x{count:<{count_width-1}}")
+		input()
