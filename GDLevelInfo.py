@@ -4120,7 +4120,7 @@ def get_level_info(meta, raw_data, decoded, object_string, counts, coin_count):
 	else meta.get("52", "")
 	if meta.get("52", "")
 	else meta.get("35", "")
-	)
+	).split("#")[0]
 	info['Two-Player'] = 'Yes' if meta.get('31', '0') == '1' else 'No'
 	# Creator
 	player_id = meta.get('6', '')
