@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         GD Level Downloader
 // @namespace    https://github.com/Ryder7223
-// @version      1.0.1
+// @version      1.0.2
 // @author       Ryder7223
 // @description  Makes Boomlings requests from the user's browser and sends results to the downloader page.
-// @match        file:///**/downloadGMDClient.html
+// @match        *://*/*downloadGMDClient*
+// @match        file:///*downloadGMDClient*
 // @grant        GM_xmlhttpRequest
 // @connect      www.boomlings.com
 // @license      CC BY-ND 4.0; You may use this script but not modify or distribute modified versions.
