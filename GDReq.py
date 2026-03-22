@@ -1420,7 +1420,7 @@ class GDReq:
 
 			return response.text
 
-	class Comment:
+	class Comments:
 
 		@staticmethod
 		def getGJComments21(
