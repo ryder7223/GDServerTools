@@ -2,6 +2,7 @@ import requests
 import base64
 from typing import Any, Union, List
 import hashlib
+import re
 
 class GDReq:
 
@@ -49,10 +50,9 @@ class GDReq:
 
 		@staticmethod
 		def checkResponse(response: str) -> bool:
-			if "-" in response:
+			if re.fullmatch(r"-\d+", response):
 				return False
-			else:
-				return True
+			return True
 
 		@staticmethod
 		def xorCipher(data: str, key: int | str) -> str:
