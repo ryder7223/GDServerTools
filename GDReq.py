@@ -44,6 +44,15 @@ class GDReq:
 					return "None"
 
 		@staticmethod
+		def writeResponse(response: str | bytes):
+			if isinstance(response, bytes):
+				with open("response.txt", "wb") as file:
+					file.write(response)
+			else:
+				with open("response.txt", "w") as file:
+					file.write(response)
+
+		@staticmethod
 		def makeReq(url: str, data: dict):
 			response = requests.post(url, data, headers={"User-Agent": ""})
 			return response
@@ -779,7 +788,7 @@ class GDReq:
 			gameVersion: int,
 			binaryVersion: int,
 			accountID: int,
-			gjp: str,
+			gjp2: str,
 			levelID: int,
 			stars: int,
 			feature: int,
@@ -791,7 +800,7 @@ class GDReq:
 				"gameVersion": gameVersion,
 				"binaryVersion": binaryVersion,
 				"accountID": accountID,
-				"gjp": gjp,
+				"gjp2": gjp2,
 				"levelID": levelID,
 				"stars": stars,
 				"feature": feature,
@@ -891,7 +900,7 @@ class GDReq:
 			gameVersion: int,
 			binaryVersion: int,
 			accountID: int,
-			gjp: str,
+			gjp2: str,
 			levelID: int,
 			rating: int,
 			gdw: int | None = None
@@ -902,7 +911,7 @@ class GDReq:
 				"gameVersion": gameVersion,
 				"binaryVersion": binaryVersion,
 				"accountID": accountID,
-				"gjp": gjp,
+				"gjp2": gjp2,
 				"levelID": levelID,
 				"rating": rating,
 				"secret": secret
@@ -997,7 +1006,7 @@ class GDReq:
 			binaryVersion: int | None = None,
 			gdw: int | None = None,
 			accountID: int | None = None,
-			gjp: str | None = None,
+			gjp2: str | None = None,
 			weekly: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
@@ -1018,8 +1027,8 @@ class GDReq:
 			if accountID is not None:
 				data["accountID"] = accountID
 
-			if gjp is not None:
-				data["gjp"] = gjp
+			if gjp2 is not None:
+				data["gjp2"] = gjp2
 
 			if weekly is not None:
 				data["weekly"] = weekly
@@ -1041,7 +1050,7 @@ class GDReq:
 			binaryVersion: int | None = None,
 			gdw: int | None = None,
 			accountID: int | None = None,
-			gjp: str | None = None,
+			gjp2: str | None = None,
 			udid: str | None = None,
 			uuid: str | None = None,
 			inc: int | None = None,
@@ -1068,8 +1077,8 @@ class GDReq:
 			if accountID is not None:
 				data["accountID"] = accountID
 
-			if gjp is not None:
-				data["gjp"] = gjp
+			if gjp2 is not None:
+				data["gjp2"] = gjp2
 
 			if udid is not None:
 				data["udid"] = udid
@@ -1935,7 +1944,7 @@ class GDReq:
 			binaryVersion: int | None = None,
 			gdw: int | None = None,
 			accountID: int | None = None,
-			gjp: str | None = None,
+			gjp2: str | None = None,
 			udid: str | None = None,
 			uuid: str | None = None,
 			like: int | None = None,
@@ -1961,8 +1970,8 @@ class GDReq:
 			if accountID is not None:
 				data["accountID"] = accountID
 
-			if gjp is not None:
-				data["gjp"] = gjp
+			if gjp2 is not None:
+				data["gjp2"] = gjp2
 
 			if udid is not None:
 				data["udid"] = udid
