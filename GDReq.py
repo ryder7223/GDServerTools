@@ -1,8 +1,12 @@
+from os import stat
 import requests
 import base64
 from typing import Any, Union, List
 import hashlib
 import re
+import gzip
+import io
+import zlib
 
 class GDReq:
 
@@ -40,6 +44,39 @@ class GDReq:
 						GDReq.Tools.getXorKey(3)
 					)[:-12]
 
+			@staticmethod
+			def decodeLevelStr(levelStr: str) -> str:
+				if not levelStr or levelStr in ("0", "Aw=="):
+					return ""
+			
+				levelStr += "=" * (-len(levelStr) % 4)
+			
+				for decompressor in [
+					lambda x: gzip.GzipFile(fileobj=io.BytesIO(x)).read(),
+					lambda x: zlib.decompress(x, -zlib.MAX_WBITS),
+					lambda x: x,
+				]:
+					try:
+						return decompressor(
+							GDReq.Tools.b64DecodeUrlSafeBytes(levelStr.encode())
+							).decode()
+			
+					except Exception:
+						continue
+				return ""
+
+			@staticmethod
+			def encodeLevelStr(decoded: str, useGzip: bool = True) -> str:
+				data = decoded.encode()
+				if useGzip:
+					buf = io.BytesIO()
+					with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as f:
+						f.write(data)
+					compressed = buf.getvalue()
+				else:
+					compressed = zlib.compress(data)[2:-4]
+				return GDReq.Tools.b64EncodeUrlSafeBytes(compressed).decode()
+
 		@staticmethod
 		def b64EncodeUrlSafe(data: str) -> str:
 			return base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
@@ -47,6 +84,14 @@ class GDReq:
 		@staticmethod
 		def b64DecodeUrlSafe(b64: str) -> str:
 			return base64.urlsafe_b64decode(b64).decode("utf-8")
+
+		@staticmethod
+		def b64DecodeUrlSafeBytes(b64: bytes) -> bytes:
+			return base64.urlsafe_b64decode(b64)
+
+		@staticmethod
+		def b64EncodeUrlSafeBytes(data: bytes) -> bytes:
+			return base64.urlsafe_b64encode(data)
 
 		@staticmethod
 		def getSecret(type: int) -> str:
