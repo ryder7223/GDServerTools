@@ -8,6 +8,23 @@ class GDReq:
 
 	class Tools:
 
+		class Encryption:
+
+			@staticmethod
+			def decodeMessage(message: str) -> str:
+				return GDReq.Tools.xorCipher(
+					GDReq.Tools.b64DecodeUrlSafe(message),
+					GDReq.Tools.getXorKey(2)
+					)
+
+			@staticmethod
+			def encodeMessage(message: str) -> str:
+				return GDReq.Tools.b64EncodeUrlSafe(
+					GDReq.Tools.xorCipher(
+						message,
+						GDReq.Tools.getXorKey(2))
+					)
+
 		@staticmethod
 		def b64EncodeUrlSafe(data: str) -> str:
 			return base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
