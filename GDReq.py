@@ -25,6 +25,21 @@ class GDReq:
 						GDReq.Tools.getXorKey(2))
 					)
 
+			@staticmethod
+			def encodeVault(code: str) -> str:
+				return GDReq.Tools.b64EncodeUrlSafe(
+						GDReq.Tools.xorCipher(
+						code + GDReq.Tools.getSalt(8),
+						GDReq.Tools.getXorKey(3))
+					)
+
+			@staticmethod
+			def decodeVault(code: str) -> str:
+				return GDReq.Tools.xorCipher(
+						GDReq.Tools.b64DecodeUrlSafe(code),
+						GDReq.Tools.getXorKey(3)
+					)[:-12]
+
 		@staticmethod
 		def b64EncodeUrlSafe(data: str) -> str:
 			return base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
@@ -191,6 +206,7 @@ class GDReq:
 			5: yPg6pUrtWn0J: Level Leaderboard
 			6: oC36fpYaPtdg: getGJChallenges
 			7: pC26fpYaQCtg: getGJRewards
+			8: ask2fpcaqCQ2: Vault of Secrets + Chamber of Time Codes
 			```
 			"""
 			match index:
@@ -208,6 +224,8 @@ class GDReq:
 					return "oC36fpYaPtdg"
 				case 7:
 					return "pC26fpYaQCtg"
+				case 8:
+					return "ask2fpcaqCQ2"
 				case _:
 					raise ValueError(f"Invalid XOR key index: {index}")
 
