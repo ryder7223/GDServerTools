@@ -1,69 +1,562 @@
 from os import stat
 import requests
 import base64
-from typing import Any, Union, List
+from typing import Any, Union, List, Sequence
 import hashlib
 import re
 import gzip
 import io
 import zlib
+import random
+import string
+import time
+from collections import Counter
+import xml.etree.ElementTree as ET
 
 class GDReq:
 
 	class Tools:
 
+		class Parsing:
+
+			@staticmethod
+			def parseLevelData(levelData: str) -> dict:
+				parts = levelData.split("#")[0].split(":")
+				return dict(
+					sorted({
+						parts[i]:
+							parts[i+1] for i in range(
+								0, len(parts)-1, 2
+						)}.items(),
+							key=lambda item: int(item[0])
+					))
+
+			@staticmethod
+			def parseServerKeyValues(row: str) -> dict[str, str]:
+				parts = row.split(":")
+				if len(parts) % 2 != 0:
+					raise ValueError("Colon-delimited row must have an even segment count")
+				return {parts[i]: parts[i + 1] for i in range(0, len(parts), 2)}
+
+		class LevelInfo:
+
+			@staticmethod
+			def _decodeUrlSafeB64ToText(data: str) -> str:
+				try:
+					return GDReq.Tools.b64DecodeUrlSafe(data)
+				except Exception:
+					return data
+
+			@staticmethod
+			def _detectSourceType(inputString: str) -> str:
+				s = inputString.lstrip()
+				if s.startswith("<?xml") or "<plist" in s[:200] or "<dict" in s[:400]:
+					return "gmd"
+				return "server"
+
+			@staticmethod
+			def _parseGmd(gmdXml: str) -> dict[str, Any]:
+				root = ET.fromstring(gmdXml)
+				mainDict = root.find("dict")
+				if mainDict is None:
+					mainDict = root.find(".//dict")
+				if mainDict is None:
+					raise ValueError("Main <dict> element not found in gmd input")
+
+				children = list(mainDict)
+				out: dict[str, Any] = {}
+				for i in range(0, len(children) - 1, 2):
+					kElem = children[i]
+					vElem = children[i + 1]
+					if kElem.tag != "k":
+						continue
+					key = kElem.text or ""
+					if not key:
+						continue
+
+					if vElem.tag == "t":
+						value: Any = True
+					elif vElem.tag == "f":
+						value = False
+					elif vElem.tag == "i":
+						try:
+							value = int(vElem.text or "0")
+						except Exception:
+							value = vElem.text or ""
+					else:
+						value = vElem.text if vElem.text is not None else ""
+
+					if key in ("k3",):
+						if isinstance(value, str) and value:
+							value = GDReq.Tools.LevelInfo._decodeUrlSafeB64ToText(value)
+
+					out[key] = value
+				return out
+
+			@staticmethod
+			def _parseServerLevel(serverLevel: str) -> dict[str, str]:
+				levelPart = serverLevel.split("#", 1)[0].strip()
+				return GDReq.Tools.Parsing.parseServerKeyValues(levelPart)
+
+			@staticmethod
+			def _decodeServerLevel(serverLevel: str) -> str:
+				meta = GDReq.Tools.LevelInfo._parseServerLevel(serverLevel)
+				levelStr = meta.get("4", "")
+				return GDReq.Tools.Encryption.decodeString(levelStr, 16)
+
+			@staticmethod
+			def _parseOffline(decodedLevelString: str) -> dict[str, str]:
+				if not decodedLevelString:
+					return {}
+				semi = decodedLevelString.find(";")
+				header = decodedLevelString if semi == -1 else decodedLevelString[:semi]
+				parts = header.split(",")
+				out: dict[str, str] = {}
+				for i in range(0, len(parts) - 1, 2):
+					k = parts[i].strip()
+					v = parts[i + 1].strip()
+					if k:
+						out[k] = v
+				return out
+
+			@staticmethod
+			def _getObjectString(decodedLevelString: str) -> str:
+				semi = decodedLevelString.find(";")
+				if semi == -1:
+					return ""
+				return decodedLevelString[semi + 1 :]
+
+			@staticmethod
+			def _parseObjects(objectString: str) -> list[dict[str, str]]:
+				objects = objectString.split(";")
+				parsed: list[dict[str, str]] = []
+				for obj in objects:
+					if not obj.strip():
+						continue
+					fields = obj.split(",")
+					objDict: dict[str, str] = {}
+					for i in range(0, len(fields) - 1, 2):
+						objDict[fields[i]] = fields[i + 1]
+					parsed.append(objDict)
+				return parsed
+
+			@staticmethod
+			def getObjectCounts(objectString: str) -> Counter:
+				objects = objectString.split(";")
+				objectIds: list[str] = []
+				for obj in objects:
+					if not obj.strip():
+						continue
+					fields = obj.split(",")
+					for i in range(0, len(fields) - 1, 2):
+						if fields[i] == "1":
+							objId = fields[i + 1]
+							if objId == "747":
+								objectIds.append(objId)
+								objectIds.append(objId)
+							elif objId == "31":
+								pass
+							else:
+								objectIds.append(objId)
+							break
+				return Counter(objectIds)
+
+			@staticmethod
+			def getCoinCount(objectString: str) -> int:
+				coinCount = 0
+				objects = objectString.split(";")
+				for obj in objects:
+					if not obj.strip():
+						continue
+					fields = obj.split(",")
+					for i in range(0, len(fields) - 1, 2):
+						if fields[i] == "1" and fields[i + 1] == "1329":
+							coinCount += 1
+							break
+				return coinCount
+
+			@staticmethod
+			def _formatBytes(size: Any) -> str:
+				try:
+					size = int(size)
+				except Exception:
+					return "NA"
+				for unit in ["B", "KB", "MB", "GB", "TB"]:
+					if size < 1024:
+						return f"{size:.1f} {unit}"
+					size /= 1024
+				return f"{size:.1f} PB"
+
+			@staticmethod
+			def _secondsToHms(seconds: Any) -> str:
+				try:
+					seconds = int(seconds)
+				except Exception:
+					return "NA"
+				h = seconds // 3600
+				m = (seconds % 3600) // 60
+				s = seconds % 60
+				return f"{h}h {m}m {s}s"
+
+			@staticmethod
+			def _extractPassword(rawData: str) -> str:
+				"""
+				Extracts level password, will not work on gmd files
+				"""
+				meta = GDReq.Tools.LevelInfo._parseServerLevel(rawData)
+				encoded = meta.get("27", "")
+				if encoded in ("", "0", "Aw=="):
+					return "(none)"
+				try:
+					if encoded.isdigit():
+						return encoded
+					decoded = GDReq.Tools.decodeLevelPassword(encoded)
+					decoded = decoded[1:].lstrip("0")
+					return decoded if decoded else "(free copy)"
+				except Exception:
+					return "(error)"
+
+			@staticmethod
+			def _getLevelInfo(
+				meta: dict[str, str],
+				rawData: str,
+				decoded: str,
+				objectString: str,
+				counts: dict,
+				coinCount: int
+			) -> dict[str, str]:
+				info: dict[str, str] = {}
+				info["Level Name"] = meta.get("2", "NA")
+				info["Level ID"] = meta.get("1", "NA")
+				info["Original ID"] = meta.get("30", "NA")
+				descB64 = meta.get("3", "")
+				try:
+					info["Description"] = base64.urlsafe_b64decode(descB64.encode()).decode(errors="replace")
+				except Exception:
+					info["Description"] = descB64 or "NA"
+				info["rCoins"] = str(coinCount)
+				info["sCoins"] = meta.get("37", "NA")
+
+				likes = int(meta.get("14", "0")) if meta.get("14", "").lstrip("-").isdigit() else 0
+				dislikes = int(meta.get("16", "0")) if meta.get("16", "").lstrip("-").isdigit() else 0
+				if likes == 0 and dislikes == 0:
+					info["Likes"] = "0"
+				elif likes > dislikes:
+					info["Likes"] = str(likes - dislikes)
+				elif dislikes > likes:
+					info["Dislikes"] = str(dislikes - likes)
+				else:
+					info["Likes"] = str(likes)
+
+				info["Downloads"] = meta.get("10", "NA")
+				info["Level Version"] = meta.get("5", "NA")
+
+				lengthMap = {
+					"0": "Tiny", "1": "Short", "2": "Medium", "3": "Long", "4": "XL", "5": "Platformer"
+				}
+				info["Length"] = lengthMap.get(meta.get("15", ""), "NA")
+				info["Editor Time"] = GDReq.Tools.LevelInfo._secondsToHms(meta.get("46", "NA"))
+				info["Editor (C) Time"] = GDReq.Tools.LevelInfo._secondsToHms(meta.get("47", "NA"))
+				info["Uploaded"] = meta.get("28", meta.get("17", "NA"))
+				info["Updated"] = meta.get("29", meta.get("18", "NA"))
+
+				gv = meta.get("13", "")
+				if gv.isdigit():
+					if int(gv) <= 7:
+						info["Game Version"] = f"1.{int(gv)-1}"
+					elif int(gv) == 10:
+						info["Game Version"] = "1.7"
+					else:
+						info["Game Version"] = f"{int(gv)//10}.{int(gv)%10}"
+				else:
+					info["Game Version"] = "NA"
+
+				info["Requested Rating"] = meta.get("39", "NA")
+				info["songIDs"] = (
+					meta.get("12", "")
+					if meta.get("12", "") != "0"
+					else meta.get("52", "")
+					if meta.get("52", "")
+					else meta.get("35", "")
+				).split("#")[0]
+				info["Two-Player"] = "Yes" if meta.get("31", "0") == "1" else "No"
+				info["Feature Score"] = meta.get("19", "NA")
+				info["Level Size"] = f"{GDReq.Tools.LevelInfo._formatBytes(len(objectString.encode('utf-8')))}"
+				info["Password"] = GDReq.Tools.LevelInfo._extractPassword(rawData)
+				info["Object Count"] = str(sum(counts.values()))
+				return info
+
+			@staticmethod
+			def getObjectsById(
+				objectString: str,
+				objectIds: Sequence[int | str],
+				posOnly: bool | None = None
+			) -> dict[str, list[dict[str, str]]]:
+				"""
+				Returns the x and y positions of object ids as a dictionary,
+				by default this also includes other object keys and values
+				"""
+				requested = {str(x) for x in objectIds}
+				if not requested:
+					return {}
+
+				out: dict[str, list[dict[str, str]]] = {}
+				for obj in GDReq.Tools.LevelInfo._parseObjects(objectString):
+					objId = obj.get("1")
+					if objId is None or objId not in requested:
+						continue
+
+					if posOnly:
+						entry = {
+							"x": obj.get("2", "N/A"),
+							"y": obj.get("3", "N/A")
+						}
+					else:
+						entry = {
+							"x": obj.get("2", "N/A"),
+							"y": obj.get("3", "N/A"),
+							"object": obj
+						}
+					if objId not in out:
+						out[objId] = [entry]
+					else:
+						out[objId].append(entry)
+				return out
+
+			@staticmethod
+			def getAllLevelInfo(inputString: str, sourceType: str | None = None) -> dict[str, Any]:
+				"""
+				returns a dictionary containing:
+				```py
+				["sourceType"],
+				["gmdInfo"], # Exists only for GMD level strings
+				["serverInfo"], # Exists only for server response level strings
+				["startObject"],
+				["decodedLevelString"],
+				["objectString"],
+				["objectIdCounts"],
+				["objectCount"],
+				["levelInfo"] # Exists only for server response level strings
+				```
+				Usage:
+				```
+				sourceType: returns either "gmd" or "server"
+				gmdInfo: returns a dictionary of all k values
+				serverInfo: is for server response level strings, it returns a dictionary of every key
+				startObject: returns a dictionary of all KA Level Start Object values
+				decodedLevelString: returns the decoded object data of a level including startObject values
+				objectString: returns the decoded object data of a level not including startObject values
+				objectIdCounts: returns a dictionary of every object id and how many if each there are
+				objectCount: returns the object count of a 
+				levelInfo: is for server response level strings, it returns a dictionary of online level info
+				```
+				levelInfo contains the following values:
+				```py
+				["Level Name"],
+				["Level ID"],
+				["Original ID"],
+				["Description"],
+				["rCoins"],
+				["sCoins"],
+				["Likes"], # Exists if likes > dislikes
+				["Dislikes"], # Exists if dislikes > likes
+				["Downloads"],
+				["Level Version"],
+				["Length"],
+				["Editor Time"],
+				["Editor (C) Time"],
+				["Uploaded"],
+				["Updated"],
+				["Requested Rating"],
+				["songIDs"],
+				["Two-Player"],
+				["Feature Score"],
+				["Level Size"],
+				["Password"],
+				["Object Count"]
+				```
+				"""
+				if sourceType is None:
+					sourceType = GDReq.Tools.LevelInfo._detectSourceType(inputString)
+				sourceType = sourceType.lower().strip()
+
+				result: dict[str, Any] = {
+					"sourceType": sourceType,
+					"gmdInfo": {},
+					"serverInfo": {},
+					"startObject": {},
+					"decodedLevelString": None,
+					"objectString": None,
+					"objectIdCounts": None,
+					"objectCount": None,
+				}
+
+				if sourceType == "gmd":
+					kTags = GDReq.Tools.LevelInfo._parseGmd(inputString)
+					result["gmdInfo"] = kTags
+					levelData = kTags.get("k4", "")
+					if isinstance(levelData, str) and levelData:
+						decoded = GDReq.Tools.Encryption.decodeString(levelData, 16)
+						result["decodedLevelString"] = decoded
+				elif sourceType == "server":
+					serverMeta = GDReq.Tools.LevelInfo._parseServerLevel(inputString)
+					result["serverInfo"] = serverMeta
+					levelStr = serverMeta.get("4", "")
+					if levelStr:
+						decoded = GDReq.Tools.Encryption.decodeString(levelStr, 16)
+						result["decodedLevelString"] = decoded
+				else:
+					raise ValueError(f"Unknown sourceType: {sourceType}")
+
+				decodedLevelString = result.get("decodedLevelString")
+				if isinstance(decodedLevelString, str) and decodedLevelString:
+					startObject = GDReq.Tools.LevelInfo._parseOffline(decodedLevelString)
+					objString = GDReq.Tools.LevelInfo._getObjectString(decodedLevelString)
+					GDReq.Tools.writeResponse(decodedLevelString)
+					result["startObject"] = startObject
+					result["objectString"] = objString
+					counts = GDReq.Tools.LevelInfo.getObjectCounts(objString) if objString else Counter()
+					result["objectIdCounts"] = dict(counts)
+					result["objectCount"] = int(sum(counts.values()))
+					result["decodedLevelString"] = objString
+					if result["serverInfo"]:
+						coinCount = GDReq.Tools.LevelInfo.getCoinCount(objString)
+						result["levelInfo"] = GDReq.Tools.LevelInfo._getLevelInfo(
+							result["serverInfo"], inputString, decodedLevelString, objString, counts, coinCount
+						)
+
+				return result
+
+			@staticmethod
+			def _parseGmdString(gmdXml: str) -> dict[str, Any]:
+				return GDReq.Tools.LevelInfo._parseGmd(gmdXml)
+
+			@staticmethod
+			def _parseServerLevelResponse(rawServerResponse: str) -> dict[str, str]:
+				return GDReq.Tools.LevelInfo._parseServerLevel(rawServerResponse)
+
+			@staticmethod
+			def _decodeLevelStringFromServerLevel(serverRow: str) -> str:
+				return GDReq.Tools.LevelInfo._decodeServerLevel(serverRow)
+
+			@staticmethod
+			def _parsestartObjectFromDecodedLevelString(decodedLevelString: str) -> dict[str, str]:
+				return GDReq.Tools.LevelInfo._parseOffline(decodedLevelString)
+
+			@staticmethod
+			def _extractObjectStringFromDecodedLevelString(decodedLevelString: str) -> str:
+				return GDReq.Tools.LevelInfo._getObjectString(decodedLevelString)
+
+			@staticmethod
+			def _countObjectIds(objectString: str) -> dict:
+				return dict(GDReq.Tools.LevelInfo.getObjectCounts(objectString))
+
 		class Encryption:
 
 			@staticmethod
-			def decodeMessage(message: str) -> str:
-				return GDReq.Tools.xorCipher(
-					GDReq.Tools.b64DecodeUrlSafe(message),
+			def decodeString(data: str, type_: int) -> str:
+				"""
+				```
+				Type 1: Player Save Data
+				- Type 2:  Player Messages
+				- Type 3:  Vault Codes
+				Type 4:  Daily Challenges
+				Type 5:  Level Password
+				Type 6:  Comment Integrity
+				Type 7:  Account Password
+				Type 8:  Level Leaderboard Integrity
+				Type 9:  Level Integrity
+				Type 10: Load Data
+				Type 11: Multiplayer
+				Type 12: Music/SFX Library Secret
+				Type 13: Rating Integrity
+				Type 14: Chest Rewards
+				Type 15: Stat Submission Integrity
+				- Type 16: Level Object Data
+				```
+				"""
+				if type_ == 2:
+					return GDReq.Tools.xorCipher(
+					GDReq.Tools.b64DecodeUrlSafe(data),
 					GDReq.Tools.getXorKey(2)
 					)
 
-			@staticmethod
-			def encodeMessage(message: str) -> str:
-				return GDReq.Tools.b64EncodeUrlSafe(
-					GDReq.Tools.xorCipher(
-						message,
-						GDReq.Tools.getXorKey(2))
-					)
-
-			@staticmethod
-			def encodeVault(code: str) -> str:
-				return GDReq.Tools.b64EncodeUrlSafe(
-						GDReq.Tools.xorCipher(
-						code + GDReq.Tools.getSalt(8),
-						GDReq.Tools.getXorKey(3))
-					)
-
-			@staticmethod
-			def decodeVault(code: str) -> str:
-				return GDReq.Tools.xorCipher(
-						GDReq.Tools.b64DecodeUrlSafe(code),
+				elif type_ == 3:
+					return GDReq.Tools.xorCipher(
+						GDReq.Tools.b64DecodeUrlSafe(data),
 						GDReq.Tools.getXorKey(3)
 					)[:-12]
 
-			@staticmethod
-			def decodeLevelStr(levelStr: str) -> str:
-				if not levelStr or levelStr in ("0", "Aw=="):
+				elif type_ == 16:
+					if not data or data in ("0", "Aw=="):
+						return ""
+				
+					data += "=" * (-len(data) % 4)
+				
+					for decompressor in [
+						lambda x: gzip.GzipFile(fileobj=io.BytesIO(x)).read(),
+						lambda x: zlib.decompress(x, -zlib.MAX_WBITS),
+						lambda x: x,
+					]:
+						try:
+							return decompressor(
+								GDReq.Tools.b64DecodeUrlSafeBytes(data.encode())
+								).decode()
+				
+						except Exception:
+							continue
 					return ""
-			
-				levelStr += "=" * (-len(levelStr) % 4)
-			
-				for decompressor in [
-					lambda x: gzip.GzipFile(fileobj=io.BytesIO(x)).read(),
-					lambda x: zlib.decompress(x, -zlib.MAX_WBITS),
-					lambda x: x,
-				]:
-					try:
-						return decompressor(
-							GDReq.Tools.b64DecodeUrlSafeBytes(levelStr.encode())
-							).decode()
-			
-					except Exception:
-						continue
-				return ""
+
+				else: return data
+
+			@staticmethod
+			def encodeString(data: str, type_: int, useGzip: bool = True) -> str:
+				"""
+				```
+				Type 1: Player Save Data
+				- Type 2:  Player Messages
+				- Type 3:  Vault Codes
+				Type 4:  Daily Challenges
+				Type 5:  Level Password
+				Type 6:  Comment Integrity
+				Type 7:  Account Password
+				Type 8:  Level Leaderboard Integrity
+				Type 9:  Level Integrity
+				Type 10: Load Data
+				Type 11: Multiplayer
+				Type 12: Music/SFX Library Secret
+				Type 13: Rating Integrity
+				Type 14: Chest Rewards
+				Type 15: Stat Submission Integrity
+				- Type 16: Level Object Data
+				```
+				"""
+				if type_ == 2:
+					return GDReq.Tools.b64EncodeUrlSafe(
+					GDReq.Tools.xorCipher(
+						data,
+						GDReq.Tools.getXorKey(2))
+					)
+
+				elif type_ == 3:
+					return GDReq.Tools.b64EncodeUrlSafe(
+						GDReq.Tools.xorCipher(
+						data + GDReq.Tools.getSalt(8),
+						GDReq.Tools.getXorKey(3))
+					)
+
+				elif type_ == 16:
+					data2 = data.encode()
+					if useGzip:
+						buf = io.BytesIO()
+						with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as f:
+							f.write(data2)
+						compressed = buf.getvalue()
+					else:
+						compressed = zlib.compress(data2)[2:-4]
+					return GDReq.Tools.b64EncodeUrlSafeBytes(compressed).decode()
+
+				else: return data
 
 			@staticmethod
 			def encodeLevelStr(decoded: str, useGzip: bool = True) -> str:
@@ -76,6 +569,121 @@ class GDReq:
 				else:
 					compressed = zlib.compress(data)[2:-4]
 				return GDReq.Tools.b64EncodeUrlSafeBytes(compressed).decode()
+
+		class Hashes:
+
+			_SALT_LEVEL = "xI25fpAapCQg"
+
+			@staticmethod
+			def hashGetGJLevels(levelRows: Sequence[dict | Sequence]) -> str:
+				"""
+				Per-level segments: first digit of level ID, last digit, stars, coin count,
+				1 if coins verified else 0. Salt xI25fpAapCQg; result is SHA-1 hex.
+				"""
+				salt = GDReq.Tools.Hashes._SALT_LEVEL
+				parts: list[str] = []
+				for row in levelRows:
+					if isinstance(row, dict):
+						lid = int(row["1"])
+						stars = int(row["18"])
+						coins = int(row["37"])
+						verified = int(row.get("38", 0))
+					else:
+						lid, stars, coins, verified = (
+							int(row[0]), int(row[1]), int(row[2]), int(row[3])
+						)
+					s = str(lid)
+					parts.append(s[0])
+					parts.append(s[-1])
+					parts.append(str(stars))
+					parts.append(str(coins))
+					parts.append(str(verified))
+				raw = "".join(parts) + salt
+				return hashlib.sha1(raw.encode()).hexdigest()
+
+			@staticmethod
+			def hashDownloadGJLevel1(levelString: str) -> str:
+				"""Undecoded level string sampling + level salt; SHA-1 hex."""
+				salt = GDReq.Tools.Hashes._SALT_LEVEL
+				if len(levelString) < 41:
+					return hashlib.sha1(f"{levelString}{salt}".encode()).hexdigest()
+				m = len(levelString) // 40
+				sampled = "".join(levelString[i * m] for i in range(40))
+				return hashlib.sha1(f"{sampled}{salt}".encode()).hexdigest()
+
+			@staticmethod
+			def normalizePasswordForDownloadHash(password: int) -> int:
+				"""0 no copy, 1 free copy; otherwise if < 1_000_000 add 1_000_000."""
+				if password in (0, 1):
+					return password
+				if password < 1_000_000:
+					return password + 1_000_000
+				return password
+
+			@staticmethod
+			def hashDownloadGJLevel2(
+				playerId: int,
+				stars: int,
+				demon: int,
+				levelId: int,
+				coinsVerified: int,
+				featureScore: int,
+				password: int,
+				dailyNumber: int = 0
+			) -> str:
+				salt = GDReq.Tools.Hashes._SALT_LEVEL
+				pw = GDReq.Tools.Hashes.normalizePasswordForDownloadHash(password)
+				segments = [
+					str(playerId),
+					str(stars),
+					str(demon),
+					str(levelId),
+					str(coinsVerified),
+					str(featureScore),
+					str(pw),
+					str(dailyNumber),
+				]
+				return hashlib.sha1(("".join(segments) + salt).encode()).hexdigest()
+
+			@staticmethod
+			def hashGetGJMapPacks(packRows: Sequence[dict | Sequence]) -> str:
+				salt = GDReq.Tools.Hashes._SALT_LEVEL
+				parts: list[str] = []
+				for row in packRows:
+					if isinstance(row, dict):
+						pid = int(row["1"])
+						stars = int(row["4"])
+						coins = int(row["5"])
+					else:
+						pid, stars, coins = int(row[0]), int(row[1]), int(row[2])
+					s = str(pid)
+					parts.extend((s[0], s[-1], str(stars), str(coins)))
+				return hashlib.sha1(("".join(parts) + salt).encode()).hexdigest()
+
+			@staticmethod
+			def hashGetGJGauntlets(gauntletRows: Sequence[dict | Sequence]) -> str:
+				salt = GDReq.Tools.Hashes._SALT_LEVEL
+				parts: list[str] = []
+				for row in gauntletRows:
+					if isinstance(row, dict):
+						gid = str(row["1"])
+						levels = str(row["3"])
+					else:
+						gid, levels = str(row[0]), str(row[1])
+					parts.append(gid)
+					parts.append(levels)
+				return hashlib.sha1(("".join(parts) + salt).encode()).hexdigest()
+
+			@staticmethod
+			def hashGetGJChallenges(undecodedResponse: str) -> str:
+				"""Full undecoded body without the first 5 characters + challenges salt."""
+				salt = GDReq.Tools.getSalt(6)
+				return hashlib.sha1((undecodedResponse[5:] + salt).encode()).hexdigest()
+
+			@staticmethod
+			def hashGetGJRewards(undecodedResponse: str) -> str:
+				salt = GDReq.Tools.getSalt(7)
+				return hashlib.sha1((undecodedResponse[5:] + salt).encode()).hexdigest()
 
 		@staticmethod
 		def b64EncodeUrlSafe(data: str) -> str:
@@ -121,13 +729,30 @@ class GDReq:
 					return "None"
 
 		@staticmethod
-		def writeResponse(response: str | bytes):
+		def writeResponse(response: Any,
+			fileName: str | None = None,
+			extension: str | None = None
+			):
+
+			if fileName:
+				name = fileName
+			else:
+				name = "response"
+
+			if extension:
+				ext = extension
+			else:
+				ext = "txt"
+
 			if isinstance(response, bytes):
-				with open("response.txt", "wb") as file:
+				with open(f"{name}.{ext}", "wb") as file:
+					file.write(response)
+			elif isinstance(response, str):
+				with open(f"{name}.{ext}", "w") as file:
 					file.write(response)
 			else:
-				with open("response.txt", "w") as file:
-					file.write(response)
+				with open(f"{name}.{ext}", "w") as file:
+					file.write(str(response))
 
 		@staticmethod
 		def makeReq(url: str, data: dict):
@@ -184,6 +809,24 @@ class GDReq:
 			chk = GDReq.Tools.b64EncodeUrlSafe(xored)
 
 			return chk
+		
+		@staticmethod
+		def generateClassicLeaderboardSeed(
+			jumps: int,
+			percentage: int,
+			seconds: int,
+			hasPlayed: bool = True
+		) -> int:
+			return (
+				1482 * (int(hasPlayed) + 1)
+				+ (jumps + 3991) * (percentage + 8354)
+				+ ((seconds + 4085) ** 2) - 50028039
+			)
+
+		@staticmethod
+		def generatePlatformerHash(bestTime, bestPoints):
+			number = (((bestTime + 7890) % 34567) * 601 + ((abs(bestPoints) + 3456) % 78901) * 967 + 94819) % 94433
+			return ((number ^ number >> 16) * 829) % 77849
 
 		@staticmethod
 		def getXorKey(index: int) -> int | str:
@@ -252,6 +895,7 @@ class GDReq:
 			6: oC36fpYaPtdg: getGJChallenges
 			7: pC26fpYaQCtg: getGJRewards
 			8: ask2fpcaqCQ2: Vault of Secrets + Chamber of Time Codes
+			9: mI29fmAnxgTs: GJP2
 			```
 			"""
 			match index:
@@ -271,8 +915,236 @@ class GDReq:
 					return "pC26fpYaQCtg"
 				case 8:
 					return "ask2fpcaqCQ2"
+				case 9:
+					return "mI29fmAnxgTs"
 				case _:
-					raise ValueError(f"Invalid XOR key index: {index}")
+					raise ValueError(f"Invalid salt index: {index}")
+
+		@staticmethod
+		def generateGjp2(password: str, salt: str | None = None) -> str:
+			if salt is None:
+				salt = GDReq.Tools.getSalt(9)
+			return hashlib.sha1((password + salt).encode()).hexdigest()
+
+		@staticmethod
+		def encodeGjp(password: str) -> str:
+			xored = GDReq.Tools.xorCipher(password, GDReq.Tools.getXorKey(7))
+			b = base64.b64encode(xored.encode()).decode()
+			return b.replace("+", "-").replace("/", "_").rstrip("=")
+
+		@staticmethod
+		def decodeGjp(gjp: str) -> str:
+			padded = gjp + "=" * (-len(gjp) % 4)
+			s = padded.replace("-", "+").replace("_", "/")
+			raw = base64.b64decode(s.encode()).decode()
+			return GDReq.Tools.xorCipher(raw, GDReq.Tools.getXorKey(7))
+
+		@staticmethod
+		def encodeLevelPassword(plain: str) -> str:
+			xored = GDReq.Tools.xorCipher(plain, GDReq.Tools.getXorKey(5))
+			b = base64.b64encode(xored.encode()).decode()
+			return b.replace("+", "-").replace("/", "_").rstrip("=")
+
+		@staticmethod
+		def decodeLevelPassword(encoded: str) -> str:
+			padded = encoded + "=" * (-len(encoded) % 4)
+			s = padded.replace("-", "+").replace("_", "/")
+			raw = base64.b64decode(s.encode()).decode()
+			return GDReq.Tools.xorCipher(raw, GDReq.Tools.getXorKey(5))
+
+		@staticmethod
+		def generateRs(length: int = 10) -> str:
+			alphabet = string.ascii_letters + string.digits
+			return "".join(random.choices(alphabet, k=length))
+
+		@staticmethod
+		def generateUuid(parts: Sequence[int] = (8, 4, 4, 4, 10)) -> str:
+			return "-".join(GDReq.Tools.generateRs(n) for n in parts)
+
+		@staticmethod
+		def generateUdid(
+			start: int = 100_000,
+			end: int = 100_000_000
+		) -> str:
+			r = random.randint
+			return (
+				"S15"
+				+ str(r(start, end))
+				+ str(r(start, end))
+				+ str(r(start, end))
+				+ str(r(start, end))
+			)
+
+		@staticmethod
+		def generateCdnExpires(offsetSeconds: int = 3600) -> int:
+			return int(time.time()) + offsetSeconds
+
+		@staticmethod
+		def generateCdnToken(endpoint: str, expires: int) -> str:
+			payload = f"8501f9c2-75ba-4230-8188-51037c4da102{endpoint}{expires}"
+			digestAscii = hashlib.md5(payload.encode()).hexdigest()
+			return GDReq.Tools.b64EncodeUrlSafe(digestAscii)
+
+		@staticmethod
+		def sampleStringForUploadSeed(data: str, charCount: int = 50) -> str:
+			if len(data) < charCount:
+				return data
+			step = len(data) // charCount
+			return data[::step][:charCount]
+
+		@staticmethod
+		def generateLevelUploadSeed2(levelString: str) -> str:
+			sample = GDReq.Tools.sampleStringForUploadSeed(levelString, 50)
+			return GDReq.Tools.genChk(9, [sample], 1)
+
+		@staticmethod
+		def generateListSeed2(length: int = 5) -> str:
+			alphabet = string.ascii_letters + string.digits
+			return "".join(random.choices(alphabet, k=length))
+
+		@staticmethod
+		def generateListUploadSeed(listLevels: str, accountId: int, seed2: str) -> str:
+			sample = GDReq.Tools.sampleStringForUploadSeed(listLevels, 50)
+			digest = hashlib.sha1(f"{sample}{accountId}".encode()).hexdigest()
+			return GDReq.Tools.b64EncodeUrlSafe(GDReq.Tools.xorCipher(digest, seed2))
+
+		@staticmethod
+		def _randomClientTokenPrefix(length: int = 5) -> str:
+			alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
+			return "".join(random.choices(alphabet, k=length))
+
+		@staticmethod
+		def generateQuestChk(
+			minDigits: int = 10_000,
+			maxDigits: int = 999_999,
+			urlSafeB64: bool = True
+		) -> str:
+			prefix = GDReq.Tools._randomClientTokenPrefix(5)
+			num = str(random.randint(minDigits, maxDigits))
+			xored = GDReq.Tools.xorCipher(num, GDReq.Tools.getXorKey(4))
+			if urlSafeB64:
+				return prefix + GDReq.Tools.b64EncodeUrlSafe(xored)
+			return prefix + base64.b64encode(xored.encode()).decode()
+
+		@staticmethod
+		def generateChestMenuChk(
+			minDigits: int = 10_000,
+			maxDigits: int = 999_999
+		) -> str:
+			prefix = GDReq.Tools._randomClientTokenPrefix(5)
+			num = str(random.randint(minDigits, maxDigits))
+			xored = GDReq.Tools.xorCipher(num, GDReq.Tools.getXorKey(14))
+			return prefix + GDReq.Tools.b64EncodeUrlSafe(xored)
+
+		@staticmethod
+		def generateWraithRewardChk(
+			minDigits: int = 10_000,
+			maxDigits: int = 1_000_000
+		) -> str:
+			prefix = GDReq.Tools._randomClientTokenPrefix(5)
+			num = str(random.randint(minDigits, maxDigits))
+			xored = GDReq.Tools.xorCipher(num, GDReq.Tools.getXorKey(14))
+			return prefix + base64.b64encode(xored.encode()).decode()
+
+		@staticmethod
+		def genChkDownloadLevel(
+			levelId: int,
+			inc: int,
+			rs: str,
+			accountId: int,
+			udid: str,
+			uuid: str
+		) -> str:
+			return GDReq.Tools.genChk(9, [levelId, inc, rs, accountId, udid, uuid], 1)
+
+		@staticmethod
+		def genChkRateStars(
+			levelId: int,
+			stars: int,
+			rs: str,
+			accountId: int,
+			udid: str,
+			uuid: str
+		) -> str:
+			return GDReq.Tools.genChk(13, [levelId, stars, rs, accountId, udid, uuid], 3)
+
+		@staticmethod
+		def genChkLikeItem(
+			special: int,
+			itemId: int,
+			like: int,
+			type_: int,
+			rs: str,
+			accountId: int,
+			udid: str,
+			uuid: str
+		) -> str:
+			return GDReq.Tools.genChk(
+				13, [special, itemId, like, type_, rs, accountId, udid, uuid], 3
+			)
+
+		@staticmethod
+		def genChkLeaderboard(values: List[Union[int, str]]) -> str:
+			return GDReq.Tools.genChk(8, values, 5)
+
+		@staticmethod
+		def genChkLevelComment(
+			userName: str,
+			commentB64: str,
+			levelId: int,
+			percent: int ,
+			commentType: int = 0
+		) -> str:
+			return GDReq.Tools.genChk(
+				6, [userName, commentB64, levelId, percent, commentType], 2
+			)
+
+		@staticmethod
+		def encodeVaultCode(plain: str) -> str:
+			return GDReq.Tools.Encryption.encodeString(plain, 3)
+
+		@staticmethod
+		def decodeVaultCode(encoded: str) -> str:
+			return GDReq.Tools.Encryption.decodeString(encoded, 3)
+
+		@staticmethod
+		def encodeLeaderboardProgressString(differences: Sequence[int]) -> str:
+			s = ",".join(str(d) for d in differences)
+			xored = GDReq.Tools.xorCipher(s, GDReq.Tools.getXorKey(9))
+			return GDReq.Tools.b64EncodeUrlSafe(xored)
+
+		@staticmethod
+		def decodeLeaderboardProgressString(encoded: str) -> list[int]:
+			raw = GDReq.Tools.xorCipher(GDReq.Tools.b64DecodeUrlSafe(encoded), GDReq.Tools.getXorKey(9))
+			if not raw:
+				return []
+			return [int(x) for x in raw.split(",") if x]
+
+		@staticmethod
+		def decodeXorUrlSafeB64Response(
+			responseText: str,
+			xorKeyIndex: int,
+			prefixLen: int = 5
+		) -> str:
+			encoded = responseText.split("|", 1)[0]
+			payload = encoded[prefixLen:]
+			decoded = GDReq.Tools.xorCipher(
+				GDReq.Tools.b64DecodeUrlSafe(payload),
+				GDReq.Tools.getXorKey(xorKeyIndex)
+			)
+			return decoded
+
+		@staticmethod
+		def encodeLevelStringForOfficialPlist(levelString: str) -> str:
+			gz = gzip.compress(levelString.encode())
+			b64 = base64.urlsafe_b64encode(gz)
+			return b64[13:].decode()
+
+		@staticmethod
+		def decodeLevelStringFromOfficialPlist(fragment: str) -> str:
+			combined = "H4sIAAAAAAAAA" + fragment
+			raw = base64.urlsafe_b64decode(combined.encode())
+			return zlib.decompress(raw, 15 | 32).decode()
 
 
 	class Accounts:
@@ -283,7 +1155,7 @@ class GDReq:
 			password: str,
 			saveData: str,
 			gameVersion: int = 22,
-			binaryVersion: int = 42,
+			binaryVersion: int = 47,
 			gdw: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(2)
@@ -757,7 +1629,7 @@ class GDReq:
 			unlisted: int,
 			ldm: int,
 			levelString: str,
-			seed2: str,
+			seed2: str | None = None,
 			binaryVersion: int | None = None,
 			gdw: int | None = None,
 			wt: int | None = None,
@@ -767,6 +1639,8 @@ class GDReq:
 			levelInfo: str | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			if seed2 is None:
+				seed2 = GDReq.Tools.generateLevelUploadSeed2(levelString)
 
 			data: dict[str, str | int] = {
 				"gameVersion": gameVersion,
@@ -931,6 +1805,13 @@ class GDReq:
 			gdw: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			if chk is None and (rs is not None and
+								accountID is not None and
+								udid is not None and
+								uuid is not None):
+				chk = GDReq.Tools.genChkRateStars(
+					levelID, stars, rs, accountID, udid, uuid
+				)
 
 			data: dict[str, str | int] = {
 				"levelID": levelID,
@@ -1139,6 +2020,16 @@ class GDReq:
 			chk: str | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			incForChk = 1 if inc is None else inc
+			autoChk = False
+			if chk is None and (rs is not None and
+								accountID is not None and
+								udid is not None and
+								uuid is not None):
+				chk = GDReq.Tools.genChkDownloadLevel(
+					levelID, incForChk, rs, accountID, udid, uuid
+				)
+				autoChk = True
 
 			data: dict[str, str | int] = {
 				"levelID": levelID,
@@ -1168,6 +2059,8 @@ class GDReq:
 
 			if inc is not None:
 				data["inc"] = inc
+			elif autoChk:
+				data["inc"] = incForChk
 
 			if extras is not None:
 				data["extras"] = extras
@@ -1729,13 +2622,16 @@ class GDReq:
 			gdw: int | None = None
 			) -> str:
 			secret = GDReq.Tools.getSecret(1)
-			chk = GDReq.Tools.genChk(6, [userName, GDReq.Tools.b64EncodeUrlSafe(comment), levelID, percent, 0], 2)
+			commentB64 = GDReq.Tools.b64EncodeUrlSafe(comment)
+			chk = GDReq.Tools.genChkLevelComment(
+				userName, commentB64, levelID, percent, 0
+			)
 
 			data: dict[str, str | int] = {
 				"accountID": accountID,
 				"gjp2": gjp2,
 				"userName": userName,
-				"comment": GDReq.Tools.b64EncodeUrlSafe(comment),
+				"comment": commentB64,
 				"secret": secret,
 				"levelID": levelID,
 				"percent": percent,
@@ -1815,11 +2711,15 @@ class GDReq:
 			difficulty: int,
 			unlisted: int,
 			listLevels: str,
-			seed: str,
-			seed2: str,
+			seed: str | None = None,
+			seed2: str | None = None,
 			binaryVersion: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			if seed2 is None:
+				seed2 = GDReq.Tools.generateListSeed2()
+			if seed is None:
+				seed = GDReq.Tools.generateListUploadSeed(listLevels, accountID, seed2)
 
 			data: dict[str, str | int] = {
 				"gameVersion": gameVersion,
@@ -2027,10 +2927,20 @@ class GDReq:
 			gjp2: str | None = None,
 			udid: str | None = None,
 			uuid: str | None = None,
+			rs: str | None = None,
+			special: int = 0,
 			like: int | None = None,
 			chk: str | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			likeVal = 1 if like is None else like
+			if chk is None and (rs is not None and
+								accountID is not None and
+								udid is not None and
+								uuid is not None):
+				chk = GDReq.Tools.genChkLikeItem(
+					special, itemID, likeVal, type_, rs, accountID, udid, uuid
+				)
 
 			data: dict[str, str | int] = {
 				"itemID": itemID,
@@ -2058,6 +2968,9 @@ class GDReq:
 
 			if uuid is not None:
 				data["uuid"] = uuid
+
+			if rs is not None:
+				data["rs"] = rs
 
 			if like is not None:
 				data["like"] = like
@@ -2143,7 +3056,7 @@ class GDReq:
 		@staticmethod
 		def getGJSecretReward(
 			udid: str,
-			chk: str,
+			chk: str | None = None,
 			gameVersion: int | None = None,
 			binaryVersion: int | None = None,
 			gdw: int | None = None,
@@ -2152,6 +3065,8 @@ class GDReq:
 			uuid: str | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			if chk is None:
+				chk = GDReq.Tools.generateWraithRewardChk()
 
 			data: dict[str, str | int] = {
 				"udid": udid,
@@ -2190,7 +3105,7 @@ class GDReq:
 		@staticmethod
 		def getGJRewards(
 			udid: str,
-			chk: str,
+			chk: str | None = None,
 			gameVersion: int | None = None,
 			binaryVersion: int | None = None,
 			gdw: int | None = None,
@@ -2202,6 +3117,8 @@ class GDReq:
 			r2: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			if chk is None:
+				chk = GDReq.Tools.generateChestMenuChk()
 
 			data: dict[str, str | int] = {
 				"udid": udid,
@@ -2249,7 +3166,7 @@ class GDReq:
 		@staticmethod
 		def getGJChallenges(
 			udid: str,
-			chk: str,
+			chk: str | None = None,
 			gameVersion: int | None = None,
 			binaryVersion: int | None = None,
 			gdw: int | None = None,
@@ -2259,6 +3176,8 @@ class GDReq:
 			world: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
+			if chk is None:
+				chk = GDReq.Tools.generateQuestChk()
 
 			data: dict[str, str | int] = {
 				"udid": udid,
@@ -2918,20 +3837,48 @@ class GDReq:
 			return response.text
 
 		@staticmethod
-		def fetchMusicLibraryDat(useV2: bool = True) -> bytes:
-			url = (
-				"https://geometrydashfiles.b-cdn.net/music/musiclibrary_02.dat"
-				if useV2
-				else "https://geometrydashfiles.b-cdn.net/music/musiclibrary.dat"
+		def fetchMusicLibraryDat(
+			useV2: bool = True,
+			expires: int | None = None,
+			token: str | None = None
+		) -> bytes:
+			endpoint = (
+				"/music/musiclibrary_02.dat" if useV2 else "/music/musiclibrary.dat"
 			)
+			url = "https://geometrydashfiles.b-cdn.net" + endpoint
+			params: dict[str, str | int] = {}
+			if expires is not None:
+				params["expires"] = expires
+			if token is None and expires is not None:
+				token = GDReq.Tools.generateCdnToken(endpoint, expires)
+			if token is not None:
+				params["token"] = token
 
-			response = requests.get(url, headers={"User-Agent": ""})
+			response = requests.get(
+				url,
+				params=params or None,
+				headers={"User-Agent": ""}
+			)
 			return response.content
 
 		@staticmethod
-		def fetchSfxLibraryDat() -> bytes:
+		def fetchSfxLibraryDat(
+			expires: int | None = None,
+			token: str | None = None
+		) -> bytes:
+			endpoint = "/sfx/sfxlibrary.dat"
+			url = "https://geometrydashfiles.b-cdn.net" + endpoint
+			params: dict[str, str | int] = {}
+			if expires is not None:
+				params["expires"] = expires
+			if token is None and expires is not None:
+				token = GDReq.Tools.generateCdnToken(endpoint, expires)
+			if token is not None:
+				params["token"] = token
+
 			response = requests.get(
-				"https://geometrydashfiles.b-cdn.net/sfx/sfxlibrary.dat",
+				url,
+				params=params or None,
 				headers={"User-Agent": ""}
 			)
 
