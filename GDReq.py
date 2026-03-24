@@ -2116,6 +2116,35 @@ class GDReq:
 			udid: str | None = None,
 			uuid: str | None = None
 		) -> str:
+			"""
+			type_: Search type, defaults to most liked, types are as follows:
+			```markdown
+			| Type | Description                                                                       |
+			| :--: | --------------------------------------------------------------------------------- |
+			|  0   | Search query                                                                      |
+			|  1   | Most downloaded                                                                   |
+			|  2   | Most liked                                                                        |
+			|  3   | Trending                                                                          |
+			|  4   | Recent                                                                            |
+			|  5   | User's levels, uses `str` as the **user ID**                                      |
+			|  6   | Featured                                                                          |
+			|  7   | Magic                                                                             |
+			|  8   | Moderator sent levels                                                             |
+			|  10  | List of levels (not to be confused with type 25, which is for in-game lists), uses `str` as a comma separated list of level IDs |
+			|  11  | Awarded                                                                           |
+			|  12  | Followed (see `followed` parameter)                                               |
+			|  13  | Friends (login required)                                                          |
+			|  15  | Most liked in GD World                                                            |
+			|  16  | Hall of fame                                                                      |
+			|  17  | Featured in GD World                                                              |
+			|  18  | Unknown (always empty, perhaps robtop only?)                                      |
+			|  19  | Unknown (same as type 10 but this type has pagination and no star rate filter)    |
+			|  21  | Daily history                                                                     |
+			|  22  | Weekly history                                                                    |
+			|  25  | Level list, uses `str` as the list ID                                             |
+			|  26  | Unknown (same as type 19 but each page has up to 100 levels instead of 10 on it)  |
+			```
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
@@ -2249,6 +2278,9 @@ class GDReq:
 			s6: str | None = None,
 			s7: str | None = None
 		) -> str:
+			"""
+			type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int | float] = {
@@ -2335,6 +2367,9 @@ class GDReq:
 			s6: str | None = None,
 			s7: str | None = None
 		) -> str:
+			"""
+			type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int | float] = {
@@ -2767,6 +2802,25 @@ class GDReq:
 			udid: str | None = None,
 			uuid: str | None = None
 		) -> str:
+			"""
+			type_: Search type, defaults to most liked, types are as follows:
+			```markdown
+			| Type | Description                                      |
+			| :--: | ---------------------------------------------- |
+			|  0   | Search query                                   |
+			|  1   | Most downloaded                                |
+			|  2   | Most liked                                     |
+			|  3   | Trending                                       |
+			|  4   | Recent                                         |
+			|  5   | User's lists, uses `str` as the **account ID** |
+			|  6   | Lists button                                   |
+			|  7   | Magic (returns the same levels as most liked)  |
+			|  11  | Awarded                                        |
+			|  12  | Followed (see `followed` parameter)            |
+			|  13  | Friends (login required)                       |
+			|  27  | Sent lists                                     |
+			```
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
@@ -2898,6 +2952,9 @@ class GDReq:
 
 		@staticmethod
 		def getAccountURL(accountID: int, type_: int) -> str:
+			"""
+			type_: used to decide which endpoint is used after the data server is found - 1 = backup data/ 2 = sync data
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
@@ -2950,7 +3007,7 @@ class GDReq:
 				"type": type_,
 				"secret": secret
 			}
-			
+
 			if gameVersion is not None:
 				data["gameVersion"] = gameVersion
 
@@ -3714,6 +3771,9 @@ class GDReq:
 			gdw: int | None = None,
 			type_: int | None = None
 		) -> str:
+			"""
+			type_: 0 for friends, 1 for blocklist. Defaults to 0 if left out
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
