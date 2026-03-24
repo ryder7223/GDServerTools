@@ -2932,6 +2932,9 @@ class GDReq:
 			like: int | None = None,
 			chk: str | None = None
 		) -> str:
+			"""
+			type_: 1 for level, 2 for level comment, 3 for account comment, 4 for list
+			"""
 			secret = GDReq.Tools.getSecret(1)
 			likeVal = 1 if like is None else like
 			if chk is None and (rs is not None and
@@ -2947,7 +2950,7 @@ class GDReq:
 				"type": type_,
 				"secret": secret
 			}
-
+			
 			if gameVersion is not None:
 				data["gameVersion"] = gameVersion
 
