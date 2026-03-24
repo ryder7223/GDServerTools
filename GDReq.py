@@ -1053,7 +1053,7 @@ class GDReq:
 			rs: str,
 			accountId: int,
 			udid: str,
-			uuid: str
+			uuid: int
 		) -> str:
 			return GDReq.Tools.genChk(9, [levelId, inc, rs, accountId, udid, uuid], 1)
 
@@ -1064,7 +1064,7 @@ class GDReq:
 			rs: str,
 			accountId: int,
 			udid: str,
-			uuid: str
+			uuid: int
 		) -> str:
 			return GDReq.Tools.genChk(13, [levelId, stars, rs, accountId, udid, uuid], 3)
 
@@ -1077,7 +1077,7 @@ class GDReq:
 			rs: str,
 			accountId: int,
 			udid: str,
-			uuid: str
+			uuid: int
 		) -> str:
 			return GDReq.Tools.genChk(
 				13, [special, itemId, like, type_, rs, accountId, udid, uuid], 3
@@ -1798,7 +1798,7 @@ class GDReq:
 			accountID: int | None = None,
 			gjp2: str | None = None,
 			udid: str | None = None,
-			uuid: str | None = None,
+			uuid: int | None = None,
 			chk: str | None = None,
 			gameVersion: int | None = None,
 			binaryVersion: int | None = None,
@@ -2013,7 +2013,7 @@ class GDReq:
 			accountID: int | None = None,
 			gjp2: str | None = None,
 			udid: str | None = None,
-			uuid: str | None = None,
+			uuid: int | None = None,
 			inc: int | None = None,
 			extras: int | None = None,
 			rs: str | None = None,
@@ -2114,7 +2114,7 @@ class GDReq:
 			followed: str | None = None,
 			local: int | None = None,
 			udid: str | None = None,
-			uuid: str | None = None
+			uuid: int | None = None
 		) -> str:
 			"""
 			type_: Search type, defaults to most liked, types are as follows:
@@ -2800,7 +2800,7 @@ class GDReq:
 			star: int | None = None,
 			followed: str | None = None,
 			udid: str | None = None,
-			uuid: str | None = None
+			uuid: int | None = None
 		) -> str:
 			"""
 			type_: Search type, defaults to most liked, types are as follows:
@@ -2884,7 +2884,7 @@ class GDReq:
 			gameVersion: int | None = None,
 			binaryVersion: int | None = None,
 			udid: str | None = None,
-			uuid: str | None = None
+			uuid: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(3)
 
@@ -2983,7 +2983,7 @@ class GDReq:
 			accountID: int | None = None,
 			gjp2: str | None = None,
 			udid: str | None = None,
-			uuid: str | None = None,
+			uuid: int | None = None,
 			rs: str | None = None,
 			special: int = 0,
 			like: int | None = None,
@@ -2991,9 +2991,24 @@ class GDReq:
 		) -> str:
 			"""
 			type_: 1 for level, 2 for level comment, 3 for account comment, 4 for list
+			special: (0 = Level, LevelID = Level Comment, CommentID = Other Comment)
+			like: (0 = dislike, 1 = like)
+
+			For likes to go through, it's recommended to provide:
+			```
+			itemID
+			type_
+			udid
+			uuid
+			accountID
+			gjp2
+			like
+			```
 			"""
 			secret = GDReq.Tools.getSecret(1)
 			likeVal = 1 if like is None else like
+			if rs is None:
+				rs = GDReq.Tools.generateRs()
 			if chk is None and (rs is not None and
 								accountID is not None and
 								udid is not None and
@@ -3122,7 +3137,7 @@ class GDReq:
 			gdw: int | None = None,
 			accountID: int | None = None,
 			gjp2: str | None = None,
-			uuid: str | None = None
+			uuid: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
 			if chk is None:
@@ -3171,7 +3186,7 @@ class GDReq:
 			gdw: int | None = None,
 			accountID: int | None = None,
 			gjp2: str | None = None,
-			uuid: str | None = None,
+			uuid: int | None = None,
 			rewardType: int | None = None,
 			r1: int | None = None,
 			r2: int | None = None
@@ -3232,7 +3247,7 @@ class GDReq:
 			gdw: int | None = None,
 			accountID: int | None = None,
 			gjp2: str | None = None,
-			uuid: str | None = None,
+			uuid: int | None = None,
 			world: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
@@ -3814,7 +3829,7 @@ class GDReq:
 			accountID: int | None = None,
 			gjp2: str | None = None,
 			udid: str | None = None,
-			uuid: str | None = None
+			uuid: int | None = None
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
 
