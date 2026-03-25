@@ -958,6 +958,11 @@ class GDReq:
 			return "".join(random.choices(alphabet, k=length))
 
 		@staticmethod
+		def generateRn(length: int | None = None) -> int:
+			numLength = length if length else random.randint(3,5)
+			return int("".join(random.choices(string.digits, k=numLength)))
+
+		@staticmethod
 		def generateUuid(parts: Sequence[int] = (8, 4, 4, 4, 10)) -> str:
 			return "-".join(GDReq.Tools.generateRs(n) for n in parts)
 
@@ -3191,14 +3196,22 @@ class GDReq:
 			r1: int | None = None,
 			r2: int | None = None
 		) -> str:
+			"""
+			udid: can be anything
+			rewardType: 0 for getting info about the chests, 1 for small chest, 2 for large chest. Defaults to 0 if left out
+			"""
 			secret = GDReq.Tools.getSecret(1)
 			if chk is None:
 				chk = GDReq.Tools.generateChestMenuChk()
 
+			r1, r2 = [GDReq.Tools.generateRn() for _ in range(2)]
+
 			data: dict[str, str | int] = {
 				"udid": udid,
 				"chk": chk,
-				"secret": secret
+				"secret": secret,
+				"r1": r1,
+				"r2": r2
 			}
 
 			if gameVersion is not None:
