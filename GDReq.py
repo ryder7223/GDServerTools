@@ -811,7 +811,7 @@ class GDReq:
 			return chk
 		
 		@staticmethod
-		def generateClassicLeaderboardSeed(
+		def _generateClassicLeaderboardSeed(
 			jumps: int,
 			percentage: int,
 			seconds: int,
@@ -824,7 +824,7 @@ class GDReq:
 			)
 
 		@staticmethod
-		def generatePlatformerHash(bestTime, bestPoints):
+		def _generatePlatformerHash(bestTime, bestPoints):
 			number = (((bestTime + 7890) % 34567) * 601 + ((abs(bestPoints) + 3456) % 78901) * 967 + 94819) % 94433
 			return ((number ^ number >> 16) * 829) % 77849
 
@@ -921,9 +921,8 @@ class GDReq:
 					raise ValueError(f"Invalid salt index: {index}")
 
 		@staticmethod
-		def generateGjp2(password: str, salt: str | None = None) -> str:
-			if salt is None:
-				salt = GDReq.Tools.getSalt(9)
+		def generateGjp2(password: str) -> str:
+			salt = GDReq.Tools.getSalt(9)
 			return hashlib.sha1((password + salt).encode()).hexdigest()
 
 		@staticmethod
@@ -981,35 +980,35 @@ class GDReq:
 			)
 
 		@staticmethod
-		def generateCdnExpires(offsetSeconds: int = 3600) -> int:
+		def _generateCdnExpires(offsetSeconds: int = 3600) -> int:
 			return int(time.time()) + offsetSeconds
 
 		@staticmethod
-		def generateCdnToken(endpoint: str, expires: int) -> str:
+		def _generateCdnToken(endpoint: str, expires: int) -> str:
 			payload = f"8501f9c2-75ba-4230-8188-51037c4da102{endpoint}{expires}"
 			digestAscii = hashlib.md5(payload.encode()).hexdigest()
 			return GDReq.Tools.b64EncodeUrlSafe(digestAscii)
 
 		@staticmethod
-		def sampleStringForUploadSeed(data: str, charCount: int = 50) -> str:
+		def _sampleStringForUploadSeed(data: str, charCount: int = 50) -> str:
 			if len(data) < charCount:
 				return data
 			step = len(data) // charCount
 			return data[::step][:charCount]
 
 		@staticmethod
-		def generateLevelUploadSeed2(levelString: str) -> str:
-			sample = GDReq.Tools.sampleStringForUploadSeed(levelString, 50)
+		def _generateLevelUploadSeed2(levelString: str) -> str:
+			sample = GDReq.Tools._sampleStringForUploadSeed(levelString, 50)
 			return GDReq.Tools.genChk(9, [sample], 1)
 
 		@staticmethod
-		def generateListSeed2(length: int = 5) -> str:
+		def _generateListSeed2(length: int = 5) -> str:
 			alphabet = string.ascii_letters + string.digits
 			return "".join(random.choices(alphabet, k=length))
 
 		@staticmethod
-		def generateListUploadSeed(listLevels: str, accountId: int, seed2: str) -> str:
-			sample = GDReq.Tools.sampleStringForUploadSeed(listLevels, 50)
+		def _generateListUploadSeed(listLevels: str, accountId: int, seed2: str) -> str:
+			sample = GDReq.Tools._sampleStringForUploadSeed(listLevels, 50)
 			digest = hashlib.sha1(f"{sample}{accountId}".encode()).hexdigest()
 			return GDReq.Tools.b64EncodeUrlSafe(GDReq.Tools.xorCipher(digest, seed2))
 
@@ -1645,7 +1644,7 @@ class GDReq:
 		) -> str:
 			secret = GDReq.Tools.getSecret(1)
 			if seed2 is None:
-				seed2 = GDReq.Tools.generateLevelUploadSeed2(levelString)
+				seed2 = GDReq.Tools._generateLevelUploadSeed2(levelString)
 
 			data: dict[str, str | int] = {
 				"gameVersion": gameVersion,
@@ -2454,6 +2453,9 @@ class GDReq:
 			mode: int | None = None,
 			total: int | None = None
 		) -> str:
+			"""
+			mode: Set to 0 for most recent, and 1 for most liked
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
@@ -2497,6 +2499,9 @@ class GDReq:
 			mode: int | None = None,
 			total: int | None = None
 		) -> str:
+			"""
+			mode: Set to 0 for most recent, and 1 for most liked
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
@@ -2579,6 +2584,9 @@ class GDReq:
 			gdw: int | None = None,
 			cType: int | None = None
 		) -> str:
+			"""
+			cType: The comment type, 0 for level, 1 for user
+			"""
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
@@ -2660,7 +2668,7 @@ class GDReq:
 			gameVersion: int | None = None,
 			binaryVersion: int | None = None,
 			gdw: int | None = None
-			) -> str:
+		) -> str:
 			secret = GDReq.Tools.getSecret(1)
 			commentB64 = GDReq.Tools.b64EncodeUrlSafe(comment)
 			chk = GDReq.Tools.genChkLevelComment(
@@ -2706,7 +2714,7 @@ class GDReq:
 			gameVersion: int | None = None,
 			binaryVersion: int | None = None,
 			gdw: int | None = None
-			) -> str:
+		) -> str:
 			secret = GDReq.Tools.getSecret(1)
 
 			data: dict[str, str | int] = {
@@ -2755,11 +2763,15 @@ class GDReq:
 			seed2: str | None = None,
 			binaryVersion: int | None = None
 		) -> str:
+			"""
+			listID: The ID of the list if updating to a newer version, otherwise 0
+			listName: The name of the list, in plain text
+			"""
 			secret = GDReq.Tools.getSecret(1)
 			if seed2 is None:
-				seed2 = GDReq.Tools.generateListSeed2()
+				seed2 = GDReq.Tools._generateListSeed2()
 			if seed is None:
-				seed = GDReq.Tools.generateListUploadSeed(listLevels, accountID, seed2)
+				seed = GDReq.Tools._generateListUploadSeed(listLevels, accountID, seed2)
 
 			data: dict[str, str | int] = {
 				"gameVersion": gameVersion,
@@ -3941,7 +3953,7 @@ class GDReq:
 			if expires is not None:
 				params["expires"] = expires
 			if token is None and expires is not None:
-				token = GDReq.Tools.generateCdnToken(endpoint, expires)
+				token = GDReq.Tools._generateCdnToken(endpoint, expires)
 			if token is not None:
 				params["token"] = token
 
@@ -3963,7 +3975,7 @@ class GDReq:
 			if expires is not None:
 				params["expires"] = expires
 			if token is None and expires is not None:
-				token = GDReq.Tools.generateCdnToken(endpoint, expires)
+				token = GDReq.Tools._generateCdnToken(endpoint, expires)
 			if token is not None:
 				params["token"] = token
 
