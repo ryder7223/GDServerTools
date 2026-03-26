@@ -11,6 +11,8 @@ import string
 import time
 from collections import Counter
 import xml.etree.ElementTree as ET
+import urllib.request
+import os
 
 
 class Tools:
@@ -570,15 +572,13 @@ class Tools:
 
 	class Hashes:
 
-		_SALT_LEVEL = "xI25fpAapCQg"
-
 		@staticmethod
 		def hashGetGJLevels(levelRows: Sequence[dict | Sequence]) -> str:
 			"""
 			Per-level segments: first digit of level ID, last digit, stars, coin count,
 			1 if coins verified else 0. Salt xI25fpAapCQg; result is SHA-1 hex.
 			"""
-			salt = Tools.Hashes._SALT_LEVEL
+			salt = Tools.getSalt(1)
 			parts: list[str] = []
 			for row in levelRows:
 				if isinstance(row, dict):
@@ -602,7 +602,7 @@ class Tools:
 		@staticmethod
 		def hashDownloadGJLevel1(levelString: str) -> str:
 			"""Undecoded level string sampling + level salt; SHA-1 hex."""
-			salt = Tools.Hashes._SALT_LEVEL
+			salt = Tools.getSalt(1)
 			if len(levelString) < 41:
 				return hashlib.sha1(f"{levelString}{salt}".encode()).hexdigest()
 			m = len(levelString) // 40
@@ -629,7 +629,7 @@ class Tools:
 			password: int,
 			dailyNumber: int = 0
 		) -> str:
-			salt = Tools.Hashes._SALT_LEVEL
+			salt = Tools.getSalt(1)
 			pw = Tools.Hashes.normalizePasswordForDownloadHash(password)
 			segments = [
 				str(playerId),
@@ -645,7 +645,7 @@ class Tools:
 
 		@staticmethod
 		def hashGetGJMapPacks(packRows: Sequence[dict | Sequence]) -> str:
-			salt = Tools.Hashes._SALT_LEVEL
+			salt = Tools.getSalt(1)
 			parts: list[str] = []
 			for row in packRows:
 				if isinstance(row, dict):
@@ -660,7 +660,7 @@ class Tools:
 
 		@staticmethod
 		def hashGetGJGauntlets(gauntletRows: Sequence[dict | Sequence]) -> str:
-			salt = Tools.Hashes._SALT_LEVEL
+			salt = Tools.getSalt(1)
 			parts: list[str] = []
 			for row in gauntletRows:
 				if isinstance(row, dict):
@@ -922,6 +922,37 @@ class Tools:
 	def generateGjp2(password: str) -> str:
 		salt = Tools.getSalt(9)
 		return hashlib.sha1((password + salt).encode()).hexdigest()
+
+
+
+	@staticmethod
+	def crackGjp2(gjp2: str) -> str | None:
+		ROCKYOU_URL = "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt"
+		ROCKYOU_PATH = os.path.join(os.path.dirname(__file__), "rockyou.txt")
+		SALT = "mI29fmAnxgTs"
+
+		def ensureRockyou():
+			if not os.path.isfile(ROCKYOU_PATH):
+				print("Downloading")
+				urllib.request.urlretrieve(ROCKYOU_URL, ROCKYOU_PATH)
+
+		def generateGjp2(password: str, saltBytes: bytes) -> str:
+			return hashlib.sha1(password.encode() + saltBytes).hexdigest()
+
+		# Prepare
+		ensureRockyou()
+		targetHash = gjp2.strip()
+		saltBytes = SALT.encode()
+
+		# Search
+		with open(ROCKYOU_PATH, encoding="utf-8", errors="ignore") as f:
+			for line in f:
+				password = line.rstrip("\n\r")
+
+				if generateGjp2(password, saltBytes) == targetHash:
+					return password
+
+		return None
 
 	@staticmethod
 	def encodeGjp(password: str) -> str:
