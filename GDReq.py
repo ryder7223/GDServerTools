@@ -18,27 +18,6 @@ import ssl
 
 class Tools:
 
-	class Parsing:
-
-		@staticmethod
-		def parseLevelData(levelData: str) -> dict:
-			parts = levelData.split("#")[0].split(":")
-			return dict(
-				sorted({
-					parts[i]:
-						parts[i+1] for i in range(
-							0, len(parts)-1, 2
-					)}.items(),
-						key=lambda item: int(item[0])
-				))
-
-		@staticmethod
-		def parseServerKeyValues(row: str) -> dict[str, str]:
-			parts = row.split(":")
-			if len(parts) % 2 != 0:
-				raise ValueError("Colon-delimited row must have an even segment count")
-			return {parts[i]: parts[i + 1] for i in range(0, len(parts), 2)}
-
 	class LevelInfo:
 
 		@staticmethod
@@ -96,8 +75,8 @@ class Tools:
 
 		@staticmethod
 		def _parseServerLevel(serverLevel: str) -> dict[str, str]:
-			levelPart = serverLevel.split("#", 1)[0].strip()
-			return Tools.Parsing.parseServerKeyValues(levelPart)
+			parts = serverLevel.split("#")[0].split(":")
+			return {parts[i]: parts[i + 1] for i in range(0, len(parts), 2)}
 
 		@staticmethod
 		def _decodeServerLevel(serverLevel: str) -> str:
