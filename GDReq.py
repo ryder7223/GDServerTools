@@ -1419,7 +1419,7 @@ class Users:
 		gameVersion: int | None = None,
 		binaryVersion: int | None = None,
 		gdw: int | None = None,
-		str_: int | None = None,
+		str_: str | None = None,
 		page: int | None = None,
 		total: int | None = None
 		) -> str:
