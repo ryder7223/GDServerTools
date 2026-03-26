@@ -13,6 +13,7 @@ from collections import Counter
 import xml.etree.ElementTree as ET
 import urllib.request
 import os
+import ssl
 
 
 class Tools:
@@ -927,14 +928,19 @@ class Tools:
 
 	@staticmethod
 	def crackGjp2(gjp2: str) -> str | None:
+		"""
+		Downloads rockyou.txt on first run.
+		Checks the gjp2 against every password in the list.
+		"""
 		ROCKYOU_URL = "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt"
 		ROCKYOU_PATH = os.path.join(os.path.dirname(__file__), "rockyou.txt")
 		SALT = "mI29fmAnxgTs"
 
 		def ensureRockyou():
 			if not os.path.isfile(ROCKYOU_PATH):
-				print("Downloading")
+				ssl._create_default_https_context = ssl._create_unverified_context
 				urllib.request.urlretrieve(ROCKYOU_URL, ROCKYOU_PATH)
+				ssl._create_default_https_context = ssl.create_default_context
 
 		def generateGjp2(password: str, saltBytes: bytes) -> str:
 			return hashlib.sha1(password.encode() + saltBytes).hexdigest()
