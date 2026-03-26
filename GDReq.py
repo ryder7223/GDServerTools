@@ -755,7 +755,7 @@ class Tools:
 
 	@staticmethod
 	def makeReq(url: str, data: dict):
-		response = requests.post(url, data, headers={"User-Agent": ""})
+		response = requests.post(url, data, headers={"User-Agent": ""}, verify=False)
 		return response
 
 	@staticmethod
