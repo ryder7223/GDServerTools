@@ -1,3 +1,7 @@
+"""
+An API wrapper for Geometry Dash.
+"""
+
 import requests
 import base64
 from typing import Any, Union, List, Sequence
@@ -450,7 +454,7 @@ class Tools:
 			Type 11: Multiplayer
 			Type 12: Music/SFX Library Secret
 			Type 13: Rating Integrity
-			Type 14: Chest Rewards
+			- Type 14: Chest Rewards
 			Type 15: Stat Submission Integrity
 			- Type 16: Level Object Data
 			```
@@ -466,6 +470,11 @@ class Tools:
 					Tools.b64DecodeUrlSafe(data),
 					Tools.getXorKey(3)
 				)[:-12]
+
+			elif type_ == 14:
+				return Tools.xorCipher(
+					Tools.b64DecodeUrlSafe(data[5:]), Tools.getXorKey(14)
+					)
 
 			elif type_ == 16:
 				if not data or data in ("0", "Aw=="):
@@ -662,6 +671,450 @@ class Tools:
 		def hashGetGJRewards(undecodedResponse: str) -> str:
 			salt = Tools.getSalt(7)
 			return hashlib.sha1((undecodedResponse[5:] + salt).encode()).hexdigest()
+
+	class Parse:
+
+		@staticmethod
+		def _safeInt(value: str):
+			if value is None:
+				return None
+			if value == "":
+				return ""
+			if str(value).isdigit():
+				return int(value)
+			return value
+
+		@staticmethod
+		def _decode(value: str):
+			try:
+				return Tools.b64DecodeUrlSafe(value)
+			except Exception:
+				return value
+
+		@staticmethod
+		def _parseCreators(segment: str):
+			creators = []
+			entries = segment.split("|")
+
+			for entry in entries:
+				parts = entry.split(":")
+				creators.append({
+					"userID": int(parts[0]),
+					"username": parts[1],
+					"accountID": int(parts[2])
+				})
+
+			return creators
+
+		@staticmethod
+		def _parseSongs(segment: str):
+			songs = []
+
+			for entry in segment.split(":"):
+				if not entry:
+					continue
+
+				song = Tools.Parse._parseKeyValuePairs(entry, splitter="~|~")
+
+				songs.append(song)
+
+			return songs
+
+		@staticmethod
+		def getGJLevels21(rawText: str):
+			parts = rawText.split("#")
+
+			levelSection = parts[0]
+			creatorSection = parts[1]
+			songSection = parts[2]
+			pageInfo = parts[3]
+			hashValue = parts[4]
+
+			levels = []
+			for block in levelSection.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				if parsed:
+					parsed["3"] = Tools.Parse._decode(parsed["3"])
+					levels.append(parsed)
+
+			creators = Tools.Parse._parseCreators(creatorSection)
+			songs = Tools.Parse._parseSongs(songSection)
+			pagination = Tools.Parse._parsePagination(pageInfo)
+
+			return {
+				"levels": levels,
+				"creators": creators,
+				"songs": songs,
+				"pagination": pagination,
+				"hash": hashValue
+			}
+
+		@staticmethod
+		def _parseKeyValuePairs(segment: str, splitter: str = "~"):
+			parts = segment.split(splitter)
+			result = {}
+	
+			i = 0
+			while i < len(parts) - 1:
+				key = str(parts[i])
+				value = parts[i + 1]
+		
+				if value.isdigit():
+					value = int(value)
+				elif value == "":
+					value = ""
+	
+				result[key] = value
+				i += 2
+	
+			return result
+			
+		@staticmethod
+		def _parseLevelCommentBlock(block: str):	
+			contentRaw, senderRaw = block.split(":", 1)
+		
+			contentData = Tools.Parse._parseKeyValuePairs(contentRaw)
+			senderData = Tools.Parse._parseKeyValuePairs(senderRaw)
+		
+			if contentData["2"]:
+				contentData["2"] = Tools.b64DecodeUrlSafe(contentData["2"])
+		
+			return {
+				"content": contentData,
+				"sender": senderData
+			}
+
+		@staticmethod
+		def _parseAccountCommentBlock(block: str):
+			contentData = Tools.Parse._parseKeyValuePairs(block)
+		
+			if contentData["2"]:
+				contentData["2"] = Tools.b64DecodeUrlSafe(contentData["2"])
+		
+			return {
+				"content": contentData
+			}
+
+		@staticmethod
+		def _parsePagination(lastSegment: str):		
+			try:
+				total, offset, amount = lastSegment.split(":")
+				return {
+					"total": int(total),
+					"offset": int(offset),
+					"amount": int(amount)
+				}
+			except Exception:
+				return None
+
+		@staticmethod
+		def getGJComments21(rawText: str):		
+			mainPart, paginationPart = rawText.rsplit("#", 1)
+			pagination = Tools.Parse._parsePagination(paginationPart)
+		
+			commentBlocks = mainPart.split("|")
+		
+			comments = []
+			for block in commentBlocks:
+				parsed = Tools.Parse._parseLevelCommentBlock(block)
+				if parsed:
+					comments.append(parsed)
+		
+			return {
+				"comments": comments,
+				"pagination": pagination
+			}
+
+		@staticmethod
+		def getGJAccountComments20(rawText: str):		
+			mainPart, paginationPart = rawText.rsplit("#", 1)
+			pagination = Tools.Parse._parsePagination(paginationPart)
+		
+			commentBlocks = mainPart.split("|")
+		
+			comments = []
+			for block in commentBlocks:
+				parsed = Tools.Parse._parseAccountCommentBlock(block)
+				if parsed:
+					comments.append(parsed)
+		
+			return {
+				"comments": comments,
+				"pagination": pagination
+			}
+
+		@staticmethod
+		def getGJRewards(rawText: str):
+			data = rawText.split("|")
+			rewards = Tools.Encryption.decodeString(data[0], 14).split(":")
+			
+		
+			randomHash = rewards[0]
+			uuid = int(rewards[1])
+			decodedChk = int(rewards[2])
+			udid = rewards[3]
+			accountID = int(rewards[4])
+			smallChestSecondsLeft = int(rewards[5])
+		
+			smallChestRewards = rewards[6].split(",")
+			orbs1 = int(smallChestRewards[0])
+			diamonds1 = int(smallChestRewards[1])
+			shard1 = int(smallChestRewards[2])
+			shard2 = int(smallChestRewards[3])
+		
+			smallChestsClaimedBefore = int(rewards[7])
+			largeChestSecondsLeft = int(rewards[8])
+		
+			largeChestRewards = rewards[9].split(",")
+			orbs2 = int(largeChestRewards[0])
+			diamonds2 = int(largeChestRewards[1])
+			shard3 = int(largeChestRewards[2])
+			shard4 = int(largeChestRewards[3])
+		
+			largeChestsClaimedBefore = int(rewards[10])
+			requestType = int(rewards[11])
+		
+		
+			return {"rewards": {
+						"randomHash": randomHash,
+						"uuid": uuid,
+						"decodedChk": decodedChk,
+						"udid": udid,
+						"accountID": accountID,
+						"smallChestSecondsLeft": smallChestSecondsLeft,
+						"smallChestRewards": {
+							"orbs": orbs1,
+							"diamonds": diamonds1,
+							"shardTypes": [
+								shard1,
+								shard2
+								]
+		
+							},
+						"smallChestsClaimedBefore": smallChestsClaimedBefore,
+						"largeChestSecondsLeft": largeChestSecondsLeft,
+						"largeChestRewards": {
+							"orbs": orbs2,
+							"diamonds": diamonds2,
+							"shardTypes": [
+								shard3,
+								shard4
+								]
+		
+							},
+						"largeChestsClaimedBefore": largeChestsClaimedBefore,
+						"requestType": requestType
+						},
+					"hash": data[1]
+					}
+
+		@staticmethod
+		def getGJUserInfo20(rawText: str):
+			user = Tools.Parse._parseKeyValuePairs(rawText, ":")
+			result = {"user": user}
+			for key in result["user"]:
+				if key == "55":
+					demons = result["user"][key].split(",")
+					for index, value in enumerate(demons):
+						demons[index] = int(value)
+		
+					result["user"][key] = {
+						"easyDemonCompletions": demons[0],
+						"mediumDemonCompletions": demons[1],
+						"hardDemonCompletions": demons[2],
+						"insaneDemonCompletions": demons[3],
+						"extremeDemonCompletions": demons[4],
+						"easyPlatformerDemonCompletions": demons[5],
+						"mediumPlatformerDemonCompletions": demons[6],
+						"hardPlatformerDemonCompletions": demons[7],
+						"insanePlatformerDemonCompletions": demons[8],
+						"extremePlatformerDemonCompletions": demons[9],
+						"weeklyDemonCompletions": demons[10],
+						"gauntletDemonCompletions": demons[11]
+		
+					}
+				elif key == "56":
+					classics = result["user"][key].split(",")
+					for index, value in enumerate(classics):
+						classics[index] = int(value)
+		
+					result["user"][key] = {
+						"autoCompletions": classics[0],
+						"easyCompletions": classics[1],
+						"normalCompletions": classics[2],
+						"hardCompletions": classics[3],
+						"harderCompletions": classics[4],
+						"insaneCompletions": classics[5],
+						"dailyCompletions": classics[6],
+						"gauntletCompletions": classics[7]
+					}
+		
+				elif key == "57":
+					platformers = result["user"][key].split(",")
+					for index, value in enumerate(platformers):
+						platformers[index] = int(value)
+		
+					result["user"][key] = {
+						"autoPlatformerCompletions": platformers[0],
+						"easyPlatformerCompletions": platformers[1],
+						"normalPlatformerCompletions": platformers[2],
+						"hardPlatformerCompletions": platformers[3],
+						"harderPlatformerCompletions": platformers[4],
+						"insanePlatformerCompletions": platformers[5]
+					}
+		
+			return result
+
+		@staticmethod
+		def downloadGJLevel22(rawText: str):
+			data = rawText.split("#")
+			level = Tools.Parse._parseKeyValuePairs(data[0], ":")
+			result = {
+				"level": level,
+				"hash1": data[1],
+				"hash2": data[2],
+			}
+
+			if len(data) > 3:
+				if data[3] != "":
+					userID, username, accountID = data[3].split(":")
+					result["dailyCreator"] = {
+						"userID": userID,
+						"username": username,
+						"accountID": accountID
+					}
+				else:
+					result["dailyCreator"] = {}
+
+				if data[4] != "":
+					songs = Tools.Parse._parseSongs(data[4])
+					result["songs"] = songs
+				else:
+					result["songs"] = []
+
+			for key in result["level"]:
+				if key == "3":
+					result["level"][key] = Tools.Parse._decode(result["level"][key])
+
+				elif key == "4":
+					result["level"][key] = Tools.Encryption.decodeString(result["level"][key], 16)
+
+				elif key == "27":
+					result["level"][key] = Tools.decodeLevelPassword(result["level"][key])
+
+			return result
+
+		@staticmethod
+		def getGJGauntlets21(rawText: str):
+			data = rawText.split("#")
+		
+			gauntletSection = data[0]
+			hashValue = data[1]
+		
+			gauntletBlocks = gauntletSection.split("|")
+		
+			gauntlets = []
+		
+			for block in gauntletBlocks:
+				parsed = Tools.Parse._parseKeyValuePairs(block, ":")
+		
+				parsed["3"] = [
+					int(levelID)
+					for levelID in parsed["3"].split(",")
+				]
+		
+				gauntlets.append(parsed)
+		
+			return {
+				"gauntlets": gauntlets,
+				"hash": hashValue
+			}
+
+		@staticmethod
+		def getGJLevelsList(rawText: str):
+			parts = rawText.split("#")
+
+			listSection = parts[0]
+			creatorSection = parts[1]
+			pageInfo = parts[2]
+			hashValue = parts[3]
+
+			lists = []
+			for block in listSection.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				parsed["3"] = Tools.Parse._decode(parsed["3"])
+				parsed["51"] = [
+					int(levelID)
+					for levelID in parsed["51"].split(",")
+				]
+				lists.append(parsed)
+
+			creators = Tools.Parse._parseCreators(creatorSection)
+
+			pagination = Tools.Parse._parsePagination(pageInfo)
+
+			return {
+				"lists": lists,
+				"creators": creators,
+				"pagination": pagination,
+				"hash": hashValue
+			}
+
+		@staticmethod
+		def getGJFriendRequests20(rawText: str):
+			parts = rawText.split("#")
+
+			userSection = parts[0]
+			pageInfo = parts[1]
+
+			users = []
+			for block in userSection.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				parsed["35"] = Tools.Parse._decode(parsed["35"])
+				users.append(parsed)
+
+			pagination = Tools.Parse._parsePagination(pageInfo)
+
+			return {
+				"users": users,
+				"pagination": pagination
+			}
+
+		@staticmethod
+		def getGJMessages20(rawText: str):
+			parts = rawText.split("#")
+
+			messageSection = parts[0]
+			pageInfo = parts[1]
+
+			messages = []
+			for block in messageSection.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				parsed["4"] = Tools.Parse._decode(parsed["4"])
+				messages.append(parsed)
+
+			pagination = Tools.Parse._parsePagination(pageInfo)
+
+			return {
+				"messages": messages,
+				"pagination": pagination
+			}
+
+		@staticmethod
+		def downloadGJMessage20(rawText: str):
+			parts = rawText.split("#")
+
+			messageSection = parts[0]
+			parsed = {}
+
+			for block in messageSection.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				parsed["4"] = Tools.Parse._decode(parsed["4"])
+				parsed["5"] = Tools.Encryption.decodeString(parsed["5"], 2)
+
+			return {
+				"message": parsed
+			}
 
 	@staticmethod
 	def b64EncodeUrlSafe(data: str) -> str:
@@ -1164,7 +1617,6 @@ class Tools:
 		raw = base64.urlsafe_b64decode(combined.encode())
 		return zlib.decompress(raw, 15 | 32).decode()
 
-
 class Accounts:
 
 	@staticmethod
@@ -1306,7 +1758,6 @@ class Accounts:
 		if not Tools.checkResponse(response.text):
 			print(f"updateGJAccSettings20 Failed: {response.text}")
 		return response.text
-
 
 class Users:
 
