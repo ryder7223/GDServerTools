@@ -438,10 +438,10 @@ class Tools:
 	class Encryption:
 
 		@staticmethod
-		def decodeString(data: str, type_: int) -> str:
+		def decodeString(data, type_: int) -> str:
 			"""
 			```
-			Type 1: Player Save Data
+			- Type 1: Player Save Data
 			- Type 2:  Player Messages
 			- Type 3:  Vault Codes
 			Type 4:  Daily Challenges
@@ -457,8 +457,19 @@ class Tools:
 			- Type 14: Chest Rewards
 			Type 15: Stat Submission Integrity
 			- Type 16: Level Object Data
+			- Type 17: Decoded Manager (syncGJAccountNew)
+			- Type 18: Level / Map (syncGJAccountNew)
 			```
 			"""
+			if type_ == 1:
+				if isinstance(data, bytes):
+					xored = Tools.xorCipher(data, 11)
+				else:
+					xored = Tools.xorCipher(data.encode("latin-1"), 11)
+				decoded = base64.urlsafe_b64decode(xored)
+				result = gzip.decompress(decoded).decode("latin-1")
+				return result
+
 			if type_ == 2:
 				return Tools.xorCipher(
 				Tools.b64DecodeUrlSafe(data),
@@ -500,6 +511,18 @@ class Tools:
 					except Exception:
 						continue
 				return ""
+
+			if type_ == 17:
+				result = data.encode("latin-1")
+				b64Decoded = Tools.b64DecodeUrlSafeBytes(result)
+				result = gzip.decompress(b64Decoded)
+				return result.decode("latin-1")
+
+			if type_ == 18:
+				resultData = data[20:-20].encode("latin1")
+				resultData = Tools.b64DecodeUrlSafeBytes(resultData)
+				result = zlib.decompress(resultData).decode()
+				return result
 
 			else: return data
 
@@ -1023,10 +1046,14 @@ class Tools:
 			for block in gauntletBlocks:
 				parsed = Tools.Parse._parseKeyValuePairs(block, ":")
 		
-				parsed["3"] = [
-					int(levelID)
-					for levelID in parsed["3"].split(",")
-				]
+				parsed["3"] = (
+					[
+						int(levelID)
+						for levelID in parsed["3"].split(",")
+					]
+					if isinstance(parsed["3"], str)
+					else [parsed["3"]]
+				)
 		
 				gauntlets.append(parsed)
 		
@@ -1036,7 +1063,7 @@ class Tools:
 			}
 
 		@staticmethod
-		def getGJLevelsList(rawText: str):
+		def getGJLevelLists(rawText: str):
 			parts = rawText.split("#")
 
 			listSection = parts[0]
@@ -1047,11 +1074,16 @@ class Tools:
 			lists = []
 			for block in listSection.split("|"):
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				print(parsed["51"])
 				parsed["3"] = Tools.Parse._decode(parsed["3"])
-				parsed["51"] = [
-					int(levelID)
-					for levelID in parsed["51"].split(",")
-				]
+				parsed["51"] = (
+					[
+						int(levelID)
+						for levelID in parsed["51"].split(",")
+					]
+					if isinstance(parsed["51"], str)
+					else [parsed["51"]]
+				)
 				lists.append(parsed)
 
 			creators = Tools.Parse._parseCreators(creatorSection)
@@ -1134,10 +1166,14 @@ class Tools:
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
 				parsed["4"] = Tools.Parse._decode(parsed["4"])
 
-				parsed["3"] = [
-					int(levelID)
-					for levelID in parsed["3"].split(",")
-				]
+				parsed["3"] = (
+					[
+						int(levelID)
+						for levelID in parsed["3"].split(",")
+					]
+					if isinstance(parsed["3"], str)
+					else [parsed["3"]]
+				)
 
 				r, g, b = map(int, parsed["7"].split(","))
 				parsed["7"] = {
@@ -1293,7 +1329,81 @@ class Tools:
 				"pagination": pagination
 			}
 
-		# TODO: getGJTopArtists, getGJLevelLists, getGJUserList20, loginGJAccount, getSaveData, syncGJAccountNew
+		@staticmethod
+		def getGJUserList20(rawText: str):		
+		
+			commentBlocks = rawText.split("|")
+		
+			users = []
+			for block in commentBlocks:
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				if parsed:
+					users.append(parsed)
+		
+			return {
+				"users": users
+			}
+
+		@staticmethod
+		def loginGJAccount(rawText: str):
+			data = rawText.split(",")
+
+			return {
+				"accountID": data[0],
+				"uuid": data[1]
+			}
+
+		@staticmethod
+		def getGJTopArtists(rawText: str):		
+			mainPart, paginationPart = rawText.rsplit("#", 1)
+			pagination = Tools.Parse._parsePagination(paginationPart)
+		
+			artistBlocks = mainPart.split("|")
+		
+			artists = []
+			for block in artistBlocks:
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				if parsed:
+					artists.append(parsed)
+		
+			return {
+				"artists": artists,
+				"pagination": pagination
+			}
+
+		@staticmethod
+		def syncGJAccountNew(rawText: str):		
+			gameManager, levelManager, gameVersion, binaryVersion, levels, mapPacks = rawText.split(";")
+
+			gameManager = Tools.Encryption.decodeString(gameManager, 17)
+			levelManager = Tools.Encryption.decodeString(levelManager, 17)
+			
+			levels = Tools.Encryption.decodeString(levels, 18)
+			mapPacks = Tools.Encryption.decodeString(mapPacks, 18)
+
+			levels = Tools.Parse._parseKeyValuePairs(levels, splitter=",")
+
+			mapBlocks = []
+			for block in mapPacks.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				parsed["3"] = (
+					[
+						int(levelID)
+						for levelID in parsed["3"].split(",")
+					]
+					if isinstance(parsed["3"], str)
+					else [parsed["3"]]
+				)
+				mapBlocks.append(parsed)
+
+			return {
+				"gameManager": gameManager,
+				"levelManager": levelManager,
+				"gameVersion": gameVersion,
+				"binaryVersion": binaryVersion,
+				"levels": levels,
+				"mapPacks": mapBlocks
+			}
 
 	@staticmethod
 	def b64EncodeUrlSafe(data: str) -> str:
@@ -1376,32 +1486,35 @@ class Tools:
 		return True
 
 	@staticmethod
-	def xorCipher(data: str, key: int | str) -> str:
-		resultChars = []
+	def xorCipher(data: Any, key: Any) -> Any:
+		if isinstance(data, str):
+			if isinstance(key, str):
+				resultChars = []
+				keyLength = len(key)
+	
+				for i, ch in enumerate(data):
+					byteVal = ord(ch)
+					xKey = ord(key[i % keyLength])
+					resultChars.append(chr(byteVal ^ xKey))
+		
+				return "".join(resultChars)
+			else:
+				raise ValueError("Cannot perform cyclic xor using an integer key")
+		elif isinstance(data, bytes):	
+			if isinstance(key, int):
+				if key != 11:
+					raise ValueError("Only integer key supported is 11")
+				return bytes(b ^ key for b in data)
+			elif isinstance(key, str):
+				raise ValueError("Only integer keys supported for bytes input")
+			else:
+				if not key:
+					raise ValueError("Key must not be empty")
 
-		# Special case: integer key 11
-		if isinstance(key, int):
-			if key != 11:
-				raise ValueError("Only integer key supported is 11")
+				raise ValueError("Invalid key type")
+		else:
+			raise ValueError("Invalid data type")
 
-			for ch in data:
-				byteVal = ord(ch)
-				resultChars.append(chr(byteVal ^ key))
-
-			return "".join(resultChars)
-
-		# String key (cyclic XOR)
-		if not key:
-			raise ValueError("Key must not be empty")
-
-		keyLength = len(key)
-
-		for i, ch in enumerate(data):
-			byteVal = ord(ch)
-			xKey = ord(key[i % keyLength])
-			resultChars.append(chr(byteVal ^ xKey))
-
-		return "".join(resultChars)
 
 	@staticmethod
 	def genChk(keyIndex, values: List[Union[int, str]] | None = None, saltIndex: int = 1) -> str:
