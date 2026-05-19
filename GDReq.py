@@ -471,6 +471,11 @@ class Tools:
 					Tools.getXorKey(3)
 				)[:-12]
 
+			elif type_ == 4:
+				return Tools.xorCipher(
+					Tools.b64DecodeUrlSafe(data[5:]), Tools.getXorKey(4)
+					)
+
 			elif type_ == 14:
 				return Tools.xorCipher(
 					Tools.b64DecodeUrlSafe(data[5:]), Tools.getXorKey(14)
@@ -1224,6 +1229,71 @@ class Tools:
 				"reward": reward,
 				"hash": hashValue
 			}
+
+		@staticmethod
+		def getGJSongInfo(rawText: str):
+			song = Tools.Parse._parseKeyValuePairs(rawText, splitter="~|~")
+
+			return {
+				"song": song,
+			}
+
+		@staticmethod
+		def getGJChallenges(rawText: str):
+			parts = rawText.split("|")
+
+			challenges = {}
+			challengeValue = Tools.Encryption.decodeString(parts[0], type_=4).split(":")
+			hashValue = parts[1]
+
+			challenges["randomHash"] = challengeValue[0]
+			challenges["uuid"] = challengeValue[1]
+			challenges["decodedChk"] = challengeValue[2]
+			challenges["udid"] = challengeValue[3]
+			challenges["accountID"] = challengeValue[4]
+			challenges["secondsLeft"] = challengeValue[5]
+			queuedQuests = []
+
+			for blocks in challengeValue[6:]:
+				id_, type_, goal, reward, name = map(lambda x: int(x) if x.isdigit() else str(x), blocks.split(","))
+				queuedQuests.append({
+					"id": id_,
+					"type": type_,
+					"goal": goal,
+					"reward": reward,
+					"name": name
+					})
+
+			challenges["queuedQuests"] = queuedQuests
+
+			return {
+				"challenges": challenges,
+				"hash": hashValue
+			}
+
+		@staticmethod
+		def getGJCommentHistory(rawText: str):
+			return Tools.Parse.getGJComments21(rawText)
+
+		@staticmethod
+		def getGJUsers20(rawText: str):		
+			mainPart, paginationPart = rawText.rsplit("#", 1)
+			pagination = Tools.Parse._parsePagination(paginationPart)
+		
+			commentBlocks = mainPart.split("|")
+		
+			users = []
+			for block in commentBlocks:
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				if parsed:
+					users.append(parsed)
+		
+			return {
+				"users": users,
+				"pagination": pagination
+			}
+
+		# TODO: getGJTopArtists, getGJLevelLists, getGJUserList20, loginGJAccount, getSaveData, syncGJAccountNew
 
 	@staticmethod
 	def b64EncodeUrlSafe(data: str) -> str:
