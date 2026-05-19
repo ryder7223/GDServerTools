@@ -530,7 +530,7 @@ class Tools:
 		def encodeString(data: str, type_: int, useGzip: bool = True) -> str:
 			"""
 			```
-			Type 1: Player Save Data
+			- Type 1: Player Save Data
 			- Type 2:  Player Messages
 			- Type 3:  Vault Codes
 			Type 4:  Daily Challenges
@@ -543,11 +543,20 @@ class Tools:
 			Type 11: Multiplayer
 			Type 12: Music/SFX Library Secret
 			Type 13: Rating Integrity
-			Type 14: Chest Rewards
+			- Type 14: Chest Rewards
 			Type 15: Stat Submission Integrity
 			- Type 16: Level Object Data
+			- Type 17: Decoded Manager (syncGJAccountNew)
+			- Type 18: Level / Map (syncGJAccountNew)
 			```
 			"""
+			if type_ == 1:
+				raw = data.encode("latin-1")
+				compressed = gzip.compress(raw)
+				b64 = Tools.b64EncodeUrlSafeBytes(compressed)
+				xored = Tools.xorCipher(b64, 11)
+				return xored.decode("latin-1")
+
 			if type_ == 2:
 				return Tools.b64EncodeUrlSafe(
 				Tools.xorCipher(
@@ -561,6 +570,23 @@ class Tools:
 					data + Tools.getSalt(8),
 					Tools.getXorKey(3))
 				)
+			elif type_ == 4:
+				encoded = Tools.b64EncodeUrlSafe(
+					Tools.xorCipher(
+						data,
+						Tools.getXorKey(4)
+					)
+				)
+				return Tools.generateRs(5) + encoded
+
+			elif type_ == 14:
+				encoded = Tools.b64EncodeUrlSafe(
+					Tools.xorCipher(
+						data,
+						Tools.getXorKey(14)
+					)
+				)
+				return Tools.generateRs(5) + encoded
 
 			elif type_ == 16:
 				data2 = data.encode()
@@ -572,6 +598,21 @@ class Tools:
 				else:
 					compressed = zlib.compress(data2)[2:-4]
 				return Tools.b64EncodeUrlSafeBytes(compressed).decode()
+
+			elif type_ == 17:
+				raw = data.encode("latin-1")
+				buf = io.BytesIO()
+				with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as f:
+					f.write(raw)
+			
+				compressed = buf.getvalue()
+				b64 = Tools.b64EncodeUrlSafeBytes(compressed)
+				return b64.decode("latin-1")
+
+			elif type_ == 18:			
+				compressed = zlib.compress(data.encode())
+				b64 = Tools.b64EncodeUrlSafeBytes(compressed).decode()
+				return Tools.generateRs(20) + b64 + Tools.generateRs(20)
 
 			else: return data
 
