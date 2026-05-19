@@ -1116,6 +1116,115 @@ class Tools:
 				"message": parsed
 			}
 
+		@staticmethod
+		def getGJMapPacks21(rawText: str):
+			parts = rawText.split("#")
+
+			mapSection = parts[0]
+			pageInfo = parts[1]
+			hashValue = parts[2]
+
+			packs = []
+			for block in mapSection.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				parsed["4"] = Tools.Parse._decode(parsed["4"])
+
+				parsed["3"] = [
+					int(levelID)
+					for levelID in parsed["3"].split(",")
+				]
+
+				r, g, b = map(int, parsed["7"].split(","))
+				parsed["7"] = {
+					"r": r,
+					"g": g,
+					"b": b
+				}
+				
+				r, g, b = map(int, parsed["8"].split(","))
+				parsed["8"] = {
+					"r": r,
+					"g": g,
+					"b": b
+				}
+
+				packs.append(parsed)
+
+			pagination = Tools.Parse._parsePagination(pageInfo)
+
+			return {
+				"packs": packs,
+				"pagination": pagination,
+				"hash": hashValue
+			}
+
+		@staticmethod
+		def getGJDailyLevel(rawText: str):
+			parts = rawText.split("|")
+
+			return {
+				"tempID": parts[0],
+				"secondsLeft": parts[1]
+			}
+
+		@staticmethod
+		def getGJScores20(rawText: str):
+			parts = rawText.split("|")
+
+			users = []
+			for block in parts:
+				if block != "":
+					parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				else:
+					parsed = {}
+
+				users.append(parsed)
+
+			return {
+				"users": users
+			}
+
+		@staticmethod
+		def getGJLevelScores211(rawText: str):
+			parts = rawText.split("|")
+
+			scores = []
+			for block in parts:
+				if block != "":
+					parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+				else:
+					parsed = {}
+
+				scores.append(parsed)
+
+			return {
+				"scores": scores
+			}
+
+		@staticmethod
+		def getGJLevelScoresPlat(rawText: str):
+			return Tools.Parse.getGJLevelScores211(rawText)
+
+		@staticmethod
+		def getGJSecretReward(rawText: str):
+			parts = rawText.split("|")
+
+			reward = {}
+			rewardValue = Tools.Encryption.decodeString(parts[0], type_=14).split(":")
+			hashValue = parts[1]
+
+			reward["randomHash"] = rewardValue[0]
+			reward["decodedChk"] = rewardValue[1]
+			reward["rewardID"] = rewardValue[2]
+			reward["chestType"] = rewardValue[3]
+			reward["rewards"] = Tools.Parse._parseKeyValuePairs(rewardValue[4], splitter=",")
+			
+
+			return {
+				"reward": reward,
+				"hash": hashValue
+			}
+
 	@staticmethod
 	def b64EncodeUrlSafe(data: str) -> str:
 		return base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
@@ -1765,7 +1874,7 @@ class Users:
 	def getGJScores20(
 		accountID: int | None = None,
 		gjp2: str | None = None,
-		type: str | None = None,
+		type_: str | None = None,
 		count: int | None = None,
 		gameVersion: int | None = None,
 		binaryVersion: int | None = None,
@@ -1792,8 +1901,8 @@ class Users:
 		if gjp2 is not None:
 			data["gjp2"] = gjp2
 
-		if type is not None:
-			data["type"] = type  # "top", "relative", "friends", "creators"
+		if type_ is not None:
+			data["type"] = type_  # "top", "relative", "friends", "creators"
 
 		if count is not None:
 			# Hard cap at 100 (server-side limit)
@@ -3612,7 +3721,8 @@ class Rewards:
 
 	@staticmethod
 	def getGJSecretReward(
-		udid: str,
+		rewardKey: str,
+		udid: str | None = None,
 		chk: str | None = None,
 		gameVersion: int | None = None,
 		binaryVersion: int | None = None,
@@ -3622,10 +3732,15 @@ class Rewards:
 		uuid: int | None = None
 	) -> str:
 		secret = Tools.getSecret(1)
+
 		if chk is None:
 			chk = Tools.generateWraithRewardChk()
 
+		if udid is None:
+			udid = Tools.generateUdid()
+
 		data: dict[str, str | int] = {
+			"rewardKey": rewardKey,
 			"udid": udid,
 			"chk": chk,
 			"secret": secret
