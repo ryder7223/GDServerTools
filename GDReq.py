@@ -1,7 +1,7 @@
 """
 An API wrapper for Geometry Dash.
 """
-
+	
 import requests
 import base64
 from typing import Any, Union, List, Sequence
@@ -18,26 +18,26 @@ import xml.etree.ElementTree as ET
 import urllib.request
 import os
 import ssl
-
-
+	
+	
 class Tools:
-
+	
 	class LevelInfo:
-
+	
 		@staticmethod
 		def _decodeUrlSafeB64ToText(data: str) -> str:
 			try:
 				return Tools.b64DecodeUrlSafe(data)
 			except Exception:
 				return data
-
+	
 		@staticmethod
 		def _detectSourceType(inputString: str) -> str:
 			s = inputString.lstrip()
 			if s.startswith("<?xml") or "<plist" in s[:200] or "<dict" in s[:400]:
 				return "gmd"
 			return "server"
-
+	
 		@staticmethod
 		def _parseGmd(gmdXml: str) -> dict[str, Any]:
 			root = ET.fromstring(gmdXml)
@@ -46,7 +46,7 @@ class Tools:
 				mainDict = root.find(".//dict")
 			if mainDict is None:
 				raise ValueError("Main <dict> element not found in gmd input")
-
+	
 			children = list(mainDict)
 			out: dict[str, Any] = {}
 			for i in range(0, len(children) - 1, 2):
@@ -57,7 +57,7 @@ class Tools:
 				key = kElem.text or ""
 				if not key:
 					continue
-
+	
 				if vElem.tag == "t":
 					value: Any = True
 				elif vElem.tag == "f":
@@ -69,25 +69,25 @@ class Tools:
 						value = vElem.text or ""
 				else:
 					value = vElem.text if vElem.text is not None else ""
-
+	
 				if key in ("k3",):
 					if isinstance(value, str) and value:
 						value = Tools.LevelInfo._decodeUrlSafeB64ToText(value)
-
+	
 				out[key] = value
 			return out
-
+	
 		@staticmethod
 		def _parseServerLevel(serverLevel: str) -> dict[str, str]:
 			parts = serverLevel.split("#")[0].split(":")
 			return {parts[i]: parts[i + 1] for i in range(0, len(parts), 2)}
-
+	
 		@staticmethod
 		def _decodeServerLevel(serverLevel: str) -> str:
 			meta = Tools.LevelInfo._parseServerLevel(serverLevel)
 			levelStr = meta.get("4", "")
 			return Tools.Encryption.decodeString(levelStr, 16)
-
+	
 		@staticmethod
 		def _parseOffline(decodedLevelString: str) -> dict[str, str]:
 			if not decodedLevelString:
@@ -102,14 +102,14 @@ class Tools:
 				if k:
 					out[k] = v
 			return out
-
+	
 		@staticmethod
 		def _getObjectString(decodedLevelString: str) -> str:
 			semi = decodedLevelString.find(";")
 			if semi == -1:
 				return ""
 			return decodedLevelString[semi + 1 :]
-
+	
 		@staticmethod
 		def _parseObjects(objectString: str) -> list[dict[str, str]]:
 			objects = objectString.split(";")
@@ -123,7 +123,7 @@ class Tools:
 					objDict[fields[i]] = fields[i + 1]
 				parsed.append(objDict)
 			return parsed
-
+	
 		@staticmethod
 		def getObjectCounts(objectString: str) -> Counter:
 			objects = objectString.split(";")
@@ -144,7 +144,7 @@ class Tools:
 							objectIds.append(objId)
 						break
 			return Counter(objectIds)
-
+	
 		@staticmethod
 		def getCoinCount(objectString: str) -> int:
 			coinCount = 0
@@ -158,7 +158,7 @@ class Tools:
 						coinCount += 1
 						break
 			return coinCount
-
+	
 		@staticmethod
 		def _formatBytes(size: Any) -> str:
 			try:
@@ -170,7 +170,7 @@ class Tools:
 					return f"{size:.1f} {unit}"
 				size /= 1024
 			return f"{size:.1f} PB"
-
+	
 		@staticmethod
 		def _secondsToHms(seconds: Any) -> str:
 			try:
@@ -181,7 +181,7 @@ class Tools:
 			m = (seconds % 3600) // 60
 			s = seconds % 60
 			return f"{h}h {m}m {s}s"
-
+	
 		@staticmethod
 		def _extractPassword(rawData: str) -> str:
 			"""
@@ -199,7 +199,7 @@ class Tools:
 				return decoded if decoded else "(free copy)"
 			except Exception:
 				return "(error)"
-
+	
 		@staticmethod
 		def _getLevelInfo(
 			meta: dict[str, str],
@@ -220,7 +220,7 @@ class Tools:
 				info["Description"] = descB64 or "NA"
 			info["rCoins"] = str(coinCount)
 			info["sCoins"] = meta.get("37", "NA")
-
+	
 			likes = int(meta.get("14", "0")) if meta.get("14", "").lstrip("-").isdigit() else 0
 			dislikes = int(meta.get("16", "0")) if meta.get("16", "").lstrip("-").isdigit() else 0
 			if likes == 0 and dislikes == 0:
@@ -231,10 +231,10 @@ class Tools:
 				info["Dislikes"] = str(dislikes - likes)
 			else:
 				info["Likes"] = str(likes)
-
+	
 			info["Downloads"] = meta.get("10", "NA")
 			info["Level Version"] = meta.get("5", "NA")
-
+	
 			lengthMap = {
 				"0": "Tiny", "1": "Short", "2": "Medium", "3": "Long", "4": "XL", "5": "Platformer"
 			}
@@ -243,7 +243,7 @@ class Tools:
 			info["Editor (C) Time"] = Tools.LevelInfo._secondsToHms(meta.get("47", "NA"))
 			info["Uploaded"] = meta.get("28", meta.get("17", "NA"))
 			info["Updated"] = meta.get("29", meta.get("18", "NA"))
-
+	
 			gv = meta.get("13", "")
 			if gv.isdigit():
 				if int(gv) <= 7:
@@ -254,7 +254,7 @@ class Tools:
 					info["Game Version"] = f"{int(gv)//10}.{int(gv)%10}"
 			else:
 				info["Game Version"] = "NA"
-
+	
 			info["Requested Rating"] = meta.get("39", "NA")
 			info["songIDs"] = (
 				meta.get("12", "")
@@ -269,12 +269,12 @@ class Tools:
 			info["Password"] = Tools.LevelInfo._extractPassword(rawData)
 			info["Object Count"] = str(sum(counts.values()))
 			return info
-
+	
 		@staticmethod
 		def getObjectsById(
 			objectString: str,
 			objectIds: Sequence[int | str],
-			posOnly: bool | None = None
+			posOnly: bool = True
 		) -> dict[str, list[dict[str, str]]]:
 			"""
 			Returns the x and y positions of object ids as a dictionary,
@@ -283,13 +283,13 @@ class Tools:
 			requested = {str(x) for x in objectIds}
 			if not requested:
 				return {}
-
+	
 			out: dict[str, list[dict[str, str]]] = {}
 			for obj in Tools.LevelInfo._parseObjects(objectString):
 				objId = obj.get("1")
 				if objId is None or objId not in requested:
 					continue
-
+	
 				if posOnly:
 					entry = {
 						"x": obj.get("2", "N/A"),
@@ -306,7 +306,7 @@ class Tools:
 				else:
 					out[objId].append(entry)
 			return out
-
+	
 		@staticmethod
 		def getAllLevelInfo(inputString: str, sourceType: str | None = None) -> dict[str, Any]:
 			"""
@@ -363,7 +363,7 @@ class Tools:
 			if sourceType is None:
 				sourceType = Tools.LevelInfo._detectSourceType(inputString)
 			sourceType = sourceType.lower().strip()
-
+	
 			result: dict[str, Any] = {
 				"sourceType": sourceType,
 				"gmdInfo": {},
@@ -374,7 +374,7 @@ class Tools:
 				"objectIdCounts": None,
 				"objectCount": None,
 			}
-
+	
 			if sourceType == "gmd":
 				kTags = Tools.LevelInfo._parseGmd(inputString)
 				result["gmdInfo"] = kTags
@@ -391,7 +391,7 @@ class Tools:
 					result["decodedLevelString"] = decoded
 			else:
 				raise ValueError(f"Unknown sourceType: {sourceType}")
-
+	
 			decodedLevelString = result.get("decodedLevelString")
 			if isinstance(decodedLevelString, str) and decodedLevelString:
 				startObject = Tools.LevelInfo._parseOffline(decodedLevelString)
@@ -408,35 +408,41 @@ class Tools:
 					result["levelInfo"] = Tools.LevelInfo._getLevelInfo(
 						result["serverInfo"], inputString, decodedLevelString, objString, counts, coinCount
 					)
-
+	
 			return result
-
+	
 		@staticmethod
 		def _parseGmdString(gmdXml: str) -> dict[str, Any]:
 			return Tools.LevelInfo._parseGmd(gmdXml)
-
+	
 		@staticmethod
 		def _parseServerLevelResponse(rawServerResponse: str) -> dict[str, str]:
 			return Tools.LevelInfo._parseServerLevel(rawServerResponse)
-
+	
 		@staticmethod
 		def _decodeLevelStringFromServerLevel(serverRow: str) -> str:
 			return Tools.LevelInfo._decodeServerLevel(serverRow)
-
+	
 		@staticmethod
 		def _parsestartObjectFromDecodedLevelString(decodedLevelString: str) -> dict[str, str]:
 			return Tools.LevelInfo._parseOffline(decodedLevelString)
-
+	
 		@staticmethod
 		def _extractObjectStringFromDecodedLevelString(decodedLevelString: str) -> str:
 			return Tools.LevelInfo._getObjectString(decodedLevelString)
-
+	
 		@staticmethod
 		def _countObjectIds(objectString: str) -> dict:
 			return dict(Tools.LevelInfo.getObjectCounts(objectString))
-
+	
 	class Encryption:
 
+		@staticmethod
+		def buildSaveData(gameManager, localLevels):
+			manager = Tools.Encryption.encodeString(gameManager, 17)
+			levels = Tools.Encryption.encodeString(localLevels, 17)
+			return manager + ";" + levels
+	
 		@staticmethod
 		def decodeString(data, type_: int) -> str:
 			"""
@@ -469,29 +475,29 @@ class Tools:
 				decoded = base64.urlsafe_b64decode(xored)
 				result = gzip.decompress(decoded).decode("latin-1")
 				return result
-
+	
 			if type_ == 2:
 				return Tools.xorCipher(
 				Tools.b64DecodeUrlSafe(data),
 				Tools.getXorKey(2)
 				)
-
+	
 			elif type_ == 3:
 				return Tools.xorCipher(
 					Tools.b64DecodeUrlSafe(data),
 					Tools.getXorKey(3)
 				)[:-12]
-
+	
 			elif type_ == 4:
 				return Tools.xorCipher(
 					Tools.b64DecodeUrlSafe(data[5:]), Tools.getXorKey(4)
 					)
-
+	
 			elif type_ == 14:
 				return Tools.xorCipher(
 					Tools.b64DecodeUrlSafe(data[5:]), Tools.getXorKey(14)
 					)
-
+	
 			elif type_ == 16:
 				if not data or data in ("0", "Aw=="):
 					return ""
@@ -511,21 +517,21 @@ class Tools:
 					except Exception:
 						continue
 				return ""
-
+	
 			if type_ == 17:
 				result = data.encode("latin-1")
 				b64Decoded = Tools.b64DecodeUrlSafeBytes(result)
 				result = gzip.decompress(b64Decoded)
 				return result.decode("latin-1")
-
+	
 			if type_ == 18:
 				resultData = data[20:-20].encode("latin1")
 				resultData = Tools.b64DecodeUrlSafeBytes(resultData)
 				result = zlib.decompress(resultData).decode()
 				return result
-
+	
 			else: return data
-
+	
 		@staticmethod
 		def encodeString(data: str, type_: int, useGzip: bool = True) -> str:
 			"""
@@ -556,14 +562,14 @@ class Tools:
 				b64 = Tools.b64EncodeUrlSafeBytes(compressed)
 				xored = Tools.xorCipher(b64, 11)
 				return xored.decode("latin-1")
-
+	
 			if type_ == 2:
 				return Tools.b64EncodeUrlSafe(
 				Tools.xorCipher(
 					data,
 					Tools.getXorKey(2))
 				)
-
+	
 			elif type_ == 3:
 				return Tools.b64EncodeUrlSafe(
 					Tools.xorCipher(
@@ -578,7 +584,7 @@ class Tools:
 					)
 				)
 				return Tools.generateRs(5) + encoded
-
+	
 			elif type_ == 14:
 				encoded = Tools.b64EncodeUrlSafe(
 					Tools.xorCipher(
@@ -587,7 +593,7 @@ class Tools:
 					)
 				)
 				return Tools.generateRs(5) + encoded
-
+	
 			elif type_ == 16:
 				data2 = data.encode()
 				if useGzip:
@@ -598,7 +604,7 @@ class Tools:
 				else:
 					compressed = zlib.compress(data2)[2:-4]
 				return Tools.b64EncodeUrlSafeBytes(compressed).decode()
-
+	
 			elif type_ == 17:
 				raw = data.encode("latin-1")
 				buf = io.BytesIO()
@@ -608,14 +614,14 @@ class Tools:
 				compressed = buf.getvalue()
 				b64 = Tools.b64EncodeUrlSafeBytes(compressed)
 				return b64.decode("latin-1")
-
+	
 			elif type_ == 18:			
 				compressed = zlib.compress(data.encode())
 				b64 = Tools.b64EncodeUrlSafeBytes(compressed).decode()
 				return Tools.generateRs(20) + b64 + Tools.generateRs(20)
-
+	
 			else: return data
-
+	
 		@staticmethod
 		def encodeLevelStr(decoded: str, useGzip: bool = True) -> str:
 			data = decoded.encode()
@@ -627,9 +633,9 @@ class Tools:
 			else:
 				compressed = zlib.compress(data)[2:-4]
 			return Tools.b64EncodeUrlSafeBytes(compressed).decode()
-
+	
 	class Hashes:
-
+	
 		@staticmethod
 		def hashGetGJLevels(levelRows: Sequence[dict | Sequence]) -> str:
 			"""
@@ -656,7 +662,7 @@ class Tools:
 				parts.append(str(verified))
 			raw = "".join(parts) + salt
 			return hashlib.sha1(raw.encode()).hexdigest()
-
+	
 		@staticmethod
 		def hashDownloadGJLevel1(levelString: str) -> str:
 			"""Undecoded level string sampling + level salt; SHA-1 hex."""
@@ -666,7 +672,7 @@ class Tools:
 			m = len(levelString) // 40
 			sampled = "".join(levelString[i * m] for i in range(40))
 			return hashlib.sha1(f"{sampled}{salt}".encode()).hexdigest()
-
+	
 		@staticmethod
 		def normalizePasswordForDownloadHash(password: int) -> int:
 			"""0 no copy, 1 free copy; otherwise if < 1_000_000 add 1_000_000."""
@@ -675,7 +681,7 @@ class Tools:
 			if password < 1_000_000:
 				return password + 1_000_000
 			return password
-
+	
 		@staticmethod
 		def hashDownloadGJLevel2(
 			playerId: int,
@@ -700,7 +706,7 @@ class Tools:
 				str(dailyNumber),
 			]
 			return hashlib.sha1(("".join(segments) + salt).encode()).hexdigest()
-
+	
 		@staticmethod
 		def hashGetGJMapPacks(packRows: Sequence[dict | Sequence]) -> str:
 			salt = Tools.getSalt(1)
@@ -715,7 +721,7 @@ class Tools:
 				s = str(pid)
 				parts.extend((s[0], s[-1], str(stars), str(coins)))
 			return hashlib.sha1(("".join(parts) + salt).encode()).hexdigest()
-
+	
 		@staticmethod
 		def hashGetGJGauntlets(gauntletRows: Sequence[dict | Sequence]) -> str:
 			salt = Tools.getSalt(1)
@@ -729,20 +735,20 @@ class Tools:
 				parts.append(gid)
 				parts.append(levels)
 			return hashlib.sha1(("".join(parts) + salt).encode()).hexdigest()
-
+	
 		@staticmethod
 		def hashGetGJChallenges(undecodedResponse: str) -> str:
 			"""Full undecoded body without the first 5 characters + challenges salt."""
 			salt = Tools.getSalt(6)
 			return hashlib.sha1((undecodedResponse[5:] + salt).encode()).hexdigest()
-
+	
 		@staticmethod
 		def hashGetGJRewards(undecodedResponse: str) -> str:
 			salt = Tools.getSalt(7)
 			return hashlib.sha1((undecodedResponse[5:] + salt).encode()).hexdigest()
-
+	
 	class Parse:
-
+	
 		@staticmethod
 		def _safeInt(value: str):
 			if value is None:
@@ -752,19 +758,19 @@ class Tools:
 			if str(value).isdigit():
 				return int(value)
 			return value
-
+	
 		@staticmethod
 		def _decode(value: str):
 			try:
 				return Tools.b64DecodeUrlSafe(value)
 			except Exception:
 				return value
-
+	
 		@staticmethod
 		def _parseCreators(segment: str):
 			creators = []
 			entries = segment.split("|")
-
+	
 			for entry in entries:
 				parts = entry.split(":")
 				creators.append({
@@ -772,52 +778,26 @@ class Tools:
 					"username": parts[1],
 					"accountID": int(parts[2])
 				})
-
+	
 			return creators
-
+	
 		@staticmethod
 		def _parseSongs(segment: str):
 			songs = []
-
+			
 			for entry in segment.split(":"):
 				if not entry:
 					continue
 
+				if entry.startswith("~"):
+					entry = entry[1:]
+
 				song = Tools.Parse._parseKeyValuePairs(entry, splitter="~|~")
-
+	
 				songs.append(song)
-
+	
 			return songs
-
-		@staticmethod
-		def getGJLevels21(rawText: str):
-			parts = rawText.split("#")
-
-			levelSection = parts[0]
-			creatorSection = parts[1]
-			songSection = parts[2]
-			pageInfo = parts[3]
-			hashValue = parts[4]
-
-			levels = []
-			for block in levelSection.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				if parsed:
-					parsed["3"] = Tools.Parse._decode(parsed["3"])
-					levels.append(parsed)
-
-			creators = Tools.Parse._parseCreators(creatorSection)
-			songs = Tools.Parse._parseSongs(songSection)
-			pagination = Tools.Parse._parsePagination(pageInfo)
-
-			return {
-				"levels": levels,
-				"creators": creators,
-				"songs": songs,
-				"pagination": pagination,
-				"hash": hashValue
-			}
-
+	
 		@staticmethod
 		def _parseKeyValuePairs(segment: str, splitter: str = "~"):
 			parts = segment.split(splitter)
@@ -852,7 +832,7 @@ class Tools:
 				"content": contentData,
 				"sender": senderData
 			}
-
+	
 		@staticmethod
 		def _parseAccountCommentBlock(block: str):
 			contentData = Tools.Parse._parseKeyValuePairs(block)
@@ -863,7 +843,7 @@ class Tools:
 			return {
 				"content": contentData
 			}
-
+	
 		@staticmethod
 		def _parsePagination(lastSegment: str):		
 			try:
@@ -875,9 +855,384 @@ class Tools:
 				}
 			except Exception:
 				return None
+	
+		@staticmethod
+		def _getObjectMap(type_):
+			"""
+			Type 1: User
+			Type 2: Comment
+			Type 3: Comment User
+			Type 4: Friend Request
+			Type 5: Gauntlet
+			Type 6: Gauntlet Names
+			Type 7: Level Leaderboard
+			Type 8: Level
+			Type 9: Song
+			Type 10: Message
+			Type 11: Map Pack
+			Type 12: List
+			"""
+			if type_ == 1:
+				result = {
+					"1": "userName",
+					"2": "userID",
+					"3": "stars",
+					"4": "demons",
+					"6": "ranking",
+					"7": "accountHighlight",
+					"8": "creatorPoints",
+					"9": "iconID",
+					"10": "color1",
+					"11": "color2",
+					"13": "secretCoins",
+					"14": "iconType",
+					"15": "special",
+					"16": "accountID",
+					"17": "userCoins",
+					"18": "messageState",
+					"19": "friendsState",
+					"20": "youTube",
+					"21": "accIcon",
+					"22": "accShip",
+					"23": "accBall",
+					"24": "accBird",
+					"25": "accWave",
+					"26": "accRobot",
+					"27": "accStreak",
+					"28": "accGlow",
+					"29": "isRegistered",
+					"30": "globalRank",
+					"31": "friendState",
+					"38": "messages",
+					"39": "friendRequests",
+					"40": "newFriends",
+					"41": "newFriendRequest",
+					"42": "age",
+					"43": "accSpider",
+					"44": "twitter",
+					"45": "twitch",
+					"46": "diamonds",
+					"48": "accExplosion",
+					"49": "modLevel",
+					"50": "commentHistoryState",
+					"51": "color3",
+					"52": "moons",
+					"53": "accSwing",
+					"54": "accJetpack",
+					"55": "demonBreakdown",
+					"56": "classicLevelBreakdown",
+					"57": "platformerLevelBreakdown"
+				}
+				return result
+	
+			elif type_ == 2:
+				result = {
+					"1": "userName",
+					"2": "comment",
+					"3": "authorPlayerID",
+					"4": "likes",
+					"5": "dislikes",
+					"6": "messageID",
+					"7": "spam",
+					"8": "authorAccountID",
+					"9": "age",
+					"10": "percent",
+					"11": "modBadge",
+					"12": "moderatorChatColor"
+				}
+				return result
+	
+			elif type_ == 3:
+				result = {
+					"1": "userName",
+					"9": "icon",
+					"10": "playerColor",
+					"11": "playerColor2",
+					"14": "iconType",
+					"15": "glow",
+					"16": "accountID"
+				}
+				return result
+	
+			elif type_ == 4:
+				result = {
+					"1": "userName",
+					"2": "playerID",
+					"9": "icon",
+					"10": "playerColor",
+					"11": "playerColor2",
+					"14": "iconType",
+					"15": "glow",
+					"16": "accountID",
+					"32": "friendRequestID",
+					"35": "message",
+					"37": "age",
+					"41": "NewFriendRequest"
+				}
+				return result
+	
+			elif type_ == 5:
+				result = {
+					"1": "gauntletID",
+					"3": "levels",
+				}
+				return result
+	
+			elif type_ == 6:
+				result = {
+					"1": "Fire",
+					"2": "Ice",
+					"3": "Poison",
+					"4": "Shadow",
+					"5": "Lava",
+					"6": "Bonus",
+					"7": "Chaos",
+					"8": "Demon",
+					"9": "Time",
+					"10": "Crystal",
+					"11": "Magic",
+					"12": "Spike",
+					"13": "Monster",
+					"14": "Doom",
+					"15": "Death",
+					"16": "Forest",
+					"17": "Rune",
+					"18": "Force",
+					"19": "Spooky",
+					"20": "Dragon",
+					"21": "Water",
+					"22": "Haunted",
+					"23": "Acid",
+					"24": "Witch",
+					"25": "Power",
+					"26": "Potion",
+					"27": "Snake",
+					"28": "Toxic",
+					"29": "Halloween",
+					"30": "Treasure",
+					"31": "Ghost",
+					"32": "Gem",
+					"33": "Inferno",
+					"34": "Portal",
+					"35": "Strange",
+					"36": "Fantasy",
+					"37": "Christmas",
+					"38": "Surprise",
+					"39": "Mystery",
+					"40": "Cursed",
+					"41": "Cyborg",
+					"42": "Castle",
+					"43": "Grave",
+					"44": "Temple",
+					"46": "World",
+					"47": "Galaxy",
+					"48": "Universe",
+					"49": "Discord",
+					"50": "Split",
+					"51": "NCS I",
+					"52": "NCS II",
+					"53": "Space",
+					"54": "Cosmos"
+				}
+				return result
+
+			elif type_ == 7:
+				result = {
+					"1": "userName",
+					"2": "playerID",
+					"3": "percentage",
+					"6": "ranking",
+					"9": "icon",
+					"10": "playerColor",
+					"11": "playerColor2",
+					"13": "coins",
+					"14": "iconType",
+					"15": "special",
+					"16": "accountID",
+					"42": "age"
+				}
+				return result
+
+			elif type_ == 8:
+				result = {
+					"1": "levelID",
+					"2": "levelName",
+					"3": "description",
+					"4": "levelString",
+					"5": "version",
+					"6": "playerID",
+					"8": "difficultyDenominator",
+					"9": "difficultyNumerator",
+					"10": "downloads",
+					"11": "setCompletes",
+					"12": "officialSong",
+					"13": "gameVersion",
+					"14": "likes",
+					"15": "length",
+					"16": "dislikes",
+					"17": "demon",
+					"18": "stars",
+					"19": "featureScore",
+					"25": "auto",
+					"26": "recordString",
+					"27": "password",
+					"28": "uploadDate",
+					"29": "updateDate",
+					"30": "copiedID",
+					"31": "twoPlayer",
+					"35": "customSongID",
+					"36": "extraString",
+					"37": "coins",
+					"38": "verifiedCoins",
+					"39": "starsRequested",
+					"40": "lowDetailMode",
+					"41": "dailyNumber",
+					"42": "epic",
+					"43": "demonDifficulty",
+					"44": "isGauntlet",
+					"45": "objects",
+					"46": "editorTime",
+					"47": "editorTimeCopies",
+					"48": "settingsString",
+					"52": "songIDs",
+					"53": "sfxIDs",
+					"54": "unknown",
+					"57": "verificationTime"
+				}
+				return result
+
+			elif type_ == 9:
+				result = {
+					"1": "ID",
+					"2": "name",
+					"3": "artistID",
+					"4": "artistName",
+					"5": "size",
+					"6": "videoID",
+					"7": "youtubeURL",
+					"8": "isVerified",
+					"9": "songPriority",
+					"10": "link",
+					"11": "nongEnum",
+					"12": "extraArtistIDs",
+					"13": "new",
+					"14": "newType",
+					"15": "extraArtistNames"
+				}
+				return result
+
+			elif type_ == 10:
+				result = {
+					"1": "messageID",
+					"2": "accountID",
+					"3": "playerID",
+					"4": "title",
+					"5": "messageContent",
+					"6": "userName",
+					"7": "age",
+					"8": "read",
+					"9": "sender"
+				}
+				return result
+
+			elif type_ == 11:
+				result = {
+					"1": "packID",
+					"2": "packName",
+					"3": "levels",
+					"4": "stars",
+					"5": "coins",
+					"6": "difficulty",
+					"7": "textColor",
+					"8": "barColor"
+				}
+				return result
+
+			elif type_ == 12:
+				result = {
+					"1": "listID",
+					"2": "listName",
+					"3": "description",
+					"5": "version",
+					"7": "difficulty",
+					"10": "downloads",
+					"14": "likes",
+					"19": "rated",
+					"28": "uploadDate",
+					"29": "updateDate",
+					"49": "accountID",
+					"50": "username",
+					"51": "levelIDs",
+					"55": "listReward",
+					"56": "listRewardRequirement"
+				}
+				return result
+
+			else:
+				return {}
+	
+		@staticmethod
+		def _remap(parsed, type_):
+			"""
+			Type 1: User
+			Type 2: Comment
+			Type 3: Comment User
+			Type 4: Friend Request
+			Type 5: Gauntlet
+			Type 6: Gauntlet Names
+			Type 7: Level Leaderboard
+			Type 8: Level
+			Type 9: Song
+			Type 10: Message
+			Type 11: Map Pack
+			Type 12: List
+			"""
+			for oldKey, newKey in Tools.Parse._getObjectMap(type_).items():
+				if oldKey in parsed:
+					parsed[newKey] = parsed.pop(oldKey)
 
 		@staticmethod
-		def getGJComments21(rawText: str):		
+		def getGJLevels21(rawText: str, normalise: bool = True):
+			parts = rawText.split("#")
+	
+			levelSection = parts[0]
+			creatorSection = parts[1]
+			songSection = parts[2]
+			pageInfo = parts[3]
+			hashValue = parts[4]
+	
+			levels = []
+			for block in levelSection.split("|"):
+				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+
+				if not parsed:
+					continue
+
+				parsed["3"] = Tools.Parse._decode(parsed["3"])
+
+				if normalise is True:
+					Tools.Parse._remap(parsed, 8)
+
+				levels.append(parsed)
+
+	
+			creators = Tools.Parse._parseCreators(creatorSection)
+			songs = Tools.Parse._parseSongs(songSection)
+			if normalise is True:
+					for song in songs:
+						Tools.Parse._remap(song, 9)
+			pagination = Tools.Parse._parsePagination(pageInfo)
+	
+			return {
+				"levels": levels,
+				"creators": creators,
+				"songs": songs,
+				"pagination": pagination,
+				"hash": hashValue
+			}
+
+		@staticmethod
+		def getGJComments21(rawText: str, normalise: bool = True):		
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
@@ -886,16 +1241,23 @@ class Tools:
 			comments = []
 			for block in commentBlocks:
 				parsed = Tools.Parse._parseLevelCommentBlock(block)
-				if parsed:
-					comments.append(parsed)
+				if not parsed:
+					continue
+	
+				if normalise is True:
+					Tools.Parse._remap(parsed["content"], 2)
+					Tools.Parse._remap(parsed["sender"], 3)
+	
+	
+				comments.append(parsed)
 		
 			return {
 				"comments": comments,
 				"pagination": pagination
 			}
-
+	
 		@staticmethod
-		def getGJAccountComments20(rawText: str):		
+		def getGJAccountComments20(rawText: str, normalise: bool = True):		
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
@@ -904,14 +1266,19 @@ class Tools:
 			comments = []
 			for block in commentBlocks:
 				parsed = Tools.Parse._parseAccountCommentBlock(block)
-				if parsed:
-					comments.append(parsed)
+				if not parsed:
+					continue
+
+				if normalise is True:
+					Tools.Parse._remap(parsed["content"], 2)
+
+				comments.append(parsed)
 		
 			return {
 				"comments": comments,
 				"pagination": pagination
 			}
-
+	
 		@staticmethod
 		def getGJRewards(rawText: str):
 			data = rawText.split("|")
@@ -976,9 +1343,9 @@ class Tools:
 						},
 					"hash": data[1]
 					}
-
+	
 		@staticmethod
-		def getGJUserInfo20(rawText: str):
+		def getGJUserInfo20(rawText: str, normalise: bool = True):
 			user = Tools.Parse._parseKeyValuePairs(rawText, ":")
 			result = {"user": user}
 			for key in result["user"]:
@@ -1031,11 +1398,14 @@ class Tools:
 						"harderPlatformerCompletions": platformers[4],
 						"insanePlatformerCompletions": platformers[5]
 					}
+	
+			if normalise is True:
+				Tools.Parse._remap(result["user"], 1)
 		
 			return result
-
+	
 		@staticmethod
-		def downloadGJLevel22(rawText: str):
+		def downloadGJLevel22(rawText: str, normalise: bool = True):
 			data = rawText.split("#")
 			level = Tools.Parse._parseKeyValuePairs(data[0], ":")
 			result = {
@@ -1043,7 +1413,7 @@ class Tools:
 				"hash1": data[1],
 				"hash2": data[2],
 			}
-
+	
 			if len(data) > 3:
 				if data[3] != "":
 					userID, username, accountID = data[3].split(":")
@@ -1054,27 +1424,32 @@ class Tools:
 					}
 				else:
 					result["dailyCreator"] = {}
-
+	
 				if data[4] != "":
 					songs = Tools.Parse._parseSongs(data[4])
 					result["songs"] = songs
+					if normalise is True:
+						Tools.Parse._remap(result["songs"], 9)
 				else:
 					result["songs"] = []
-
+	
 			for key in result["level"]:
 				if key == "3":
 					result["level"][key] = Tools.Parse._decode(result["level"][key])
-
+	
 				elif key == "4":
 					result["level"][key] = Tools.Encryption.decodeString(result["level"][key], 16)
-
+	
 				elif key == "27":
 					result["level"][key] = Tools.decodeLevelPassword(result["level"][key])
 
-			return result
+			if normalise is True:
+				Tools.Parse._remap(result["level"], 8)
 
+			return result
+	
 		@staticmethod
-		def getGJGauntlets21(rawText: str):
+		def getGJGauntlets21(rawText: str, normalise: bool = True):
 			data = rawText.split("#")
 		
 			gauntletSection = data[0]
@@ -1083,6 +1458,8 @@ class Tools:
 			gauntletBlocks = gauntletSection.split("|")
 		
 			gauntlets = []
+	
+			gauntletNameMap = Tools.Parse._getObjectMap(6)
 		
 			for block in gauntletBlocks:
 				parsed = Tools.Parse._parseKeyValuePairs(block, ":")
@@ -1095,6 +1472,16 @@ class Tools:
 					if isinstance(parsed["3"], str)
 					else [parsed["3"]]
 				)
+	
+	
+	
+				if normalise is True:
+					Tools.Parse._remap(parsed, 5)
+					gauntletID = str(parsed["gauntletID"])
+					parsed["gauntletName"] = gauntletNameMap.get(
+						gauntletID,
+						"Unknown"
+					)
 		
 				gauntlets.append(parsed)
 		
@@ -1102,20 +1489,19 @@ class Tools:
 				"gauntlets": gauntlets,
 				"hash": hashValue
 			}
-
+	
 		@staticmethod
-		def getGJLevelLists(rawText: str):
+		def getGJLevelLists(rawText: str, normalise: bool = True):
 			parts = rawText.split("#")
-
+	
 			listSection = parts[0]
 			creatorSection = parts[1]
 			pageInfo = parts[2]
 			hashValue = parts[3]
-
+	
 			lists = []
 			for block in listSection.split("|"):
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				print(parsed["51"])
 				parsed["3"] = Tools.Parse._decode(parsed["3"])
 				parsed["51"] = (
 					[
@@ -1125,88 +1511,103 @@ class Tools:
 					if isinstance(parsed["51"], str)
 					else [parsed["51"]]
 				)
+
+				if normalise is True:
+					Tools.Parse._remap(parsed, 12)
+
 				lists.append(parsed)
-
+	
 			creators = Tools.Parse._parseCreators(creatorSection)
-
+	
 			pagination = Tools.Parse._parsePagination(pageInfo)
-
+	
 			return {
 				"lists": lists,
 				"creators": creators,
 				"pagination": pagination,
 				"hash": hashValue
 			}
-
+	
 		@staticmethod
-		def getGJFriendRequests20(rawText: str):
+		def getGJFriendRequests20(rawText: str, normalise: bool = True):
 			parts = rawText.split("#")
-
+	
 			userSection = parts[0]
 			pageInfo = parts[1]
-
+	
 			users = []
 			for block in userSection.split("|"):
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
 				parsed["35"] = Tools.Parse._decode(parsed["35"])
+	
+				if normalise is True:
+					Tools.Parse._remap(parsed, 4)
+	
 				users.append(parsed)
-
+	
 			pagination = Tools.Parse._parsePagination(pageInfo)
-
+	
 			return {
 				"users": users,
 				"pagination": pagination
 			}
-
+	
 		@staticmethod
-		def getGJMessages20(rawText: str):
+		def getGJMessages20(rawText: str, normalise: bool = True):
 			parts = rawText.split("#")
-
+	
 			messageSection = parts[0]
 			pageInfo = parts[1]
-
+	
 			messages = []
 			for block in messageSection.split("|"):
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
 				parsed["4"] = Tools.Parse._decode(parsed["4"])
+
+				if normalise is True:
+					Tools.Parse._remap(parsed, 10)
+
 				messages.append(parsed)
-
+	
 			pagination = Tools.Parse._parsePagination(pageInfo)
-
+	
 			return {
 				"messages": messages,
 				"pagination": pagination
 			}
-
+	
 		@staticmethod
-		def downloadGJMessage20(rawText: str):
+		def downloadGJMessage20(rawText: str, normalise: bool = True):
 			parts = rawText.split("#")
-
+	
 			messageSection = parts[0]
 			parsed = {}
-
+	
 			for block in messageSection.split("|"):
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
 				parsed["4"] = Tools.Parse._decode(parsed["4"])
 				parsed["5"] = Tools.Encryption.decodeString(parsed["5"], 2)
 
+				if normalise is True:
+					Tools.Parse._remap(parsed, 10)
+	
 			return {
 				"message": parsed
 			}
-
+	
 		@staticmethod
-		def getGJMapPacks21(rawText: str):
+		def getGJMapPacks21(rawText: str, normalise: bool = True):
 			parts = rawText.split("#")
-
+	
 			mapSection = parts[0]
 			pageInfo = parts[1]
 			hashValue = parts[2]
-
+	
 			packs = []
 			for block in mapSection.split("|"):
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
 				parsed["4"] = Tools.Parse._decode(parsed["4"])
-
+	
 				parsed["3"] = (
 					[
 						int(levelID)
@@ -1215,7 +1616,7 @@ class Tools:
 					if isinstance(parsed["3"], str)
 					else [parsed["3"]]
 				)
-
+	
 				r, g, b = map(int, parsed["7"].split(","))
 				parsed["7"] = {
 					"r": r,
@@ -1229,100 +1630,114 @@ class Tools:
 					"g": g,
 					"b": b
 				}
+				
+				if normalise is True:
+					Tools.Parse._remap(parsed, 11)
 
 				packs.append(parsed)
-
+	
 			pagination = Tools.Parse._parsePagination(pageInfo)
-
+	
 			return {
 				"packs": packs,
 				"pagination": pagination,
 				"hash": hashValue
 			}
-
+	
 		@staticmethod
 		def getGJDailyLevel(rawText: str):
 			parts = rawText.split("|")
-
+	
 			return {
 				"tempID": parts[0],
 				"secondsLeft": parts[1]
 			}
-
+	
 		@staticmethod
-		def getGJScores20(rawText: str):
+		def getGJScores20(rawText: str, normalise: bool = True):
 			parts = rawText.split("|")
-
+	
 			users = []
 			for block in parts:
 				if block != "":
 					parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
+					if not parsed:
+						continue
+					
+					if normalise is True:
+						Tools.Parse._remap(parsed, 1)
 				else:
 					parsed = {}
-
+	
 				users.append(parsed)
-
+	
 			return {
 				"users": users
 			}
-
+	
 		@staticmethod
-		def getGJLevelScores211(rawText: str):
+		def getGJLevelScores211(rawText: str, normalise: bool = True):
 			parts = rawText.split("|")
-
+	
 			scores = []
 			for block in parts:
 				if block != "":
 					parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
 				else:
 					parsed = {}
+				
+				if normalise is True:
+					Tools.Parse._remap(parsed, 7)
 
 				scores.append(parsed)
-
+	
 			return {
 				"scores": scores
 			}
-
+	
 		@staticmethod
 		def getGJLevelScoresPlat(rawText: str):
 			return Tools.Parse.getGJLevelScores211(rawText)
-
+	
 		@staticmethod
 		def getGJSecretReward(rawText: str):
 			parts = rawText.split("|")
-
+	
 			reward = {}
 			rewardValue = Tools.Encryption.decodeString(parts[0], type_=14).split(":")
 			hashValue = parts[1]
-
+	
 			reward["randomHash"] = rewardValue[0]
 			reward["decodedChk"] = rewardValue[1]
 			reward["rewardID"] = rewardValue[2]
 			reward["chestType"] = rewardValue[3]
 			reward["rewards"] = Tools.Parse._parseKeyValuePairs(rewardValue[4], splitter=",")
 			
-
+	
 			return {
 				"reward": reward,
 				"hash": hashValue
 			}
-
+	
 		@staticmethod
-		def getGJSongInfo(rawText: str):
+		def getGJSongInfo(rawText: str, normalise: bool = True):
 			song = Tools.Parse._parseKeyValuePairs(rawText, splitter="~|~")
 
+			if normalise is True:
+				Tools.Parse._remap(song, 9)
+	
 			return {
 				"song": song,
 			}
-
+	
 		@staticmethod
 		def getGJChallenges(rawText: str):
 			parts = rawText.split("|")
-
+	
 			challenges = {}
 			challengeValue = Tools.Encryption.decodeString(parts[0], type_=4).split(":")
 			hashValue = parts[1]
-
+	
 			challenges["randomHash"] = challengeValue[0]
 			challenges["uuid"] = challengeValue[1]
 			challenges["decodedChk"] = challengeValue[2]
@@ -1330,7 +1745,7 @@ class Tools:
 			challenges["accountID"] = challengeValue[4]
 			challenges["secondsLeft"] = challengeValue[5]
 			queuedQuests = []
-
+	
 			for blocks in challengeValue[6:]:
 				id_, type_, goal, reward, name = map(lambda x: int(x) if x.isdigit() else str(x), blocks.split(","))
 				queuedQuests.append({
@@ -1340,62 +1755,73 @@ class Tools:
 					"reward": reward,
 					"name": name
 					})
-
+	
 			challenges["queuedQuests"] = queuedQuests
-
+	
 			return {
 				"challenges": challenges,
 				"hash": hashValue
 			}
-
+	
 		@staticmethod
-		def getGJCommentHistory(rawText: str):
-			return Tools.Parse.getGJComments21(rawText)
-
+		def getGJCommentHistory(rawText: str, normalise: bool = True):
+			return Tools.Parse.getGJComments21(rawText, normalise)
+	
 		@staticmethod
-		def getGJUsers20(rawText: str):		
+		def getGJUsers20(rawText: str, normalise: bool = True):
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
-			commentBlocks = mainPart.split("|")
+			userBlocks = mainPart.split("|")
 		
 			users = []
-			for block in commentBlocks:
+		
+			for block in userBlocks:
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				if parsed:
-					users.append(parsed)
+		
+				if not parsed:
+					continue
+				
+				if normalise is True:
+					Tools.Parse._remap(parsed, 1)
+		
+				users.append(parsed)
 		
 			return {
 				"users": users,
 				"pagination": pagination
 			}
-
+	
 		@staticmethod
-		def getGJUserList20(rawText: str):		
-		
+		def getGJUserList20(rawText: str, normalise: bool = True):
 			commentBlocks = rawText.split("|")
 		
 			users = []
 			for block in commentBlocks:
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				if parsed:
-					users.append(parsed)
+				if not parsed:
+					continue
+	
+				if normalise is True:
+					Tools.Parse._remap(parsed, 1)
+	
+				users.append(parsed)
 		
 			return {
 				"users": users
 			}
-
+	
 		@staticmethod
 		def loginGJAccount(rawText: str):
 			data = rawText.split(",")
-
+	
 			return {
 				"accountID": data[0],
 				"uuid": data[1]
 			}
-
+	
 		@staticmethod
-		def getGJTopArtists(rawText: str):		
+		def getGJTopArtists(rawText: str, normalise: bool = True):		
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
@@ -1404,26 +1830,32 @@ class Tools:
 			artists = []
 			for block in artistBlocks:
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				if parsed:
-					artists.append(parsed)
+
+				if not parsed:
+					continue
+
+				if normalise is True:
+					Tools.Parse._remap(parsed, 9)
+
+				artists.append(parsed)
 		
 			return {
 				"artists": artists,
 				"pagination": pagination
 			}
-
+	
 		@staticmethod
 		def syncGJAccountNew(rawText: str):		
 			gameManager, levelManager, gameVersion, binaryVersion, levels, mapPacks = rawText.split(";")
-
+	
 			gameManager = Tools.Encryption.decodeString(gameManager, 17)
 			levelManager = Tools.Encryption.decodeString(levelManager, 17)
 			
 			levels = Tools.Encryption.decodeString(levels, 18)
 			mapPacks = Tools.Encryption.decodeString(mapPacks, 18)
-
+	
 			levels = Tools.Parse._parseKeyValuePairs(levels, splitter=",")
-
+	
 			mapBlocks = []
 			for block in mapPacks.split("|"):
 				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
@@ -1436,7 +1868,7 @@ class Tools:
 					else [parsed["3"]]
 				)
 				mapBlocks.append(parsed)
-
+	
 			return {
 				"gameManager": gameManager,
 				"levelManager": levelManager,
@@ -1445,23 +1877,23 @@ class Tools:
 				"levels": levels,
 				"mapPacks": mapBlocks
 			}
-
+	
 	@staticmethod
 	def b64EncodeUrlSafe(data: str) -> str:
 		return base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
-
+	
 	@staticmethod
 	def b64DecodeUrlSafe(b64: str) -> str:
 		return base64.urlsafe_b64decode(b64).decode("utf-8")
-
+	
 	@staticmethod
 	def b64DecodeUrlSafeBytes(b64: bytes) -> bytes:
 		return base64.urlsafe_b64decode(b64)
-
+	
 	@staticmethod
 	def b64EncodeUrlSafeBytes(data: bytes) -> bytes:
 		return base64.urlsafe_b64encode(data)
-
+	
 	@staticmethod
 	def getSecret(type: int) -> str:
 		"""
@@ -1488,23 +1920,23 @@ class Tools:
 				return "Wmfx2878gb9"
 			case _:
 				return "None"
-
+	
 	@staticmethod
 	def writeResponse(response: Any,
 		fileName: str | None = None,
 		extension: str | None = None
 		):
-
+	
 		if fileName:
 			name = fileName
 		else:
 			name = "response"
-
+	
 		if extension:
 			ext = extension
 		else:
 			ext = "txt"
-
+	
 		if isinstance(response, bytes):
 			with open(f"{name}.{ext}", "wb") as file:
 				file.write(response)
@@ -1514,18 +1946,20 @@ class Tools:
 		else:
 			with open(f"{name}.{ext}", "w") as file:
 				file.write(str(response))
-
+	
 	@staticmethod
 	def makeReq(url: str, data: dict):
 		response = requests.post(url, data, headers={"User-Agent": ""}, verify=False)
+		if response.status_code != 200:
+			raise RuntimeError("Could not reach server")
 		return response
-
+	
 	@staticmethod
 	def checkResponse(response: str) -> bool:
 		if re.fullmatch(r"-\d+", response):
 			return False
 		return True
-
+	
 	@staticmethod
 	def xorCipher(data: Any, key: Any) -> Any:
 		if isinstance(data, str):
@@ -1551,29 +1985,29 @@ class Tools:
 			else:
 				if not key:
 					raise ValueError("Key must not be empty")
-
+	
 				raise ValueError("Invalid key type")
 		else:
 			raise ValueError("Invalid data type")
-
-
+	
+	
 	@staticmethod
 	def genChk(keyIndex, values: List[Union[int, str]] | None = None, saltIndex: int = 1) -> str:
 		salt: str = Tools.getSalt(saltIndex)
 		key: int | str = Tools.getXorKey(keyIndex)
 		if values is None:
 			values = []
-
+	
 		values.append(salt)
-
+	
 		string = "".join(map(str, values))
 		hashed = hashlib.sha1(string.encode()).hexdigest()
-
+	
 		xored = Tools.xorCipher(hashed, key)
 		chk = Tools.b64EncodeUrlSafe(xored)
-
+	
 		return chk
-
+	
 	@staticmethod
 	def _generateClassicLeaderboardSeed(
 		jumps: int,
@@ -1586,12 +2020,12 @@ class Tools:
 			+ (jumps + 3991) * (percentage + 8354)
 			+ ((seconds + 4085) ** 2) - 50028039
 		)
-
+	
 	@staticmethod
 	def _generatePlatformerHash(bestTime, bestPoints):
 		number = (((bestTime + 7890) % 34567) * 601 + ((abs(bestPoints) + 3456) % 78901) * 967 + 94819) % 94433
 		return ((number ^ number >> 16) * 829) % 77849
-
+	
 	@staticmethod
 	def getXorKey(index: int) -> int | str:
 		"""
@@ -1646,7 +2080,7 @@ class Tools:
 				return "85271"
 			case _:
 				raise ValueError(f"Invalid XOR key index: {index}")
-
+	
 	@staticmethod
 	def getSalt(index: int) -> str:
 		"""
@@ -1683,14 +2117,14 @@ class Tools:
 				return "mI29fmAnxgTs"
 			case _:
 				raise ValueError(f"Invalid salt index: {index}")
-
+	
 	@staticmethod
 	def generateGjp2(password: str) -> str:
 		salt = Tools.getSalt(9)
 		return hashlib.sha1((password + salt).encode()).hexdigest()
-
-
-
+	
+	
+	
 	@staticmethod
 	def crackGjp2(gjp2: str) -> str | None:
 		"""
@@ -1700,71 +2134,71 @@ class Tools:
 		ROCKYOU_URL = "https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt"
 		ROCKYOU_PATH = os.path.join(os.path.dirname(__file__), "rockyou.txt")
 		SALT = "mI29fmAnxgTs"
-
+	
 		def ensureRockyou():
 			if not os.path.isfile(ROCKYOU_PATH):
 				ssl._create_default_https_context = ssl._create_unverified_context
 				urllib.request.urlretrieve(ROCKYOU_URL, ROCKYOU_PATH)
 				ssl._create_default_https_context = ssl.create_default_context
-
+	
 		def generateGjp2(password: str, saltBytes: bytes) -> str:
 			return hashlib.sha1(password.encode() + saltBytes).hexdigest()
-
+	
 		# Prepare
 		ensureRockyou()
 		targetHash = gjp2.strip()
 		saltBytes = SALT.encode()
-
+	
 		# Search
 		with open(ROCKYOU_PATH, encoding="utf-8", errors="ignore") as f:
 			for line in f:
 				password = line.rstrip("\n\r")
-
+	
 				if generateGjp2(password, saltBytes) == targetHash:
 					return password
-
+	
 		return None
-
+	
 	@staticmethod
 	def encodeGjp(password: str) -> str:
 		xored = Tools.xorCipher(password, Tools.getXorKey(7))
 		b = base64.b64encode(xored.encode()).decode()
 		return b.replace("+", "-").replace("/", "_").rstrip("=")
-
+	
 	@staticmethod
 	def decodeGjp(gjp: str) -> str:
 		padded = gjp + "=" * (-len(gjp) % 4)
 		s = padded.replace("-", "+").replace("_", "/")
 		raw = base64.b64decode(s.encode()).decode()
 		return Tools.xorCipher(raw, Tools.getXorKey(7))
-
+	
 	@staticmethod
 	def encodeLevelPassword(plain: str) -> str:
 		xored = Tools.xorCipher(plain, Tools.getXorKey(5))
 		b = base64.b64encode(xored.encode()).decode()
 		return b.replace("+", "-").replace("/", "_").rstrip("=")
-
+	
 	@staticmethod
 	def decodeLevelPassword(encoded: str) -> str:
 		padded = encoded + "=" * (-len(encoded) % 4)
 		s = padded.replace("-", "+").replace("_", "/")
 		raw = base64.b64decode(s.encode()).decode()
 		return Tools.xorCipher(raw, Tools.getXorKey(5))
-
+	
 	@staticmethod
 	def generateRs(length: int = 10) -> str:
 		alphabet = string.ascii_letters + string.digits
 		return "".join(random.choices(alphabet, k=length))
-
+	
 	@staticmethod
 	def generateRn(length: int | None = None) -> int:
 		numLength = length if length else random.randint(3,5)
 		return int("".join(random.choices(string.digits, k=numLength)))
-
+	
 	@staticmethod
 	def generateUuid(parts: Sequence[int] = (8, 4, 4, 4, 10)) -> str:
 		return "-".join(Tools.generateRs(n) for n in parts)
-
+	
 	@staticmethod
 	def generateUdid(
 		start: int = 100_000,
@@ -1778,45 +2212,45 @@ class Tools:
 			+ str(r(start, end))
 			+ str(r(start, end))
 		)
-
+	
 	@staticmethod
 	def _generateCdnExpires(offsetSeconds: int = 3600) -> int:
 		return int(time.time()) + offsetSeconds
-
+	
 	@staticmethod
 	def _generateCdnToken(endpoint: str, expires: int) -> str:
 		payload = f"8501f9c2-75ba-4230-8188-51037c4da102{endpoint}{expires}"
 		digestAscii = hashlib.md5(payload.encode()).hexdigest()
 		return Tools.b64EncodeUrlSafe(digestAscii)
-
+	
 	@staticmethod
 	def _sampleStringForUploadSeed(data: str, charCount: int = 50) -> str:
 		if len(data) < charCount:
 			return data
 		step = len(data) // charCount
 		return data[::step][:charCount]
-
+	
 	@staticmethod
 	def _generateLevelUploadSeed2(levelString: str) -> str:
 		sample = Tools._sampleStringForUploadSeed(levelString, 50)
 		return Tools.genChk(9, [sample], 1)
-
+	
 	@staticmethod
 	def _generateListSeed2(length: int = 5) -> str:
 		alphabet = string.ascii_letters + string.digits
 		return "".join(random.choices(alphabet, k=length))
-
+	
 	@staticmethod
 	def _generateListUploadSeed(listLevels: str, accountId: int, seed2: str) -> str:
 		sample = Tools._sampleStringForUploadSeed(listLevels, 50)
 		digest = hashlib.sha1(f"{sample}{accountId}".encode()).hexdigest()
 		return Tools.b64EncodeUrlSafe(Tools.xorCipher(digest, seed2))
-
+	
 	@staticmethod
 	def _randomClientTokenPrefix(length: int = 5) -> str:
 		alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
 		return "".join(random.choices(alphabet, k=length))
-
+	
 	@staticmethod
 	def generateQuestChk(
 		minDigits: int = 10_000,
@@ -1829,7 +2263,7 @@ class Tools:
 		if urlSafeB64:
 			return prefix + Tools.b64EncodeUrlSafe(xored)
 		return prefix + base64.b64encode(xored.encode()).decode()
-
+	
 	@staticmethod
 	def generateChestMenuChk(
 		minDigits: int = 10_000,
@@ -1839,7 +2273,7 @@ class Tools:
 		num = str(random.randint(minDigits, maxDigits))
 		xored = Tools.xorCipher(num, Tools.getXorKey(14))
 		return prefix + Tools.b64EncodeUrlSafe(xored)
-
+	
 	@staticmethod
 	def generateWraithRewardChk(
 		minDigits: int = 10_000,
@@ -1849,7 +2283,7 @@ class Tools:
 		num = str(random.randint(minDigits, maxDigits))
 		xored = Tools.xorCipher(num, Tools.getXorKey(14))
 		return prefix + base64.b64encode(xored.encode()).decode()
-
+	
 	@staticmethod
 	def genChkDownloadLevel(
 		levelId: int,
@@ -1860,7 +2294,7 @@ class Tools:
 		uuid: int
 	) -> str:
 		return Tools.genChk(9, [levelId, inc, rs, accountId, udid, uuid], 1)
-
+	
 	@staticmethod
 	def genChkRateStars(
 		levelId: int,
@@ -1871,7 +2305,7 @@ class Tools:
 		uuid: int
 	) -> str:
 		return Tools.genChk(13, [levelId, stars, rs, accountId, udid, uuid], 3)
-
+	
 	@staticmethod
 	def genChkLikeItem(
 		special: int,
@@ -1886,11 +2320,11 @@ class Tools:
 		return Tools.genChk(
 			13, [special, itemId, like, type_, rs, accountId, udid, uuid], 3
 		)
-
+	
 	@staticmethod
 	def genChkLeaderboard(values: List[Union[int, str]]) -> str:
 		return Tools.genChk(8, values, 5)
-
+	
 	@staticmethod
 	def genChkLevelComment(
 		userName: str,
@@ -1902,28 +2336,28 @@ class Tools:
 		return Tools.genChk(
 			6, [userName, commentB64, levelId, percent, commentType], 2
 		)
-
+	
 	@staticmethod
 	def encodeVaultCode(plain: str) -> str:
 		return Tools.Encryption.encodeString(plain, 3)
-
+	
 	@staticmethod
 	def decodeVaultCode(encoded: str) -> str:
 		return Tools.Encryption.decodeString(encoded, 3)
-
+	
 	@staticmethod
 	def encodeLeaderboardProgressString(differences: Sequence[int]) -> str:
 		s = ",".join(str(d) for d in differences)
 		xored = Tools.xorCipher(s, Tools.getXorKey(9))
 		return Tools.b64EncodeUrlSafe(xored)
-
+	
 	@staticmethod
 	def decodeLeaderboardProgressString(encoded: str) -> list[int]:
 		raw = Tools.xorCipher(Tools.b64DecodeUrlSafe(encoded), Tools.getXorKey(9))
 		if not raw:
 			return []
 		return [int(x) for x in raw.split(",") if x]
-
+	
 	@staticmethod
 	def decodeXorUrlSafeB64Response(
 		responseText: str,
@@ -1937,2979 +2371,2986 @@ class Tools:
 			Tools.getXorKey(xorKeyIndex)
 		)
 		return decoded
-
+	
 	@staticmethod
 	def encodeLevelStringForOfficialPlist(levelString: str) -> str:
 		gz = gzip.compress(levelString.encode())
 		b64 = base64.urlsafe_b64encode(gz)
 		return b64[13:].decode()
-
+	
 	@staticmethod
 	def decodeLevelStringFromOfficialPlist(fragment: str) -> str:
 		combined = "H4sIAAAAAAAAA" + fragment
 		raw = base64.urlsafe_b64decode(combined.encode())
 		return zlib.decompress(raw, 15 | 32).decode()
+		
+@staticmethod
+def backupGJAccountNew(
+	userName: str,
+	password: str,
+	saveData: str,
+	gameVersion: int = 22,
+	binaryVersion: int = 47,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(2)
 
-class Accounts:
+	data: dict[str, str | int] = {
+		"userName": userName,
+		"password": password,
+		"saveData": saveData,
+		"gameVersion": gameVersion,
+		"binaryVersion": binaryVersion,
+		"secret": secret
+	}
 
-	@staticmethod
-	def backupGJAccountNew(
-		userName: str,
-		password: str,
-		saveData: str,
-		gameVersion: int = 22,
-		binaryVersion: int = 47,
-		gdw: int | None = None
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq("http://www.robtopgames.org/database/accounts/backupGJAccountNew.php", data)
+
+	if not Tools.checkResponse(response.text):
+		print(f"backupGJAccountNew Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def loginGJAccount(
+	udid: str,
+	userName: str,
+	password: str,
+	sID: str | None = None
+) -> str:
+	secret = Tools.getSecret(2)
+
+	data: dict[str, str | int] = {
+		"udid": udid,
+		"userName": userName,
+		"password": password,
+		"secret": secret
+	}
+	if sID is not None:
+		data["sID"] = sID
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/accounts/loginGJAccount.php",
+		data
+	)
+	if not Tools.checkResponse(response.text):
+		print(f"loginGJAccount Failed: {response.text}")
+	return response.text
+
+@staticmethod
+def registerGJAccount(userName: str, password: str, email: str) -> str:
+	secret = Tools.getSecret(2)
+
+	data: dict[str, str | int] = {
+		"userName": userName,
+		"password": password,
+		"email": email,
+		"secret": secret
+	}
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/accounts/registerGJAccount.php",
+		data
+	)
+	if not Tools.checkResponse(response.text):
+		print(f"registerGJAccount Failed: {response.text}")
+	return response.text
+
+@staticmethod
+def syncGJAccountNew(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(2)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	if gdw is not None:
+		data["gdw"] = gdw
+	response = Tools.makeReq(
+		"http://www.robtopgames.org/database/accounts/syncGJAccountNew.php",
+		data
+	)
+	if not Tools.checkResponse(response.text):
+		print(f"syncGJAccountNew Failed: {response.text}")
+	return response.text
+
+@staticmethod
+def updateGJAccSettings20(
+	accountID: int,
+	gjp2: str,
+	mS: int | None = None,
+	frS: int | None = None,
+	cS: int | None = None,
+	yt: str | None = None,
+	twitter: str | None = None,
+	twitch: str | None = None
+) -> str:
+	secret = Tools.getSecret(2)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+	if mS is not None:
+		data["mS"] = mS
+	if frS is not None:
+		data["frS"] = frS
+	if cS is not None:
+		data["cS"] = cS
+	if yt is not None:
+		data["yt"] = yt
+	if twitter is not None:
+		data["twitter"] = twitter
+	if twitch is not None:
+		data["twitch"] = twitch
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/updateGJAccSettings20.php",
+		data
+	)
+	if not Tools.checkResponse(response.text):
+		print(f"updateGJAccSettings20 Failed: {response.text}")
+	return response.text
+		
+@staticmethod
+def getGJScores20(
+	stat: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	type_: str | None = None,
+	count: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	stat: 0 = stars, 1 = moons, 2 = demons, 3 = coins
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if stat is not None:
+		data["stat"] = stat
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if type_ is not None:
+		data["type"] = type_  # "top", "relative", "friends", "creators"
+
+	if count is not None:
+		# Hard cap at 100 (server-side limit)
+		data["count"] = min(count, 100)
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJScores20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJScores20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJUserInfo20(
+	targetAccountID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None
 	) -> str:
-		secret = Tools.getSecret(2)
+	secret = Tools.getSecret(1)
 
-		data: dict[str, str | int] = {
-			"userName": userName,
-			"password": password,
-			"saveData": saveData,
-			"gameVersion": gameVersion,
-			"binaryVersion": binaryVersion,
-			"secret": secret
-		}
+	data: dict[str, str | int] = {
+		"targetAccountID": targetAccountID,
+		"secret": secret
+	}
 
-		if gdw is not None:
-			data["gdw"] = gdw
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
 
-		response = Tools.makeReq("http://www.robtopgames.org/database/accounts/backupGJAccountNew.php", data)
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
 
-		if not Tools.checkResponse(response.text):
-			print(f"backupGJAccountNew Failed: {response.text}")
+	if gdw is not None:
+		data["gdw"] = gdw
 
-		return response.text
+	if accountID is not None:
+		data["accountID"] = accountID
 
-	@staticmethod
-	def loginGJAccount(
-		udid: str,
-		userName: str,
-		password: str,
-		sID: str | None = None
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJUserInfo20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJUserInfo20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJUsers20(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	str_: str | None = None,
+	page: int | None = None,
+	total: int | None = None
 	) -> str:
-		secret = Tools.getSecret(2)
+	secret = Tools.getSecret(1)
 
-		data: dict[str, str | int] = {
-			"udid": udid,
-			"userName": userName,
-			"password": password,
-			"secret": secret
-		}
-		if sID is not None:
-			data["sID"] = sID
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/accounts/loginGJAccount.php",
-			data
-		)
-		if not Tools.checkResponse(response.text):
-			print(f"loginGJAccount Failed: {response.text}")
-		return response.text
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
 
-	@staticmethod
-	def registerGJAccount(userName: str, password: str, email: str) -> str:
-		secret = Tools.getSecret(2)
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
 
-		data: dict[str, str | int] = {
-			"userName": userName,
-			"password": password,
-			"email": email,
-			"secret": secret
-		}
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/accounts/registerGJAccount.php",
-			data
-		)
-		if not Tools.checkResponse(response.text):
-			print(f"registerGJAccount Failed: {response.text}")
-		return response.text
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
 
-	@staticmethod
-	def syncGJAccountNew(
-		accountID: int,
-		gjp2: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if str_ is not None:
+		data["str"] = str_
+
+	if page is not None:
+		data["page"] = page
+
+	if total is not None:
+		data["total"] = total
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJUsers20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJUsers20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def updateGJUserScore22(
+	accountID: int,
+	gjp2: str,
+	stars: int,
+	moons: int,
+	demons: int,
+	diamonds: int,
+	icon: int,
+	iconType: int,
+	coins: int,
+	userCoins: int,
+	accIcon: int,
+	accShip: int,
+	accBall: int,
+	accBird: int,
+	accDart: int,
+	accRobot: int,
+	accGlow: int,
+	accSpider: int,
+	accExplosion: int,
+	accSwing: int,
+	accJetpack: int,
+	dinfo: str,
+	dinfow: int,
+	dinfog: int,
+	sinfo: str,
+	sinfod: int,
+	sinfog: int,		
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	userName: str | None = None,
+	color1: int | None = None,
+	color2: int | None = None,
+	color3: int | None = None,
+	special: int | None = None,
+	seed: str | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	if seed is None:
+		import random
+		chars = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
+		seed = "".join(random.sample(chars, 10))
+
+	seed2 = Tools.genChk(
+		15,
+		[
+			accountID,
+			userCoins,
+			demons,
+			stars,
+			coins,
+			iconType,
+			icon,
+			diamonds,
+			accIcon,
+			accShip,
+			accBall,
+			accBird,
+			accDart,
+			accRobot,
+			accGlow,
+			accSpider,
+			accExplosion,
+			len(dinfo.split(",")) if dinfo else 0,
+			dinfow,
+			dinfog,
+			sinfo,
+			sinfod,
+			sinfog
+		],
+		4
+	)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"stars": stars,
+		"moons": moons,
+		"demons": demons,
+		"diamonds": diamonds,
+		"icon": icon,
+		"iconType": iconType,
+		"coins": coins,
+		"userCoins": userCoins,
+		"accIcon": accIcon,
+		"accShip": accShip,
+		"accBall": accBall,
+		"accBird": accBird,
+		"accDart": accDart,
+		"accRobot": accRobot,
+		"accGlow": accGlow,
+		"accSpider": accSpider,
+		"accExplosion": accExplosion,
+		"accSwing": accSwing,
+		"accJetpack": accJetpack,
+		"dinfo": dinfo,
+		"dinfow": dinfow,
+		"dinfog": dinfog,
+		"sinfo": sinfo,
+		"sinfod": sinfod,
+		"sinfog": sinfog,
+		"seed": seed,
+		"seed2": seed2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if userName is not None:
+		data["userName"] = userName
+
+	if color1 is not None:
+		data["color1"] = color1
+
+	if color2 is not None:
+		data["color2"] = color2
+
+	if color3 is not None:
+		data["color3"] = color3
+
+	if special is not None:
+		data["special"] = special
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/updateGJUserScore22.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"updateGJUserScore22 Failed: {response.text}")
+
+	return response.text
+		
+@staticmethod
+def deleteGJLevelUser20(
+	accountID: int,
+	gjp2: str,
+	levelID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
 	) -> str:
-		secret = Tools.getSecret(2)
+	secret = Tools.getSecret(2)
 
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-		if gdw is not None:
-			data["gdw"] = gdw
-		response = Tools.makeReq(
-			"http://www.robtopgames.org/database/accounts/syncGJAccountNew.php",
-			data
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"levelID": levelID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/deleteGJLevelUser20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"deleteGJLevelUser20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def uploadGJLevel21(
+	gameVersion: int,
+	accountID: int,
+	gjp2: str,
+	userName: str,
+	levelID: int,
+	levelName: str,
+	levelDesc: str,
+	levelVersion: int,
+	levelLength: int,
+	audioTrack: int,
+	auto: int,
+	password: int,
+	original: int,
+	twoPlayer: int,
+	songID: int,
+	objects: int,
+	coins: int,
+	requestedStars: int,
+	unlisted: int,
+	ldm: int,
+	levelString: str,
+	seed2: str | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	wt: int | None = None,
+	wt2: int | None = None,
+	seed: str | None = None,
+	extraString: str | None = None,
+	levelInfo: str | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+	if seed2 is None:
+		seed2 = Tools._generateLevelUploadSeed2(levelString)
+
+	data: dict[str, str | int] = {
+		"gameVersion": gameVersion,
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"userName": userName,
+		"levelID": levelID,
+		"levelName": levelName,
+		"levelDesc": levelDesc,
+		"levelVersion": levelVersion,
+		"levelLength": levelLength,
+		"audioTrack": audioTrack,
+		"auto": auto,
+		"password": password,
+		"original": original,
+		"twoPlayer": twoPlayer,
+		"songID": songID,
+		"objects": objects,
+		"coins": coins,
+		"requestedStars": requestedStars,
+		"unlisted": unlisted,
+		"ldm": ldm,
+		"levelString": levelString,
+		"seed2": seed2,
+		"secret": secret
+	}
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if wt is not None:
+		data["wt"] = wt
+
+	if wt2 is not None:
+		data["wt2"] = wt2
+
+	if seed is not None:
+		data["seed"] = seed
+
+	if extraString is not None:
+		data["extraString"] = extraString
+
+	if levelInfo is not None:
+		data["levelInfo"] = levelInfo
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/uploadGJLevel21.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"uploadGJLevel21 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def updateGJDesc20(
+	accountID: int,
+	gjp2: str,
+	levelID: int,
+	levelDesc: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"levelID": levelID,
+		"levelDesc": levelDesc,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/updateGJDesc20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"updateGJDesc20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def suggestGJStars(
+	gameVersion: int,
+	binaryVersion: int,
+	accountID: int,
+	gjp2: str,
+	levelID: int,
+	stars: int,
+	feature: int,
+	gdw: int = 0
+) -> str:
+	secret = Tools.getSecret(4)
+
+	data: dict[str, str | int] = {
+		"gameVersion": gameVersion,
+		"binaryVersion": binaryVersion,
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"levelID": levelID,
+		"stars": stars,
+		"feature": feature,
+		"gdw": gdw,
+		"secret": secret
+	}
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/suggestGJStars20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"suggestGJStars Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def reportGJLevel(levelID: int | None = None) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if levelID is not None:
+		data["levelID"] = levelID
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/reportGJLevel.php",
+		data
+	)
+	if not Tools.checkResponse(response.text):
+		print(f"reportGJLevel Failed: {response.text}")
+	return response.text
+
+@staticmethod
+def rateGJStars211(
+	levelID: int,
+	stars: int,
+	rs: str | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	chk: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+	if chk is None and (rs is not None and
+						accountID is not None and
+						udid is not None and
+						uuid is not None):
+		chk = Tools.genChkRateStars(
+			levelID, stars, rs, accountID, udid, uuid
 		)
-		if not Tools.checkResponse(response.text):
-			print(f"syncGJAccountNew Failed: {response.text}")
-		return response.text
 
-	@staticmethod
-	def updateGJAccSettings20(
-		accountID: int,
-		gjp2: str,
-		mS: int | None = None,
-		frS: int | None = None,
-		cS: int | None = None,
-		yt: str | None = None,
-		twitter: str | None = None,
-		twitch: str | None = None
+	data: dict[str, str | int] = {
+		"levelID": levelID,
+		"stars": stars,
+		"secret": secret
+	}
+
+	if rs is not None:
+		data["rs"] = rs
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if chk is not None:
+		data["chk"] = chk
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/rateGJStars211.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"rateGJStars211 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def rateGJDemon21(
+	gameVersion: int,
+	binaryVersion: int,
+	accountID: int,
+	gjp2: str,
+	levelID: int,
+	rating: int,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(4)
+
+	data: dict[str, str | int] = {
+		"gameVersion": gameVersion,
+		"binaryVersion": binaryVersion,
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"levelID": levelID,
+		"rating": rating,
+		"secret": secret
+	}
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/rateGJDemon21.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"rateGJDemon21 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJMapPacks21(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	page: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if page is not None:
+		data["page"] = page
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJMapPacks21.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJMapPacks21 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJGauntlets21(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	special: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if special is not None:
+		data["special"] = special
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJGauntlets21.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJGauntlets21 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJDailyLevel(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	weekly: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if weekly is not None:
+		data["weekly"] = weekly
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJDailyLevel.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJDailyLevel Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def downloadGJLevel22(
+	levelID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	inc: int | None = None,
+	extras: int | None = None,
+	rs: str | None = None,
+	chk: str | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+	incForChk = 1 if inc is None else inc
+	autoChk = False
+	if chk is None and (rs is not None and
+						accountID is not None and
+						udid is not None and
+						uuid is not None):
+		chk = Tools.genChkDownloadLevel(
+			levelID, incForChk, rs, accountID, udid, uuid
+		)
+		autoChk = True
+
+	data: dict[str, str | int] = {
+		"levelID": levelID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if inc is not None:
+		data["inc"] = inc
+	elif autoChk:
+		data["inc"] = incForChk
+
+	if extras is not None:
+		data["extras"] = extras
+
+	if rs is not None:
+		data["rs"] = rs
+
+	if chk is not None:
+		data["chk"] = chk
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/downloadGJLevel22.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"downloadGJLevel22 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJLevels21(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	type_: int | None = None,
+	str_: str | int | None = None,
+	page: int | None = None,
+	total: int | None = None,
+	gjp: str | None = None,
+	gjp2: str | None = None,
+	accountID: int | None = None,
+	gdw: int | None = None,
+	gauntlet: int | None = None,
+	diff: int | None = None,
+	demonFilter: int | None = None,
+	len_: int | None = None,
+	uncompleted: int | None = None,
+	onlyCompleted: int | None = None,
+	completedLevels: str | None = None,
+	featured: int | None = None,
+	original: int | None = None,
+	twoPlayer: int | None = None,
+	coins: int | None = None,
+	epic: int | None = None,
+	legendary: int | None = None,
+	mythic: int | None = None,
+	noStar: int | None = None,
+	star: int | None = None,
+	song: int | None = None,
+	customSong: int | None = None,
+	followed: str | None = None,
+	local: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	type_: Search type, defaults to most liked, types are as follows:
+	```markdown
+	| Type | Description                                                                       |
+	| :--: | --------------------------------------------------------------------------------- |
+	|  0   | Search query                                                                      |
+	|  1   | Most downloaded                                                                   |
+	|  2   | Most liked                                                                        |
+	|  3   | Trending                                                                          |
+	|  4   | Recent                                                                            |
+	|  5   | User's levels, uses `str` as the **user ID**                                      |
+	|  6   | Featured                                                                          |
+	|  7   | Magic                                                                             |
+	|  8   | Moderator sent levels                                                             |
+	|  10  | List of levels (not to be confused with type 25, which is for in-game lists), uses `str` as a comma separated list of level IDs |
+	|  11  | Awarded                                                                           |
+	|  12  | Followed (see `followed` parameter)                                               |
+	|  13  | Friends (login required)                                                          |
+	|  15  | Most liked in GD World                                                            |
+	|  16  | Hall of fame                                                                      |
+	|  17  | Featured in GD World                                                              |
+	|  18  | Unknown (always empty, perhaps robtop only?)                                      |
+	|  19  | Unknown (same as type 10 but this type has pagination and no star rate filter)    |
+	|  21  | Daily history                                                                     |
+	|  22  | Weekly history                                                                    |
+	|  25  | Level list, uses `str` as the list ID                                             |
+	|  26  | Unknown (same as type 19 but each page has up to 100 levels instead of 10 on it)  |
+	```
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if type_ is not None:
+		data["type"] = type_
+
+	if str_ is not None:
+		data["str"] = str_
+
+	if page is not None:
+		data["page"] = page
+
+	if total is not None:
+		data["total"] = total
+
+	if gjp is not None:
+		data["gjp"] = gjp
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if gauntlet is not None:
+		data["gauntlet"] = gauntlet
+
+	if diff is not None:
+		data["diff"] = diff
+
+	if demonFilter is not None:
+		data["demonFilter"] = demonFilter
+
+	if len_ is not None:
+		data["len"] = len_
+
+	if uncompleted is not None:
+		data["uncompleted"] = uncompleted
+
+	if onlyCompleted is not None:
+		data["onlyCompleted"] = onlyCompleted
+
+	if completedLevels is not None:
+		data["completedLevels"] = completedLevels
+
+	if featured is not None:
+		data["featured"] = featured
+
+	if original is not None:
+		data["original"] = original
+
+	if twoPlayer is not None:
+		data["twoPlayer"] = twoPlayer
+
+	if coins is not None:
+		data["coins"] = coins
+
+	if epic is not None:
+		data["epic"] = epic
+
+	if legendary is not None:
+		data["legendary"] = legendary
+
+	if mythic is not None:
+		data["mythic"] = mythic
+
+	if noStar is not None:
+		data["noStar"] = noStar
+
+	if star is not None:
+		data["star"] = star
+
+	if song is not None:
+		data["song"] = song
+
+	if customSong is not None:
+		data["customSong"] = customSong
+
+	if followed is not None:
+		data["followed"] = followed
+
+	if local is not None:
+		data["local"] = local
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJLevels21.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJLevels21 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJLevelScores211(
+	accountID: int,
+	gjp2: str,
+	levelID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	time: int | None = None,
+	points: int | None = None,
+	plat: int | None = None,
+	percent: int | None = None,
+	type_: int | None = None,
+	s1: int | None = None,
+	s2: int | None = None,
+	s3: int | None = None,
+	s4: int | None = None,
+	s5: float | None = None,
+	s6: str | None = None,
+	s7: str | None = None
+) -> str:
+	"""
+	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int | float] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"levelID": levelID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if time is not None:
+		data["time"] = time
+
+	if points is not None:
+		data["points"] = points
+
+	if plat is not None:
+		data["plat"] = plat
+
+	if percent is not None:
+		data["percent"] = percent
+
+	if type_ is not None:
+		data["type"] = type_
+
+	if s1 is not None:
+		data["s1"] = s1
+
+	if s2 is not None:
+		data["s2"] = s2
+
+	if s3 is not None:
+		data["s3"] = s3
+
+	if s4 is not None:
+		data["s4"] = s4
+
+	if s5 is not None:
+		data["s5"] = s5
+
+	if s6 is not None:
+		data["s6"] = s6
+
+	if s7 is not None:
+		data["s7"] = s7
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJLevelScores211.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJLevelScores211 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJLevelScoresPlat(
+	accountID: int,
+	gjp2: str,
+	levelID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	time: int | None = None,
+	points: int | None = None,
+	plat: int | None = None,
+	percent: int | None = None,
+	type_: int | None = None,
+	mode: int | None = None,
+	s1: int | None = None,
+	s2: int | None = None,
+	s3: int | None = None,
+	s4: int | None = None,
+	s5: float | None = None,
+	s6: str | None = None,
+	s7: str | None = None
+) -> str:
+	"""
+	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int | float] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"levelID": levelID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if time is not None:
+		data["time"] = time
+
+	if points is not None:
+		data["points"] = points
+
+	if plat is not None:
+		data["plat"] = plat
+
+	if percent is not None:
+		data["percent"] = percent
+
+	if type_ is not None:
+		data["type"] = type_
+
+	if mode is not None:
+		data["mode"] = mode
+
+	if s1 is not None:
+		data["s1"] = s1
+
+	if s2 is not None:
+		data["s2"] = s2
+
+	if s3 is not None:
+		data["s3"] = s3
+
+	if s4 is not None:
+		data["s4"] = s4
+
+	if s5 is not None:
+		data["s5"] = s5
+
+	if s6 is not None:
+		data["s6"] = s6
+
+	if s7 is not None:
+		data["s7"] = s7
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJLevelScoresPlat.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJLevelScoresPlat Failed: {response.text}")
+
+	return response.text
+		
+@staticmethod
+def getGJComments21(
+	levelID: int,
+	page: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	mode: int | None = None,
+	total: int | None = None
+) -> str:
+	"""
+	mode: Set to 0 for most recent, and 1 for most liked
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"levelID": levelID,
+		"page": page,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if mode is not None:
+		data["mode"] = mode
+
+	if total is not None:
+		data["total"] = total
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJComments21.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJComments21 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJCommentHistory(
+	userID: int,
+	page: int,
+	gjp2: str | None = None,
+	accountID: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	mode: int | None = None,
+	total: int | None = None
+) -> str:
+	"""
+	mode: Set to 0 for most recent, and 1 for most liked
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"userID": userID,
+		"page": page,
+		"secret": secret
+	}
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if mode is not None:
+		data["mode"] = mode
+
+	if total is not None:
+		data["total"] = total
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJCommentHistory.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJCommentHistory Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJAccountComments20(
+	accountID: int,
+	page: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	total: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"page": page,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if total is not None:
+		data["total"] = total
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJAccountComments20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJAccountComments20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def uploadGJAccComment20(
+	accountID: int,
+	gjp2: str,
+	comment: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	cType: int | None = None
+) -> str:
+	"""
+	cType: The comment type, 0 for level, 1 for user
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"comment": Tools.b64EncodeUrlSafe(comment),
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if cType is not None:
+		data["cType"] = cType  # 0 = level, 1 = user
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/uploadGJAccComment20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"uploadGJAccComment20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def deleteGJAccComment20(
+	accountID: int,
+	targetAccountID: int,
+	gjp2: str,
+	commentID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
 	) -> str:
-		secret = Tools.getSecret(2)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-		if mS is not None:
-			data["mS"] = mS
-		if frS is not None:
-			data["frS"] = frS
-		if cS is not None:
-			data["cS"] = cS
-		if yt is not None:
-			data["yt"] = yt
-		if twitter is not None:
-			data["twitter"] = twitter
-		if twitch is not None:
-			data["twitch"] = twitch
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/updateGJAccSettings20.php",
-			data
-		)
-		if not Tools.checkResponse(response.text):
-			print(f"updateGJAccSettings20 Failed: {response.text}")
-		return response.text
-
-class Users:
-
-	@staticmethod
-	def getGJScores20(
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		type_: str | None = None,
-		count: int | None = None,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if type_ is not None:
-			data["type"] = type_  # "top", "relative", "friends", "creators"
-
-		if count is not None:
-			# Hard cap at 100 (server-side limit)
-			data["count"] = min(count, 100)
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJScores20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJScores20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJUserInfo20(
-		targetAccountID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None
-		) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"targetAccountID": targetAccountID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJUserInfo20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJUserInfo20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJUsers20(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		str_: str | None = None,
-		page: int | None = None,
-		total: int | None = None
-		) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if str_ is not None:
-			data["str"] = str_
-
-		if page is not None:
-			data["page"] = page
-
-		if total is not None:
-			data["total"] = total
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJUsers20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJUsers20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def updateGJUserScore22(
-		accountID: int,
-		gjp2: str,
-		stars: int,
-		moons: int,
-		demons: int,
-		diamonds: int,
-		icon: int,
-		iconType: int,
-		coins: int,
-		userCoins: int,
-		accIcon: int,
-		accShip: int,
-		accBall: int,
-		accBird: int,
-		accDart: int,
-		accRobot: int,
-		accGlow: int,
-		accSpider: int,
-		accExplosion: int,
-		accSwing: int,
-		accJetpack: int,
-		dinfo: str,
-		dinfow: int,
-		dinfog: int,
-		sinfo: str,
-		sinfod: int,
-		sinfog: int,		
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		userName: str | None = None,
-		color1: int | None = None,
-		color2: int | None = None,
-		color3: int | None = None,
-		special: int | None = None,
-		seed: str | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		if seed is None:
-			import random
-			chars = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
-			seed = "".join(random.sample(chars, 10))
-
-		seed2 = Tools.genChk(
-			15,
-			[
-				accountID,
-				userCoins,
-				demons,
-				stars,
-				coins,
-				iconType,
-				icon,
-				diamonds,
-				accIcon,
-				accShip,
-				accBall,
-				accBird,
-				accDart,
-				accRobot,
-				accGlow,
-				accSpider,
-				accExplosion,
-				len(dinfo.split(",")) if dinfo else 0,
-				dinfow,
-				dinfog,
-				sinfo,
-				sinfod,
-				sinfog
-			],
-			4
-		)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"stars": stars,
-			"moons": moons,
-			"demons": demons,
-			"diamonds": diamonds,
-			"icon": icon,
-			"iconType": iconType,
-			"coins": coins,
-			"userCoins": userCoins,
-			"accIcon": accIcon,
-			"accShip": accShip,
-			"accBall": accBall,
-			"accBird": accBird,
-			"accDart": accDart,
-			"accRobot": accRobot,
-			"accGlow": accGlow,
-			"accSpider": accSpider,
-			"accExplosion": accExplosion,
-			"accSwing": accSwing,
-			"accJetpack": accJetpack,
-			"dinfo": dinfo,
-			"dinfow": dinfow,
-			"dinfog": dinfog,
-			"sinfo": sinfo,
-			"sinfod": sinfod,
-			"sinfog": sinfog,
-			"seed": seed,
-			"seed2": seed2,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if userName is not None:
-			data["userName"] = userName
-
-		if color1 is not None:
-			data["color1"] = color1
-
-		if color2 is not None:
-			data["color2"] = color2
-
-		if color3 is not None:
-			data["color3"] = color3
-
-		if special is not None:
-			data["special"] = special
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/updateGJUserScore22.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"updateGJUserScore22 Failed: {response.text}")
-
-		return response.text
-
-class Levels:
-
-	@staticmethod
-	def deleteGJLevelUser20(
-		accountID: int,
-		gjp2: str,
-		levelID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-		) -> str:
-		secret = Tools.getSecret(2)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"levelID": levelID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/deleteGJLevelUser20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"deleteGJLevelUser20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def uploadGJLevel21(
-		gameVersion: int,
-		accountID: int,
-		gjp2: str,
-		userName: str,
-		levelID: int,
-		levelName: str,
-		levelDesc: str,
-		levelVersion: int,
-		levelLength: int,
-		audioTrack: int,
-		auto: int,
-		password: int,
-		original: int,
-		twoPlayer: int,
-		songID: int,
-		objects: int,
-		coins: int,
-		requestedStars: int,
-		unlisted: int,
-		ldm: int,
-		levelString: str,
-		seed2: str | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		wt: int | None = None,
-		wt2: int | None = None,
-		seed: str | None = None,
-		extraString: str | None = None,
-		levelInfo: str | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-		if seed2 is None:
-			seed2 = Tools._generateLevelUploadSeed2(levelString)
-
-		data: dict[str, str | int] = {
-			"gameVersion": gameVersion,
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"userName": userName,
-			"levelID": levelID,
-			"levelName": levelName,
-			"levelDesc": levelDesc,
-			"levelVersion": levelVersion,
-			"levelLength": levelLength,
-			"audioTrack": audioTrack,
-			"auto": auto,
-			"password": password,
-			"original": original,
-			"twoPlayer": twoPlayer,
-			"songID": songID,
-			"objects": objects,
-			"coins": coins,
-			"requestedStars": requestedStars,
-			"unlisted": unlisted,
-			"ldm": ldm,
-			"levelString": levelString,
-			"seed2": seed2,
-			"secret": secret
-		}
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if wt is not None:
-			data["wt"] = wt
-
-		if wt2 is not None:
-			data["wt2"] = wt2
-
-		if seed is not None:
-			data["seed"] = seed
-
-		if extraString is not None:
-			data["extraString"] = extraString
-
-		if levelInfo is not None:
-			data["levelInfo"] = levelInfo
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/uploadGJLevel21.php",
-			data
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"targetAccountID": targetAccountID,
+		"gjp2": gjp2,
+		"commentID": commentID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/deleteGJAccComment20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"deleteGJAccComment20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def uploadGJComment21(
+	accountID: int,
+	gjp2: str,
+	userName: str,
+	comment: str,
+	levelID: int,
+	percent: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+	commentB64 = Tools.b64EncodeUrlSafe(comment)
+	chk = Tools.genChkLevelComment(
+		userName, commentB64, levelID, percent, 0
+	)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"userName": userName,
+		"comment": commentB64,
+		"secret": secret,
+		"levelID": levelID,
+		"percent": percent,
+		"chk": chk
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/uploadGJComment21.php", 
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"uploadGJComment21 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def deleteGJComment20(
+	accountID: int,
+	gjp2: str,
+	commentID: int,
+	levelID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"commentID": commentID,
+		"levelID": levelID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/deleteGJComment20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"deleteGJComment20 Failed: {response.text}")
+
+	return response.text
+		
+@staticmethod
+def uploadGJLevelList(
+	gameVersion: int,
+	accountID: int,
+	gjp2: str,
+	listID: int,
+	listName: str,
+	listDesc: str,
+	listVersion: int,
+	original: int,
+	difficulty: int,
+	unlisted: int,
+	listLevels: str,
+	seed: str | None = None,
+	seed2: str | None = None,
+	binaryVersion: int | None = None
+) -> str:
+	"""
+	listID: The ID of the list if updating to a newer version, otherwise 0
+	listName: The name of the list, in plain text
+	"""
+	secret = Tools.getSecret(1)
+	if seed2 is None:
+		seed2 = Tools._generateListSeed2()
+	if seed is None:
+		seed = Tools._generateListUploadSeed(listLevels, accountID, seed2)
+
+	data: dict[str, str | int] = {
+		"gameVersion": gameVersion,
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"listID": listID,
+		"listName": listName,
+		"listDesc": listDesc,
+		"listVersion": listVersion,
+		"original": original,
+		"difficulty": difficulty,
+		"unlisted": unlisted,
+		"listLevels": listLevels,
+		"seed": seed,
+		"seed2": seed2,
+		"secret": secret
+	}
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/uploadGJLevelList.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"uploadGJLevelList Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJLevelLists(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	type_: int | None = None,
+	str_: str | int | None = None,
+	page: int | None = None,
+	gjp2: str | None = None,
+	accountID: int | None = None,
+	diff: int | None = None,
+	demonFilter: int | None = None,
+	star: int | None = None,
+	followed: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	type_: Search type, defaults to most liked, types are as follows:
+	```markdown
+	| Type | Description                                      |
+	| :--: | ---------------------------------------------- |
+	|  0   | Search query                                   |
+	|  1   | Most downloaded                                |
+	|  2   | Most liked                                     |
+	|  3   | Trending                                       |
+	|  4   | Recent                                         |
+	|  5   | User's lists, uses `str` as the **account ID** |
+	|  6   | Lists button                                   |
+	|  7   | Magic (returns the same levels as most liked)  |
+	|  11  | Awarded                                        |
+	|  12  | Followed (see `followed` parameter)            |
+	|  13  | Friends (login required)                       |
+	|  27  | Sent lists                                     |
+	```
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if type_ is not None:
+		data["type"] = type_
+
+	if str_ is not None:
+		data["str"] = str_
+
+	if page is not None:
+		data["page"] = page
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if diff is not None:
+		data["diff"] = diff
+
+	if demonFilter is not None:
+		data["demonFilter"] = demonFilter
+
+	if star is not None:
+		data["star"] = star
+
+	if followed is not None:
+		data["followed"] = followed
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJLevelLists.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJLevelLists Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def deleteGJLevelList(
+	accountID: int,
+	gjp2: str,
+	listID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	secret = Tools.getSecret(3)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"listID": listID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/deleteGJLevelList.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"deleteGJLevelList Failed: {response.text}")
+
+	return response.text
+		
+@staticmethod
+def getSaveData(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getSaveData.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getSaveData Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getAccountURL(accountID: int, type_: int) -> str:
+	"""
+	type_: used to decide which endpoint is used after the data server is found - 1 = backup data/ 2 = sync data
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"type": type_,
+		"secret": secret
+	}
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getAccountURL.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getAccountURL Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def likeGJItem211(
+	itemID: int,
+	type_: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	rs: str | None = None,
+	special: int = 0,
+	like: int | None = None,
+	chk: str | None = None
+) -> str:
+	"""
+	type_: 1 for level, 2 for level comment, 3 for account comment, 4 for list
+	special: (0 = Level, LevelID = Level Comment, CommentID = Other Comment)
+	like: (0 = dislike, 1 = like)
+
+	For likes to go through, it's recommended to provide:
+	```
+	itemID
+	type_
+	udid
+	uuid
+	accountID
+	gjp2
+	like
+	```
+	"""
+	secret = Tools.getSecret(1)
+	likeVal = 1 if like is None else like
+	if rs is None:
+		rs = Tools.generateRs()
+	if chk is None and (rs is not None and
+						accountID is not None and
+						udid is not None and
+						uuid is not None):
+		chk = Tools.genChkLikeItem(
+			special, itemID, likeVal, type_, rs, accountID, udid, uuid
 		)
 
-		if not Tools.checkResponse(response.text):
-			print(f"uploadGJLevel21 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def updateGJDesc20(
-		accountID: int,
-		gjp2: str,
-		levelID: int,
-		levelDesc: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"levelID": levelID,
-			"levelDesc": levelDesc,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/updateGJDesc20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"updateGJDesc20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def suggestGJStars(
-		gameVersion: int,
-		binaryVersion: int,
-		accountID: int,
-		gjp2: str,
-		levelID: int,
-		stars: int,
-		feature: int,
-		gdw: int = 0
-	) -> str:
-		secret = Tools.getSecret(4)
-
-		data: dict[str, str | int] = {
-			"gameVersion": gameVersion,
-			"binaryVersion": binaryVersion,
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"levelID": levelID,
-			"stars": stars,
-			"feature": feature,
-			"gdw": gdw,
-			"secret": secret
-		}
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/suggestGJStars20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"suggestGJStars Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def reportGJLevel(levelID: int | None = None) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if levelID is not None:
-			data["levelID"] = levelID
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/reportGJLevel.php",
-			data
-		)
-		if not Tools.checkResponse(response.text):
-			print(f"reportGJLevel Failed: {response.text}")
-		return response.text
-
-	@staticmethod
-	def rateGJStars211(
-		levelID: int,
-		stars: int,
-		rs: str | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		udid: str | None = None,
-		uuid: int | None = None,
-		chk: str | None = None,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-		if chk is None and (rs is not None and
-							accountID is not None and
-							udid is not None and
-							uuid is not None):
-			chk = Tools.genChkRateStars(
-				levelID, stars, rs, accountID, udid, uuid
-			)
-
-		data: dict[str, str | int] = {
-			"levelID": levelID,
-			"stars": stars,
-			"secret": secret
-		}
-
-		if rs is not None:
-			data["rs"] = rs
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if udid is not None:
-			data["udid"] = udid
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		if chk is not None:
-			data["chk"] = chk
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/rateGJStars211.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"rateGJStars211 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def rateGJDemon21(
-		gameVersion: int,
-		binaryVersion: int,
-		accountID: int,
-		gjp2: str,
-		levelID: int,
-		rating: int,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(4)
-
-		data: dict[str, str | int] = {
-			"gameVersion": gameVersion,
-			"binaryVersion": binaryVersion,
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"levelID": levelID,
-			"rating": rating,
-			"secret": secret
-		}
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/rateGJDemon21.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"rateGJDemon21 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJMapPacks21(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		page: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if page is not None:
-			data["page"] = page
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJMapPacks21.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJMapPacks21 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJGauntlets21(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		special: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if special is not None:
-			data["special"] = special
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJGauntlets21.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJGauntlets21 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJDailyLevel(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		weekly: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if weekly is not None:
-			data["weekly"] = weekly
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJDailyLevel.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJDailyLevel Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def downloadGJLevel22(
-		levelID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		udid: str | None = None,
-		uuid: int | None = None,
-		inc: int | None = None,
-		extras: int | None = None,
-		rs: str | None = None,
-		chk: str | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-		incForChk = 1 if inc is None else inc
-		autoChk = False
-		if chk is None and (rs is not None and
-							accountID is not None and
-							udid is not None and
-							uuid is not None):
-			chk = Tools.genChkDownloadLevel(
-				levelID, incForChk, rs, accountID, udid, uuid
-			)
-			autoChk = True
-
-		data: dict[str, str | int] = {
-			"levelID": levelID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if udid is not None:
-			data["udid"] = udid
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		if inc is not None:
-			data["inc"] = inc
-		elif autoChk:
-			data["inc"] = incForChk
-
-		if extras is not None:
-			data["extras"] = extras
-
-		if rs is not None:
-			data["rs"] = rs
-
-		if chk is not None:
-			data["chk"] = chk
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/downloadGJLevel22.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"downloadGJLevel22 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJLevels21(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		type_: int | None = None,
-		str_: str | int | None = None,
-		page: int | None = None,
-		total: int | None = None,
-		gjp: str | None = None,
-		gjp2: str | None = None,
-		accountID: int | None = None,
-		gdw: int | None = None,
-		gauntlet: int | None = None,
-		diff: int | None = None,
-		demonFilter: int | None = None,
-		len_: int | None = None,
-		uncompleted: int | None = None,
-		onlyCompleted: int | None = None,
-		completedLevels: str | None = None,
-		featured: int | None = None,
-		original: int | None = None,
-		twoPlayer: int | None = None,
-		coins: int | None = None,
-		epic: int | None = None,
-		legendary: int | None = None,
-		mythic: int | None = None,
-		noStar: int | None = None,
-		star: int | None = None,
-		song: int | None = None,
-		customSong: int | None = None,
-		followed: str | None = None,
-		local: int | None = None,
-		udid: str | None = None,
-		uuid: int | None = None
-	) -> str:
-		"""
-		type_: Search type, defaults to most liked, types are as follows:
-		```markdown
-		| Type | Description                                                                       |
-		| :--: | --------------------------------------------------------------------------------- |
-		|  0   | Search query                                                                      |
-		|  1   | Most downloaded                                                                   |
-		|  2   | Most liked                                                                        |
-		|  3   | Trending                                                                          |
-		|  4   | Recent                                                                            |
-		|  5   | User's levels, uses `str` as the **user ID**                                      |
-		|  6   | Featured                                                                          |
-		|  7   | Magic                                                                             |
-		|  8   | Moderator sent levels                                                             |
-		|  10  | List of levels (not to be confused with type 25, which is for in-game lists), uses `str` as a comma separated list of level IDs |
-		|  11  | Awarded                                                                           |
-		|  12  | Followed (see `followed` parameter)                                               |
-		|  13  | Friends (login required)                                                          |
-		|  15  | Most liked in GD World                                                            |
-		|  16  | Hall of fame                                                                      |
-		|  17  | Featured in GD World                                                              |
-		|  18  | Unknown (always empty, perhaps robtop only?)                                      |
-		|  19  | Unknown (same as type 10 but this type has pagination and no star rate filter)    |
-		|  21  | Daily history                                                                     |
-		|  22  | Weekly history                                                                    |
-		|  25  | Level list, uses `str` as the list ID                                             |
-		|  26  | Unknown (same as type 19 but each page has up to 100 levels instead of 10 on it)  |
-		```
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if type_ is not None:
-			data["type"] = type_
-
-		if str_ is not None:
-			data["str"] = str_
-
-		if page is not None:
-			data["page"] = page
-
-		if total is not None:
-			data["total"] = total
-
-		if gjp is not None:
-			data["gjp"] = gjp
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if gauntlet is not None:
-			data["gauntlet"] = gauntlet
-
-		if diff is not None:
-			data["diff"] = diff
-
-		if demonFilter is not None:
-			data["demonFilter"] = demonFilter
-
-		if len_ is not None:
-			data["len"] = len_
-
-		if uncompleted is not None:
-			data["uncompleted"] = uncompleted
-
-		if onlyCompleted is not None:
-			data["onlyCompleted"] = onlyCompleted
-
-		if completedLevels is not None:
-			data["completedLevels"] = completedLevels
-
-		if featured is not None:
-			data["featured"] = featured
-
-		if original is not None:
-			data["original"] = original
-
-		if twoPlayer is not None:
-			data["twoPlayer"] = twoPlayer
-
-		if coins is not None:
-			data["coins"] = coins
-
-		if epic is not None:
-			data["epic"] = epic
-
-		if legendary is not None:
-			data["legendary"] = legendary
-
-		if mythic is not None:
-			data["mythic"] = mythic
-
-		if noStar is not None:
-			data["noStar"] = noStar
-
-		if star is not None:
-			data["star"] = star
-
-		if song is not None:
-			data["song"] = song
-
-		if customSong is not None:
-			data["customSong"] = customSong
-
-		if followed is not None:
-			data["followed"] = followed
-
-		if local is not None:
-			data["local"] = local
-
-		if udid is not None:
-			data["udid"] = udid
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJLevels21.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJLevels21 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJLevelScores211(
-		accountID: int,
-		gjp2: str,
-		levelID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		time: int | None = None,
-		points: int | None = None,
-		plat: int | None = None,
-		percent: int | None = None,
-		type_: int | None = None,
-		s1: int | None = None,
-		s2: int | None = None,
-		s3: int | None = None,
-		s4: int | None = None,
-		s5: float | None = None,
-		s6: str | None = None,
-		s7: str | None = None
-	) -> str:
-		"""
-		type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int | float] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"levelID": levelID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if time is not None:
-			data["time"] = time
-
-		if points is not None:
-			data["points"] = points
-
-		if plat is not None:
-			data["plat"] = plat
-
-		if percent is not None:
-			data["percent"] = percent
-
-		if type_ is not None:
-			data["type"] = type_
-
-		if s1 is not None:
-			data["s1"] = s1
-
-		if s2 is not None:
-			data["s2"] = s2
-
-		if s3 is not None:
-			data["s3"] = s3
-
-		if s4 is not None:
-			data["s4"] = s4
-
-		if s5 is not None:
-			data["s5"] = s5
-
-		if s6 is not None:
-			data["s6"] = s6
-
-		if s7 is not None:
-			data["s7"] = s7
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJLevelScores211.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJLevelScores211 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJLevelScoresPlat(
-		accountID: int,
-		gjp2: str,
-		levelID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		time: int | None = None,
-		points: int | None = None,
-		plat: int | None = None,
-		percent: int | None = None,
-		type_: int | None = None,
-		mode: int | None = None,
-		s1: int | None = None,
-		s2: int | None = None,
-		s3: int | None = None,
-		s4: int | None = None,
-		s5: float | None = None,
-		s6: str | None = None,
-		s7: str | None = None
-	) -> str:
-		"""
-		type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int | float] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"levelID": levelID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if time is not None:
-			data["time"] = time
-
-		if points is not None:
-			data["points"] = points
-
-		if plat is not None:
-			data["plat"] = plat
-
-		if percent is not None:
-			data["percent"] = percent
-
-		if type_ is not None:
-			data["type"] = type_
-
-		if mode is not None:
-			data["mode"] = mode
-
-		if s1 is not None:
-			data["s1"] = s1
-
-		if s2 is not None:
-			data["s2"] = s2
-
-		if s3 is not None:
-			data["s3"] = s3
-
-		if s4 is not None:
-			data["s4"] = s4
-
-		if s5 is not None:
-			data["s5"] = s5
-
-		if s6 is not None:
-			data["s6"] = s6
-
-		if s7 is not None:
-			data["s7"] = s7
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJLevelScoresPlat.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJLevelScoresPlat Failed: {response.text}")
-
-		return response.text
-
-class Comments:
-
-	@staticmethod
-	def getGJComments21(
-		levelID: int,
-		page: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		mode: int | None = None,
-		total: int | None = None
-	) -> str:
-		"""
-		mode: Set to 0 for most recent, and 1 for most liked
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"levelID": levelID,
-			"page": page,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if mode is not None:
-			data["mode"] = mode
-
-		if total is not None:
-			data["total"] = total
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJComments21.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJComments21 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJCommentHistory(
-		userID: int,
-		page: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		mode: int | None = None,
-		total: int | None = None
-	) -> str:
-		"""
-		mode: Set to 0 for most recent, and 1 for most liked
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"userID": userID,
-			"page": page,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if mode is not None:
-			data["mode"] = mode
-
-		if total is not None:
-			data["total"] = total
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJCommentHistory.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJCommentHistory Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJAccountComments20(
-		accountID: int,
-		page: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		total: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"page": page,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if total is not None:
-			data["total"] = total
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJAccountComments20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJAccountComments20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def uploadGJAccComment20(
-		accountID: int,
-		gjp2: str,
-		comment: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		cType: int | None = None
-	) -> str:
-		"""
-		cType: The comment type, 0 for level, 1 for user
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"comment": Tools.b64EncodeUrlSafe(comment),
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if cType is not None:
-			data["cType"] = cType  # 0 = level, 1 = user
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/uploadGJAccComment20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"uploadGJAccComment20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def deleteGJAccComment20(
-		accountID: int,
-		targetAccountID: int,
-		gjp2: str,
-		commentID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-		) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"targetAccountID": targetAccountID,
-			"gjp2": gjp2,
-			"commentID": commentID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/deleteGJAccComment20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"deleteGJAccComment20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def uploadGJComment21(
-		accountID: int,
-		gjp2: str,
-		userName: str,
-		comment: str,
-		levelID: int,
-		percent: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-		commentB64 = Tools.b64EncodeUrlSafe(comment)
-		chk = Tools.genChkLevelComment(
-			userName, commentB64, levelID, percent, 0
-		)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"userName": userName,
-			"comment": commentB64,
-			"secret": secret,
-			"levelID": levelID,
-			"percent": percent,
-			"chk": chk
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/uploadGJComment21.php", 
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"uploadGJComment21 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def deleteGJComment20(
-		accountID: int,
-		gjp2: str,
-		commentID: int,
-		levelID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"commentID": commentID,
-			"levelID": levelID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/deleteGJComment20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"deleteGJComment20 Failed: {response.text}")
-
-		return response.text
-
-class Lists:
-
-	@staticmethod
-	def uploadGJLevelList(
-		gameVersion: int,
-		accountID: int,
-		gjp2: str,
-		listID: int,
-		listName: str,
-		listDesc: str,
-		listVersion: int,
-		original: int,
-		difficulty: int,
-		unlisted: int,
-		listLevels: str,
-		seed: str | None = None,
-		seed2: str | None = None,
-		binaryVersion: int | None = None
-	) -> str:
-		"""
-		listID: The ID of the list if updating to a newer version, otherwise 0
-		listName: The name of the list, in plain text
-		"""
-		secret = Tools.getSecret(1)
-		if seed2 is None:
-			seed2 = Tools._generateListSeed2()
-		if seed is None:
-			seed = Tools._generateListUploadSeed(listLevels, accountID, seed2)
-
-		data: dict[str, str | int] = {
-			"gameVersion": gameVersion,
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"listID": listID,
-			"listName": listName,
-			"listDesc": listDesc,
-			"listVersion": listVersion,
-			"original": original,
-			"difficulty": difficulty,
-			"unlisted": unlisted,
-			"listLevels": listLevels,
-			"seed": seed,
-			"seed2": seed2,
-			"secret": secret
-		}
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/uploadGJLevelList.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"uploadGJLevelList Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJLevelLists(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		type_: int | None = None,
-		str_: str | int | None = None,
-		page: int | None = None,
-		gjp2: str | None = None,
-		accountID: int | None = None,
-		diff: int | None = None,
-		demonFilter: int | None = None,
-		star: int | None = None,
-		followed: str | None = None,
-		udid: str | None = None,
-		uuid: int | None = None
-	) -> str:
-		"""
-		type_: Search type, defaults to most liked, types are as follows:
-		```markdown
-		| Type | Description                                      |
-		| :--: | ---------------------------------------------- |
-		|  0   | Search query                                   |
-		|  1   | Most downloaded                                |
-		|  2   | Most liked                                     |
-		|  3   | Trending                                       |
-		|  4   | Recent                                         |
-		|  5   | User's lists, uses `str` as the **account ID** |
-		|  6   | Lists button                                   |
-		|  7   | Magic (returns the same levels as most liked)  |
-		|  11  | Awarded                                        |
-		|  12  | Followed (see `followed` parameter)            |
-		|  13  | Friends (login required)                       |
-		|  27  | Sent lists                                     |
-		```
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if type_ is not None:
-			data["type"] = type_
-
-		if str_ is not None:
-			data["str"] = str_
-
-		if page is not None:
-			data["page"] = page
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if diff is not None:
-			data["diff"] = diff
-
-		if demonFilter is not None:
-			data["demonFilter"] = demonFilter
-
-		if star is not None:
-			data["star"] = star
-
-		if followed is not None:
-			data["followed"] = followed
-
-		if udid is not None:
-			data["udid"] = udid
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJLevelLists.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJLevelLists Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def deleteGJLevelList(
-		accountID: int,
-		gjp2: str,
-		listID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		udid: str | None = None,
-		uuid: int | None = None
-	) -> str:
-		secret = Tools.getSecret(3)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"listID": listID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if udid is not None:
-			data["udid"] = udid
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/deleteGJLevelList.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"deleteGJLevelList Failed: {response.text}")
-
-		return response.text
-
-class Misc:
-
-	@staticmethod
-	def getSaveData(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getSaveData.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getSaveData Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getAccountURL(accountID: int, type_: int) -> str:
-		"""
-		type_: used to decide which endpoint is used after the data server is found - 1 = backup data/ 2 = sync data
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"type": type_,
-			"secret": secret
-		}
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getAccountURL.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getAccountURL Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def likeGJItem211(
-		itemID: int,
-		type_: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		udid: str | None = None,
-		uuid: int | None = None,
-		rs: str | None = None,
-		special: int = 0,
-		like: int | None = None,
-		chk: str | None = None
-	) -> str:
-		"""
-		type_: 1 for level, 2 for level comment, 3 for account comment, 4 for list
-		special: (0 = Level, LevelID = Level Comment, CommentID = Other Comment)
-		like: (0 = dislike, 1 = like)
-
-		For likes to go through, it's recommended to provide:
-		```
-		itemID
-		type_
-		udid
-		uuid
-		accountID
-		gjp2
-		like
-		```
-		"""
-		secret = Tools.getSecret(1)
-		likeVal = 1 if like is None else like
-		if rs is None:
-			rs = Tools.generateRs()
-		if chk is None and (rs is not None and
-							accountID is not None and
-							udid is not None and
-							uuid is not None):
-			chk = Tools.genChkLikeItem(
-				special, itemID, likeVal, type_, rs, accountID, udid, uuid
-			)
-
-		data: dict[str, str | int] = {
-			"itemID": itemID,
-			"type": type_,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if udid is not None:
-			data["udid"] = udid
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		if rs is not None:
-			data["rs"] = rs
-
-		if like is not None:
-			data["like"] = like
-
-		if chk is not None:
-			data["chk"] = chk
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/likeGJItem211.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"likeGJItem211 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def requestUserAccess(
-		accountID: int,
-		gjp2: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/requestUserAccess.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"requestUserAccess Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def restoreGJItems(udid: str) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"udid": udid,
-			"secret": secret
-		}
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/restoreGJItems.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"restoreGJItems Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getTop1000() -> str:
-		response = requests.get(
-			"http://www.boomlings.com/database/accounts/getTop1000.php",
-			headers={"User-Agent": ""}
-		)
-
-		return response.text
-
-class Rewards:
-
-	@staticmethod
-	def getGJSecretReward(
-		rewardKey: str,
-		udid: str | None = None,
-		chk: str | None = None,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		uuid: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		if chk is None:
-			chk = Tools.generateWraithRewardChk()
-
-		if udid is None:
-			udid = Tools.generateUdid()
-
-		data: dict[str, str | int] = {
-			"rewardKey": rewardKey,
-			"udid": udid,
-			"chk": chk,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJSecretReward.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJSecretReward Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJRewards(
-		udid: str,
-		chk: str | None = None,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		uuid: int | None = None,
-		rewardType: int | None = None,
-		r1: int | None = None,
-		r2: int | None = None
-	) -> str:
-		"""
-		udid: can be anything
-		rewardType: 0 for getting info about the chests, 1 for small chest, 2 for large chest. Defaults to 0 if left out
-		"""
-		secret = Tools.getSecret(1)
-		if chk is None:
-			chk = Tools.generateChestMenuChk()
-
-		r1, r2 = [Tools.generateRn() for _ in range(2)]
-
-		data: dict[str, str | int] = {
-			"udid": udid,
-			"chk": chk,
-			"secret": secret,
-			"r1": r1,
-			"r2": r2
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		if rewardType is not None:
-			data["rewardType"] = rewardType
-
-		if r1 is not None:
-			data["r1"] = r1
-
-		if r2 is not None:
-			data["r2"] = r2
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJRewards.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJRewards Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJChallenges(
-		udid: str,
-		chk: str | None = None,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		uuid: int | None = None,
-		world: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-		if chk is None:
-			chk = Tools.generateQuestChk()
-
-		data: dict[str, str | int] = {
-			"udid": udid,
-			"chk": chk,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		if world is not None:
-			data["world"] = world
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJChallenges.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJChallenges Failed: {response.text}")
-
-		return response.text
-
-class Socials:
-
-	@staticmethod
-	def getGJMessages20(
-		accountID: int,
-		gjp2: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		page: int | None = None,
-		total: int | None = None,
-		getSent: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if page is not None:
-			data["page"] = page
-
-		if total is not None:
-			data["total"] = total
-
-		if getSent is not None:
-			data["getSent"] = getSent
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJMessages20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJMessages20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def downloadGJMessage20(
-		accountID: int,
-		gjp2: str,
-		messageID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"messageID": messageID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/downloadGJMessage20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"downloadGJMessage20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def uploadGJMessage20(
-		accountID: int,
-		gjp2: str,
-		toAccountID: int,
-		subject: str,
-		body: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"toAccountID": toAccountID,
-			"subject": Tools.b64EncodeUrlSafe(subject),
-			"body": Tools.b64EncodeUrlSafe(body),
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/uploadGJMessage20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"uploadGJMessage20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def deleteGJMessages20(
-		accountID: int,
-		gjp2: str,
-		messageID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		isSender: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"messageID": messageID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if isSender is not None:
-			data["isSender"] = isSender
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/deleteGJMessages20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"deleteGJMessages20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJFriendRequests20(
-		accountID: int,
-		gjp2: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		page: int | None = None,
-		total: int | None = None,
-		getSent: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if page is not None:
-			data["page"] = page
-
-		if total is not None:
-			data["total"] = total
-
-		if getSent is not None:
-			data["getSent"] = getSent
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJFriendRequests20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJFriendRequests20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def uploadFriendRequest20(
-		accountID: int,
-		toAccountID: int,
-		gjp2: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"toAccountID": toAccountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/uploadFriendRequest20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"uploadFriendRequest20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def deleteGJFriendRequests20(
-		accountID: int,
-		gjp2: str,
-		targetAccountID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		accounts: str | None = None,
-		isSender: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"targetAccountID": targetAccountID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if accounts is not None:
-			data["accounts"] = accounts
-
-		if isSender is not None:
-			data["isSender"] = isSender
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/deleteGJFriendRequests20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"deleteGJFriendRequests20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def acceptGJFriendRequest20(
-		accountID: int,
-		targetAccountID: int,
-		gjp2: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		requestID: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"targetAccountID": targetAccountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if requestID is not None:
-			data["requestID"] = requestID
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/acceptGJFriendRequest20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"acceptGJFriendRequest20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def readGJFriendRequest20(
-		accountID: int,
-		gjp2: str,
-		requestID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"requestID": requestID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/readGJFriendRequest20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"readGJFriendRequest20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def removeGJFriend20(
-		accountID: int,
-		gjp2: str,
-		targetAccountID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"targetAccountID": targetAccountID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/removeGJFriend20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"removeGJFriend20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def blockGJUser20(
-		accountID: int,
-		gjp2: str,
-		targetAccountID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"targetAccountID": targetAccountID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/blockGJUser20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"blockGJUser20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def unblockGJUser20(
-		accountID: int,
-		gjp2: str,
-		targetAccountID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"targetAccountID": targetAccountID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/unblockGJUser20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"unblockGJUser20 Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJUserList20(
-		accountID: int,
-		gjp2: str,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		type_: int | None = None
-	) -> str:
-		"""
-		type_: 0 for friends, 1 for blocklist. Defaults to 0 if left out
-		"""
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if type_ is not None:
-			data["type"] = type_
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJUserList20.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJUserList20 Failed: {response.text}")
-
-		return response.text
-
-class Songs:
-
-	@staticmethod
-	def getGJSongInfo(
-		songID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		accountID: int | None = None,
-		gjp2: str | None = None,
-		udid: str | None = None,
-		uuid: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"songID": songID,
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if accountID is not None:
-			data["accountID"] = accountID
-
-		if gjp2 is not None:
-			data["gjp2"] = gjp2
-
-		if udid is not None:
-			data["udid"] = udid
-
-		if uuid is not None:
-			data["uuid"] = uuid
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJSongInfo.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJSongInfo Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def getGJTopArtists(
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None,
-		page: int | None = None,
-		total: int | None = None
-	) -> str:
-		secret = Tools.getSecret(1)
-
-		data: dict[str, str | int] = {
-			"secret": secret
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		if page is not None:
-			data["page"] = page
-
-		if total is not None:
-			data["total"] = total
-
-		response = Tools.makeReq(
-			"http://www.boomlings.com/database/getGJTopArtists.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"getGJTopArtists Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def testSong(songID: int) -> str:
-		response = requests.get(
-			f"http://www.boomlings.com/database/testSong.php?songID={songID}",
-			headers={"User-Agent": ""}
-		)
-
-		return response.text
-
-	@staticmethod
-	def fetchMusicLibraryDat(
-		useV2: bool = True,
-		expires: int | None = None,
-		token: str | None = None
-	) -> bytes:
-		endpoint = (
-			"/music/musiclibrary_02.dat" if useV2 else "/music/musiclibrary.dat"
-		)
-		url = "https://geometrydashfiles.b-cdn.net" + endpoint
-		params: dict[str, str | int] = {}
-		if expires is not None:
-			params["expires"] = expires
-		if token is None and expires is not None:
-			token = Tools._generateCdnToken(endpoint, expires)
-		if token is not None:
-			params["token"] = token
-
-		response = requests.get(
-			url,
-			params=params or None,
-			headers={"User-Agent": ""}
-		)
-		return response.content
-
-	@staticmethod
-	def fetchSfxLibraryDat(
-		expires: int | None = None,
-		token: str | None = None
-	) -> bytes:
-		endpoint = "/sfx/sfxlibrary.dat"
-		url = "https://geometrydashfiles.b-cdn.net" + endpoint
-		params: dict[str, str | int] = {}
-		if expires is not None:
-			params["expires"] = expires
-		if token is None and expires is not None:
-			token = Tools._generateCdnToken(endpoint, expires)
-		if token is not None:
-			params["token"] = token
-
-		response = requests.get(
-			url,
-			params=params or None,
-			headers={"User-Agent": ""}
-		)
-
-		return response.content
-
-class Multiplayer:
-
-	@staticmethod
-	def joinMPLobby(
-		accountID: int,
-		gjp2: str,
-		gameID: int,
-		lastCommentID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(2)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret,
-			"gameID": gameID,
-			"lastCommentID": lastCommentID
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"https://www.geometrydash.com/database/joinMPLobby.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"joinMPLobby Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def exitMPLobby(
-		accountID: int,
-		gjp2: str,
-		gameID: int,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(2)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"secret": secret,
-			"gameID": gameID
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"https://www.geometrydash.com/database/exitMPLobby.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"exitMPLobby Failed: {response.text}")
-
-		return response.text
-
-	@staticmethod
-	def uploadMPComment(
-		accountID: int,
-		gjp2: str,
-		extra: str,
-		comment: str,
-		gameID: int,
-		chk: str | None = None,
-		gameVersion: int | None = None,
-		binaryVersion: int | None = None,
-		gdw: int | None = None
-	) -> str:
-		secret = Tools.getSecret(2)
-		if chk is None:
-			chk = Tools.genChk(11, [accountID, comment, gameID, extra], 1)
-
-		data: dict[str, str | int] = {
-			"accountID": accountID,
-			"gjp2": gjp2,
-			"extra": extra,
-			"comment": comment,
-			"secret": secret,
-			"gameID": gameID,
-			"chk": chk
-		}
-
-		if gameVersion is not None:
-			data["gameVersion"] = gameVersion
-
-		if binaryVersion is not None:
-			data["binaryVersion"] = binaryVersion
-
-		if gdw is not None:
-			data["gdw"] = gdw
-
-		response = Tools.makeReq(
-			"https://www.geometrydash.com/database/uploadMPComment.php",
-			data
-		)
-
-		if not Tools.checkResponse(response.text):
-			print(f"uploadMPComment Failed: {response.text}")
-
-		return response.text
+	data: dict[str, str | int] = {
+		"itemID": itemID,
+		"type": type_,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if rs is not None:
+		data["rs"] = rs
+
+	if like is not None:
+		data["like"] = like
+
+	if chk is not None:
+		data["chk"] = chk
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/likeGJItem211.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"likeGJItem211 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def requestUserAccess(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/requestUserAccess.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"requestUserAccess Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def restoreGJItems(udid: str) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"udid": udid,
+		"secret": secret
+	}
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/restoreGJItems.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"restoreGJItems Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getTop1000() -> str:
+	response = requests.get(
+		"http://www.boomlings.com/database/accounts/getTop1000.php",
+		headers={"User-Agent": ""}
+	)
+
+	return response.text
+		
+@staticmethod
+def getGJSecretReward(
+	rewardKey: str,
+	udid: str | None = None,
+	chk: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	uuid: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	if chk is None:
+		chk = Tools.generateWraithRewardChk()
+
+	if udid is None:
+		udid = Tools.generateUdid()
+
+	data: dict[str, str | int] = {
+		"rewardKey": rewardKey,
+		"udid": udid,
+		"chk": chk,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJSecretReward.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJSecretReward Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJRewards(
+	accountID: int,
+	gjp2: str,
+	udid: str | None = None,
+	chk: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	uuid: int | None = None,
+	rewardType: int | None = None,
+	r1: int | None = None,
+	r2: int | None = None
+) -> str:
+	"""
+	udid: can be anything
+	rewardType: 0 for getting info about the chests, 1 for small chest, 2 for large chest. Defaults to 0 if left out
+	"""
+	secret = Tools.getSecret(1)
+	if chk is None:
+		chk = Tools.generateChestMenuChk()
+
+	r1, r2 = [Tools.generateRn() for _ in range(2)]
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"chk": chk,
+		"secret": secret,
+		"r1": r1,
+		"r2": r2
+	}
+
+	if udid is not None:
+		data["udid"] = udid
+	else:
+		data["udid"] = Tools.generateUdid()
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if rewardType is not None:
+		data["rewardType"] = rewardType
+
+	if r1 is not None:
+		data["r1"] = r1
+
+	if r2 is not None:
+		data["r2"] = r2
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJRewards.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJRewards Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJChallenges(
+	udid: str | None = None,
+	chk: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	uuid: int | None = None,
+	world: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+	if chk is None:
+		chk = Tools.generateQuestChk()
+
+	data: dict[str, str | int] = {
+		"chk": chk,
+		"secret": secret
+	}
+
+	if udid is not None:
+		data["udid"] = udid
+	else:
+		data["udid"] = Tools.generateUdid()
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if world is not None:
+		data["world"] = world
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJChallenges.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJChallenges Failed: {response.text}")
+
+	return response.text
+		
+@staticmethod
+def getGJMessages20(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	page: int | None = None,
+	total: int | None = None,
+	getSent: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if page is not None:
+		data["page"] = page
+
+	if total is not None:
+		data["total"] = total
+
+	if getSent is not None:
+		data["getSent"] = getSent
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJMessages20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJMessages20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def downloadGJMessage20(
+	accountID: int,
+	gjp2: str,
+	messageID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"messageID": messageID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/downloadGJMessage20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"downloadGJMessage20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def uploadGJMessage20(
+	accountID: int,
+	gjp2: str,
+	toAccountID: int,
+	subject: str,
+	body: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"toAccountID": toAccountID,
+		"subject": Tools.b64EncodeUrlSafe(subject),
+		"body": Tools.b64EncodeUrlSafe(body),
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/uploadGJMessage20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"uploadGJMessage20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def deleteGJMessages20(
+	accountID: int,
+	gjp2: str,
+	messageID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	isSender: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"messageID": messageID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if isSender is not None:
+		data["isSender"] = isSender
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/deleteGJMessages20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"deleteGJMessages20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJFriendRequests20(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	page: int | None = None,
+	total: int | None = None,
+	getSent: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if page is not None:
+		data["page"] = page
+
+	if total is not None:
+		data["total"] = total
+
+	if getSent is not None:
+		data["getSent"] = getSent
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJFriendRequests20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJFriendRequests20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def uploadFriendRequest20(
+	accountID: int,
+	toAccountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"toAccountID": toAccountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/uploadFriendRequest20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"uploadFriendRequest20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def deleteGJFriendRequests20(
+	accountID: int,
+	gjp2: str,
+	targetAccountID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	accounts: str | None = None,
+	isSender: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"targetAccountID": targetAccountID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if accounts is not None:
+		data["accounts"] = accounts
+
+	if isSender is not None:
+		data["isSender"] = isSender
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/deleteGJFriendRequests20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"deleteGJFriendRequests20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def acceptGJFriendRequest20(
+	accountID: int,
+	targetAccountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	requestID: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"targetAccountID": targetAccountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if requestID is not None:
+		data["requestID"] = requestID
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/acceptGJFriendRequest20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"acceptGJFriendRequest20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def readGJFriendRequest20(
+	accountID: int,
+	gjp2: str,
+	requestID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"requestID": requestID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/readGJFriendRequest20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"readGJFriendRequest20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def removeGJFriend20(
+	accountID: int,
+	gjp2: str,
+	targetAccountID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"targetAccountID": targetAccountID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/removeGJFriend20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"removeGJFriend20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def blockGJUser20(
+	accountID: int,
+	gjp2: str,
+	targetAccountID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"targetAccountID": targetAccountID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/blockGJUser20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"blockGJUser20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def unblockGJUser20(
+	accountID: int,
+	gjp2: str,
+	targetAccountID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"targetAccountID": targetAccountID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/unblockGJUser20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"unblockGJUser20 Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJUserList20(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	type_: int | None = None
+) -> str:
+	"""
+	type_: 0 for friends, 1 for blocklist. Defaults to 0 if left out
+	"""
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if type_ is not None:
+		data["type"] = type_
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJUserList20.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJUserList20 Failed: {response.text}")
+
+	return response.text
+		
+@staticmethod
+def getGJSongInfo(
+	songID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"songID": songID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJSongInfo.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJSongInfo Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def getGJTopArtists(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
+	page: int | None = None,
+	total: int | None = None
+) -> str:
+	secret = Tools.getSecret(1)
+
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if page is not None:
+		data["page"] = page
+
+	if total is not None:
+		data["total"] = total
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJTopArtists.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"getGJTopArtists Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def testSong(songID: int) -> str:
+	response = requests.get(
+		f"http://www.boomlings.com/database/testSong.php?songID={songID}",
+		headers={"User-Agent": ""}
+	)
+
+	return response.text
+
+@staticmethod
+def fetchMusicLibraryDat(
+	useV2: bool = True,
+	expires: int | None = None,
+	token: str | None = None
+) -> bytes:
+	endpoint = (
+		"/music/musiclibrary_02.dat" if useV2 else "/music/musiclibrary.dat"
+	)
+	url = "https://geometrydashfiles.b-cdn.net" + endpoint
+	params: dict[str, str | int] = {}
+	if expires is not None:
+		params["expires"] = expires
+	if token is None and expires is not None:
+		token = Tools._generateCdnToken(endpoint, expires)
+	if token is not None:
+		params["token"] = token
+
+	response = requests.get(
+		url,
+		params=params or None,
+		headers={"User-Agent": ""}
+	)
+	return response.content
+
+@staticmethod
+def fetchSfxLibraryDat(
+	expires: int | None = None,
+	token: str | None = None
+) -> bytes:
+	endpoint = "/sfx/sfxlibrary.dat"
+	url = "https://geometrydashfiles.b-cdn.net" + endpoint
+	params: dict[str, str | int] = {}
+	if expires is not None:
+		params["expires"] = expires
+	if token is None and expires is not None:
+		token = Tools._generateCdnToken(endpoint, expires)
+	if token is not None:
+		params["token"] = token
+
+	response = requests.get(
+		url,
+		params=params or None,
+		headers={"User-Agent": ""}
+	)
+
+	return response.content
+	
+@staticmethod
+def joinMPLobby(
+	accountID: int,
+	gjp2: str,
+	gameID: int,
+	lastCommentID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(2)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret,
+		"gameID": gameID,
+		"lastCommentID": lastCommentID
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"https://www.geometrydash.com/database/joinMPLobby.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"joinMPLobby Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def exitMPLobby(
+	accountID: int,
+	gjp2: str,
+	gameID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(2)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret,
+		"gameID": gameID
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"https://www.geometrydash.com/database/exitMPLobby.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"exitMPLobby Failed: {response.text}")
+
+	return response.text
+
+@staticmethod
+def uploadMPComment(
+	accountID: int,
+	gjp2: str,
+	extra: str,
+	comment: str,
+	gameID: int,
+	chk: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None
+) -> str:
+	secret = Tools.getSecret(2)
+	if chk is None:
+		chk = Tools.genChk(11, [accountID, comment, gameID, extra], 1)
+
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"extra": extra,
+		"comment": comment,
+		"secret": secret,
+		"gameID": gameID,
+		"chk": chk
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	response = Tools.makeReq(
+		"https://www.geometrydash.com/database/uploadMPComment.php",
+		data
+	)
+
+	if not Tools.checkResponse(response.text):
+		print(f"uploadMPComment Failed: {response.text}")
+
+	return response.text
