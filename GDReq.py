@@ -2384,7 +2384,6 @@ class Tools:
 		raw = base64.urlsafe_b64decode(combined.encode())
 		return zlib.decompress(raw, 15 | 32).decode()
 		
-@staticmethod
 def backupGJAccountNew(
 	userName: str,
 	password: str,
@@ -2414,7 +2413,6 @@ def backupGJAccountNew(
 
 	return response.text
 
-@staticmethod
 def loginGJAccount(
 	udid: str,
 	userName: str,
@@ -2439,7 +2437,6 @@ def loginGJAccount(
 		print(f"loginGJAccount Failed: {response.text}")
 	return response.text
 
-@staticmethod
 def registerGJAccount(userName: str, password: str, email: str) -> str:
 	secret = Tools.getSecret(2)
 
@@ -2457,7 +2454,6 @@ def registerGJAccount(userName: str, password: str, email: str) -> str:
 		print(f"registerGJAccount Failed: {response.text}")
 	return response.text
 
-@staticmethod
 def syncGJAccountNew(
 	accountID: int,
 	gjp2: str,
@@ -2486,7 +2482,6 @@ def syncGJAccountNew(
 		print(f"syncGJAccountNew Failed: {response.text}")
 	return response.text
 
-@staticmethod
 def updateGJAccSettings20(
 	accountID: int,
 	gjp2: str,
@@ -2524,7 +2519,6 @@ def updateGJAccSettings20(
 		print(f"updateGJAccSettings20 Failed: {response.text}")
 	return response.text
 		
-@staticmethod
 def getGJScores20(
 	stat: int | None = None,
 	accountID: int | None = None,
@@ -2587,7 +2581,6 @@ def getGJScores20(
 
 	return response.text
 
-@staticmethod
 def getGJUserInfo20(
 	targetAccountID: int,
 	gameVersion: int | None = None,
@@ -2628,7 +2621,6 @@ def getGJUserInfo20(
 
 	return response.text
 
-@staticmethod
 def getGJUsers20(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -2671,7 +2663,6 @@ def getGJUsers20(
 
 	return response.text
 
-@staticmethod
 def updateGJUserScore22(
 	accountID: int,
 	gjp2: str,
@@ -2814,7 +2805,6 @@ def updateGJUserScore22(
 
 	return response.text
 		
-@staticmethod
 def deleteGJLevelUser20(
 	accountID: int,
 	gjp2: str,
@@ -2851,7 +2841,6 @@ def deleteGJLevelUser20(
 
 	return response.text
 
-@staticmethod
 def uploadGJLevel21(
 	gameVersion: int,
 	accountID: int,
@@ -2943,7 +2932,6 @@ def uploadGJLevel21(
 
 	return response.text
 
-@staticmethod
 def updateGJDesc20(
 	accountID: int,
 	gjp2: str,
@@ -2982,7 +2970,6 @@ def updateGJDesc20(
 
 	return response.text
 
-@staticmethod
 def suggestGJStars(
 	gameVersion: int,
 	binaryVersion: int,
@@ -3017,7 +3004,6 @@ def suggestGJStars(
 
 	return response.text
 
-@staticmethod
 def reportGJLevel(levelID: int | None = None) -> str:
 	secret = Tools.getSecret(1)
 
@@ -3035,7 +3021,6 @@ def reportGJLevel(levelID: int | None = None) -> str:
 		print(f"reportGJLevel Failed: {response.text}")
 	return response.text
 
-@staticmethod
 def rateGJStars211(
 	levelID: int,
 	stars: int,
@@ -3101,7 +3086,6 @@ def rateGJStars211(
 
 	return response.text
 
-@staticmethod
 def rateGJDemon21(
 	gameVersion: int,
 	binaryVersion: int,
@@ -3136,7 +3120,6 @@ def rateGJDemon21(
 
 	return response.text
 
-@staticmethod
 def getGJMapPacks21(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -3171,7 +3154,6 @@ def getGJMapPacks21(
 
 	return response.text
 
-@staticmethod
 def getGJGauntlets21(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -3206,7 +3188,6 @@ def getGJGauntlets21(
 
 	return response.text
 
-@staticmethod
 def getGJDailyLevel(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -3249,7 +3230,6 @@ def getGJDailyLevel(
 
 	return response.text
 
-@staticmethod
 def downloadGJLevel22(
 	levelID: int,
 	gameVersion: int | None = None,
@@ -3326,7 +3306,6 @@ def downloadGJLevel22(
 
 	return response.text
 
-@staticmethod
 def getGJLevels21(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -3502,7 +3481,6 @@ def getGJLevels21(
 
 	return response.text
 
-@staticmethod
 def getGJLevelScores211(
 	accountID: int,
 	gjp2: str,
@@ -3590,7 +3568,6 @@ def getGJLevelScores211(
 
 	return response.text
 
-@staticmethod
 def getGJLevelScoresPlat(
 	accountID: int,
 	gjp2: str,
@@ -3682,7 +3659,6 @@ def getGJLevelScoresPlat(
 
 	return response.text
 		
-@staticmethod
 def getGJComments21(
 	levelID: int,
 	page: int,
@@ -3728,7 +3704,6 @@ def getGJComments21(
 
 	return response.text
 
-@staticmethod
 def getGJCommentHistory(
 	userID: int,
 	page: int,
@@ -3782,7 +3757,6 @@ def getGJCommentHistory(
 
 	return response.text
 
-@staticmethod
 def getGJAccountComments20(
 	accountID: int,
 	page: int,
@@ -3821,7 +3795,6 @@ def getGJAccountComments20(
 
 	return response.text
 
-@staticmethod
 def uploadGJAccComment20(
 	accountID: int,
 	gjp2: str,
@@ -3865,7 +3838,6 @@ def uploadGJAccComment20(
 
 	return response.text
 
-@staticmethod
 def deleteGJAccComment20(
 	accountID: int,
 	targetAccountID: int,
@@ -3904,7 +3876,6 @@ def deleteGJAccComment20(
 
 	return response.text
 
-@staticmethod
 def uploadGJComment21(
 	accountID: int,
 	gjp2: str,
@@ -3952,7 +3923,6 @@ def uploadGJComment21(
 
 	return response.text
 
-@staticmethod
 def deleteGJComment20(
 	accountID: int,
 	gjp2: str,
@@ -3991,7 +3961,6 @@ def deleteGJComment20(
 
 	return response.text
 		
-@staticmethod
 def uploadGJLevelList(
 	gameVersion: int,
 	accountID: int,
@@ -4048,7 +4017,6 @@ def uploadGJLevelList(
 
 	return response.text
 
-@staticmethod
 def getGJLevelLists(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -4138,7 +4106,6 @@ def getGJLevelLists(
 
 	return response.text
 
-@staticmethod
 def deleteGJLevelList(
 	accountID: int,
 	gjp2: str,
@@ -4179,7 +4146,6 @@ def deleteGJLevelList(
 
 	return response.text
 		
-@staticmethod
 def getSaveData(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -4210,7 +4176,6 @@ def getSaveData(
 
 	return response.text
 
-@staticmethod
 def getAccountURL(accountID: int, type_: int) -> str:
 	"""
 	type_: used to decide which endpoint is used after the data server is found - 1 = backup data/ 2 = sync data
@@ -4233,7 +4198,6 @@ def getAccountURL(accountID: int, type_: int) -> str:
 
 	return response.text
 
-@staticmethod
 def likeGJItem211(
 	itemID: int,
 	type_: int,
@@ -4323,7 +4287,6 @@ def likeGJItem211(
 
 	return response.text
 
-@staticmethod
 def requestUserAccess(
 	accountID: int,
 	gjp2: str,
@@ -4358,7 +4321,6 @@ def requestUserAccess(
 
 	return response.text
 
-@staticmethod
 def restoreGJItems(udid: str) -> str:
 	secret = Tools.getSecret(1)
 
@@ -4377,7 +4339,6 @@ def restoreGJItems(udid: str) -> str:
 
 	return response.text
 
-@staticmethod
 def getTop1000() -> str:
 	response = requests.get(
 		"http://www.boomlings.com/database/accounts/getTop1000.php",
@@ -4386,7 +4347,6 @@ def getTop1000() -> str:
 
 	return response.text
 		
-@staticmethod
 def getGJSecretReward(
 	rewardKey: str,
 	udid: str | None = None,
@@ -4441,7 +4401,6 @@ def getGJSecretReward(
 
 	return response.text
 
-@staticmethod
 def getGJRewards(
 	accountID: int,
 	gjp2: str,
@@ -4510,7 +4469,6 @@ def getGJRewards(
 
 	return response.text
 
-@staticmethod
 def getGJChallenges(
 	udid: str | None = None,
 	chk: str | None = None,
@@ -4567,7 +4525,6 @@ def getGJChallenges(
 
 	return response.text
 		
-@staticmethod
 def getGJMessages20(
 	accountID: int,
 	gjp2: str,
@@ -4614,7 +4571,6 @@ def getGJMessages20(
 
 	return response.text
 
-@staticmethod
 def downloadGJMessage20(
 	accountID: int,
 	gjp2: str,
@@ -4651,7 +4607,6 @@ def downloadGJMessage20(
 
 	return response.text
 
-@staticmethod
 def uploadGJMessage20(
 	accountID: int,
 	gjp2: str,
@@ -4692,7 +4647,6 @@ def uploadGJMessage20(
 
 	return response.text
 
-@staticmethod
 def deleteGJMessages20(
 	accountID: int,
 	gjp2: str,
@@ -4733,7 +4687,6 @@ def deleteGJMessages20(
 
 	return response.text
 
-@staticmethod
 def getGJFriendRequests20(
 	accountID: int,
 	gjp2: str,
@@ -4780,7 +4733,6 @@ def getGJFriendRequests20(
 
 	return response.text
 
-@staticmethod
 def uploadFriendRequest20(
 	accountID: int,
 	toAccountID: int,
@@ -4817,7 +4769,6 @@ def uploadFriendRequest20(
 
 	return response.text
 
-@staticmethod
 def deleteGJFriendRequests20(
 	accountID: int,
 	gjp2: str,
@@ -4862,7 +4813,6 @@ def deleteGJFriendRequests20(
 
 	return response.text
 
-@staticmethod
 def acceptGJFriendRequest20(
 	accountID: int,
 	targetAccountID: int,
@@ -4903,7 +4853,6 @@ def acceptGJFriendRequest20(
 
 	return response.text
 
-@staticmethod
 def readGJFriendRequest20(
 	accountID: int,
 	gjp2: str,
@@ -4940,7 +4889,6 @@ def readGJFriendRequest20(
 
 	return response.text
 
-@staticmethod
 def removeGJFriend20(
 	accountID: int,
 	gjp2: str,
@@ -4977,7 +4925,6 @@ def removeGJFriend20(
 
 	return response.text
 
-@staticmethod
 def blockGJUser20(
 	accountID: int,
 	gjp2: str,
@@ -5014,7 +4961,6 @@ def blockGJUser20(
 
 	return response.text
 
-@staticmethod
 def unblockGJUser20(
 	accountID: int,
 	gjp2: str,
@@ -5051,7 +4997,6 @@ def unblockGJUser20(
 
 	return response.text
 
-@staticmethod
 def getGJUserList20(
 	accountID: int,
 	gjp2: str,
@@ -5093,7 +5038,6 @@ def getGJUserList20(
 
 	return response.text
 		
-@staticmethod
 def getGJSongInfo(
 	songID: int,
 	gameVersion: int | None = None,
@@ -5138,7 +5082,6 @@ def getGJSongInfo(
 
 	return response.text
 
-@staticmethod
 def getGJTopArtists(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -5177,7 +5120,6 @@ def getGJTopArtists(
 
 	return response.text
 
-@staticmethod
 def testSong(songID: int) -> str:
 	response = requests.get(
 		f"http://www.boomlings.com/database/testSong.php?songID={songID}",
@@ -5186,7 +5128,6 @@ def testSong(songID: int) -> str:
 
 	return response.text
 
-@staticmethod
 def fetchMusicLibraryDat(
 	useV2: bool = True,
 	expires: int | None = None,
@@ -5211,7 +5152,6 @@ def fetchMusicLibraryDat(
 	)
 	return response.content
 
-@staticmethod
 def fetchSfxLibraryDat(
 	expires: int | None = None,
 	token: str | None = None
@@ -5234,7 +5174,6 @@ def fetchSfxLibraryDat(
 
 	return response.content
 	
-@staticmethod
 def joinMPLobby(
 	accountID: int,
 	gjp2: str,
@@ -5273,7 +5212,6 @@ def joinMPLobby(
 
 	return response.text
 
-@staticmethod
 def exitMPLobby(
 	accountID: int,
 	gjp2: str,
@@ -5310,7 +5248,6 @@ def exitMPLobby(
 
 	return response.text
 
-@staticmethod
 def uploadMPComment(
 	accountID: int,
 	gjp2: str,
