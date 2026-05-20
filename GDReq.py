@@ -1413,7 +1413,11 @@ class Tools:
 				"hash1": data[1],
 				"hash2": data[2],
 			}
-	
+			if len(data) > 1:
+				result["hash1"] = data[1]
+				if len(data) > 2:
+					result["hash2"] = data[2]
+
 			if len(data) > 3:
 				if data[3] != "":
 					userID, username, accountID = data[3].split(":")
@@ -1424,14 +1428,15 @@ class Tools:
 					}
 				else:
 					result["dailyCreator"] = {}
-	
-				if data[4] != "":
-					songs = Tools.Parse._parseSongs(data[4])
-					result["songs"] = songs
-					if normalise is True:
-						Tools.Parse._remap(result["songs"], 9)
-				else:
-					result["songs"] = []
+				
+				if len(data) > 4:
+					if data[4] != "":
+						songs = Tools.Parse._parseSongs(data[4])
+						result["songs"] = songs
+						if normalise is True:
+							Tools.Parse._remap(result["songs"], 9)
+					else:
+						result["songs"] = []
 	
 			for key in result["level"]:
 				if key == "3":
@@ -3244,6 +3249,9 @@ def downloadGJLevel22(
 	rs: str | None = None,
 	chk: str | None = None
 ) -> str:
+	"""
+	levelID: -1 for daily, -2 for weekly
+	"""
 	secret = Tools.getSecret(1)
 	incForChk = 1 if inc is None else inc
 	autoChk = False
@@ -4205,6 +4213,7 @@ def likeGJItem211(
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	accountID: int | None = None,
+	targetAccountID: int | None = None,
 	gjp2: str | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
@@ -4217,6 +4226,8 @@ def likeGJItem211(
 	type_: 1 for level, 2 for level comment, 3 for account comment, 4 for list
 	special: (0 = Level, LevelID = Level Comment, CommentID = Other Comment)
 	like: (0 = dislike, 1 = like)
+
+	targetAccountID is not sent in the request but it may be used for special, which is sent.
 
 	For likes to go through, it's recommended to provide:
 	```
@@ -4231,8 +4242,20 @@ def likeGJItem211(
 	"""
 	secret = Tools.getSecret(1)
 	likeVal = 1 if like is None else like
+
 	if rs is None:
 		rs = Tools.generateRs()
+
+	if type_ == 1:
+		special = 0
+	elif type_ == 3:
+		if targetAccountID:
+			special = targetAccountID
+		else:
+			special = itemID
+	else:
+		special = itemID
+
 	if chk is None and (rs is not None and
 						accountID is not None and
 						udid is not None and
@@ -4244,6 +4267,7 @@ def likeGJItem211(
 	data: dict[str, str | int] = {
 		"itemID": itemID,
 		"type": type_,
+		"special": special,
 		"secret": secret
 	}
 
