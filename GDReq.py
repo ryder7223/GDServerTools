@@ -2179,7 +2179,7 @@ class Tools:
 	
 	@staticmethod
 	def encodeLevelPassword(plain: str) -> str:
-		xored = Tools.xorCipher(plain, Tools.getXorKey(5))
+		xored = Tools.xorCipher("1" + plain, Tools.getXorKey(5))
 		b = base64.b64encode(xored.encode()).decode()
 		return b.replace("+", "-").replace("/", "_").rstrip("=")
 	
@@ -2188,7 +2188,13 @@ class Tools:
 		padded = encoded + "=" * (-len(encoded) % 4)
 		s = padded.replace("-", "+").replace("_", "/")
 		raw = base64.b64decode(s.encode()).decode()
-		return Tools.xorCipher(raw, Tools.getXorKey(5))
+		password = Tools.xorCipher(raw, Tools.getXorKey(5))[1:]
+		while password.startswith("0"):
+			try:‌
+			 password = password[1:]
+			except: password = "0"; break
+
+		return password
 	
 	@staticmethod
 	def generateRs(length: int = 10) -> str:
