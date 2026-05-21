@@ -195,7 +195,6 @@ class Tools:
 				if encoded.isdigit():
 					return encoded
 				decoded = Tools.decodeLevelPassword(encoded)
-				decoded = decoded[1:].lstrip("0")
 				return decoded if decoded else "(free copy)"
 			except Exception:
 				return "(error)"
