@@ -23,6 +23,9 @@ import ssl
 class Tools:
 	
 	class LevelInfo:
+		"""
+		WIP level info parser
+		"""
 	
 		@staticmethod
 		def _decodeUrlSafeB64ToText(data: str) -> str:
@@ -435,6 +438,9 @@ class Tools:
 			return dict(Tools.LevelInfo.getObjectCounts(objectString))
 	
 	class Encryption:
+		"""
+		Tools related to encoding and decoding data
+		"""
 
 		@staticmethod
 		def buildSaveData(gameManager, localLevels):
@@ -2991,11 +2997,11 @@ class Tools:
 	
 	@staticmethod
 	def b64EncodeUrlSafe(data: str) -> str:
-		return base64.urlsafe_b64encode(data.encode("utf-8")).decode("utf-8")
+		return base64.urlsafe_b64encode(data.encode()).decode()
 	
 	@staticmethod
 	def b64DecodeUrlSafe(b64: str) -> str:
-		return base64.urlsafe_b64decode(b64).decode("utf-8")
+		return base64.urlsafe_b64decode(b64).decode()
 	
 	@staticmethod
 	def b64DecodeUrlSafeBytes(b64: bytes) -> bytes:
@@ -3286,14 +3292,13 @@ class Tools:
 	@staticmethod
 	def encodeLevelPassword(plain: str) -> str:
 		xored = Tools.xorCipher(plain, Tools.getXorKey(5))
-		b = base64.b64encode(xored.encode()).decode()
-		return b.replace("+", "-").replace("/", "_").rstrip("=")
+		b = Tools.b64EncodeUrlSafe(xored)
+		return b.rstrip("=")
 	
 	@staticmethod
 	def decodeLevelPassword(encoded: str) -> str:
 		padded = encoded + "=" * (-len(encoded) % 4)
-		s = padded.replace("-", "+").replace("_", "/")
-		raw = base64.b64decode(s.encode()).decode()
+		raw = Tools.b64DecodeUrlSafe(padded)
 		return Tools.xorCipher(raw, Tools.getXorKey(5))[1:].lstrip("0")
 	
 	@staticmethod
