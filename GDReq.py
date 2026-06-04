@@ -449,7 +449,7 @@ class Tools:
 			- Type 1: Player Save Data
 			- Type 2:  Player Messages
 			- Type 3:  Vault Codes
-			Type 4:  Daily Challenges
+			- Type 4:  Daily Challenges
 			Type 5:  Level Password
 			Type 6:  Comment Integrity
 			Type 7:  Account Password
@@ -538,7 +538,7 @@ class Tools:
 			- Type 1: Player Save Data
 			- Type 2:  Player Messages
 			- Type 3:  Vault Codes
-			Type 4:  Daily Challenges
+			- Type 4:  Daily Challenges
 			Type 5:  Level Password
 			Type 6:  Comment Integrity
 			Type 7:  Account Password
