@@ -1192,6 +1192,93 @@ class Tools:
 
 		@staticmethod
 		def getGJLevels21(rawText: str, normalise: bool = True):
+			'''
+			Format:
+		
+			```py
+			{
+			    "levels": [
+			        {
+			            "levelID": levelID,
+			            "levelName": levelName,
+			            "description": description,
+			            "levelString": levelString,
+			            "version": version,
+			            "playerID": playerID,
+			            "difficultyDenominator": difficultyDenominator,
+			            "difficultyNumerator": difficultyNumerator,
+			            "downloads": downloads,
+			            "setCompletes": setCompletes,
+			            "officialSong": officialSong,
+			            "gameVersion": gameVersion,
+			            "likes": likes,
+			            "length": length,
+			            "dislikes": dislikes,
+			            "demon": demon,
+			            "stars": stars,
+			            "featureScore": featureScore,
+			            "auto": auto,
+			            "recordString": recordString,
+			            "password": password,
+			            "uploadDate": uploadDate,
+			            "updateDate": updateDate,
+			            "copiedID": copiedID,
+			            "twoPlayer": twoPlayer,
+			            "customSongID": customSongID,
+			            "extraString": extraString,
+			            "coins": coins,
+			            "verifiedCoins": verifiedCoins,
+			            "starsRequested": starsRequested,
+			            "lowDetailMode": lowDetailMode,
+			            "dailyNumber": dailyNumber,
+			            "epic": epic,
+			            "demonDifficulty": demonDifficulty,
+			            "isGauntlet": isGauntlet,
+			            "objects": objects,
+			            "editorTime": editorTime,
+			            "editorTimeCopies": editorTimeCopies,
+			            "settingsString": settingsString,
+			            "songIDs": songIDs,
+			            "sfxIDs": sfxIDs,
+			            "unknown": unknown,
+			            "verificationTime": verificationTime
+			        }
+			    ],
+			    "creators": [
+			        {
+			            "userID": userID,
+			            "username": username,
+			            "accountID": accountID
+			        }
+			    ],
+			    "songs": [
+			        {
+			            "ID": ID,
+			            "name": name,
+			            "artistID": artistID,
+			            "artistName": artistName,
+			            "size": size,
+			            "videoID": videoID,
+			            "youtubeURL": youtubeURL,
+			            "isVerified": isVerified,
+			            "songPriority": songPriority,
+			            "link": link,
+			            "nongEnum": nongEnum,
+			            "extraArtistIDs": extraArtistIDs,
+			            "new": new,
+			            "newType": newType,
+			            "extraArtistNames": extraArtistNames
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    },
+			    "hash": hash
+			}
+			```
+			'''
 			parts = rawText.split("#")
 	
 			levelSection = parts[0]
@@ -1231,7 +1318,47 @@ class Tools:
 			}
 
 		@staticmethod
-		def getGJComments21(rawText: str, normalise: bool = True):		
+		def getGJComments21(rawText: str, normalise: bool = True):
+			'''
+			Format:
+		
+			```py
+			{
+			    "comments": [
+			        {
+			            "content": {
+			                "userName": userName,
+			                "comment": comment,
+			                "authorPlayerID": authorPlayerID,
+			                "likes": likes,
+			                "dislikes": dislikes,
+			                "messageID": messageID,
+			                "spam": spam,
+			                "authorAccountID": authorAccountID,
+			                "age": age,
+			                "percent": percent,
+			                "modBadge": modBadge,
+			                "moderatorChatColor": moderatorChatColor
+			            },
+			            "sender": {
+			                "userName": userName,
+			                "icon": icon,
+			                "playerColor": playerColor,
+			                "playerColor2": playerColor2,
+			                "iconType": iconType,
+			                "glow": glow,
+			                "accountID": accountID
+			            }
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    }
+			}
+			```
+			'''	
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
@@ -1256,7 +1383,38 @@ class Tools:
 			}
 	
 		@staticmethod
-		def getGJAccountComments20(rawText: str, normalise: bool = True):		
+		def getGJAccountComments20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+		
+			```py
+			{
+			    "comments": [
+			        {
+			            "content": {
+			                "userName": userName,
+			                "comment": comment,
+			                "authorPlayerID": authorPlayerID,
+			                "likes": likes,
+			                "dislikes": dislikes,
+			                "messageID": messageID,
+			                "spam": spam,
+			                "authorAccountID": authorAccountID,
+			                "age": age,
+			                "percent": percent,
+			                "modBadge": modBadge,
+			                "moderatorChatColor": moderatorChatColor
+			            }
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    }
+			}
+			```
+			'''
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
@@ -1280,6 +1438,43 @@ class Tools:
 	
 		@staticmethod
 		def getGJRewards(rawText: str):
+			'''
+			Format:
+			
+			```py
+			{
+			    "rewards": {
+			        "randomHash": randomHash,
+			        "uuid": uuid,
+			        "decodedChk": decodedChk,
+			        "udid": udid,
+			        "accountID": accountID,
+			        "smallChestSecondsLeft": smallChestSecondsLeft,
+			        "smallChestRewards": {
+			            "orbs": orbs,
+			            "diamonds": diamonds,
+			            "shardTypes": [
+			                shardType1,
+			                shardType2
+			            ]
+			        },
+			        "smallChestsClaimedBefore": smallChestsClaimedBefore,
+			        "largeChestSecondsLeft": largeChestSecondsLeft,
+			        "largeChestRewards": {
+			            "orbs": orbs,
+			            "diamonds": diamonds,
+			            "shardTypes": [
+			                shardType1,
+			                shardType2
+			            ]
+			        },
+			        "largeChestsClaimedBefore": largeChestsClaimedBefore,
+			        "requestType": requestType
+			    },
+			    "hash": hash
+			}
+			```
+			'''
 			data = rawText.split("|")
 			rewards = Tools.Encryption.decodeString(data[0], 14).split(":")
 			
@@ -1345,6 +1540,93 @@ class Tools:
 	
 		@staticmethod
 		def getGJUserInfo20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "user": {
+			        "userName": userName,
+			        "userID": userID,
+			        "stars": stars,
+			        "demons": demons,
+			        "ranking": ranking,
+			        "accountHighlight": accountHighlight,
+			        "creatorPoints": creatorPoints,
+			        "iconID": iconID,
+			        "color1": color1,
+			        "color2": color2,
+			        "secretCoins": secretCoins,
+			        "iconType": iconType,
+			        "special": special,
+			        "accountID": accountID,
+			        "userCoins": userCoins,
+			        "messageState": messageState,
+			        "friendsState": friendsState,
+			        "youTube": youTube,
+			        "accIcon": accIcon,
+			        "accShip": accShip,
+			        "accBall": accBall,
+			        "accBird": accBird,
+			        "accWave": accWave,
+			        "accRobot": accRobot,
+			        "accStreak": accStreak,
+			        "accGlow": accGlow,
+			        "isRegistered": isRegistered,
+			        "globalRank": globalRank,
+			        "friendState": friendState,
+			        "messages": messages,
+			        "friendRequests": friendRequests,
+			        "newFriends": newFriends,
+			        "newFriendRequest": newFriendRequest,
+			        "age": age,
+			        "accSpider": accSpider,
+			        "twitter": twitter,
+			        "twitch": twitch,
+			        "diamonds": diamonds,
+			        "accExplosion": accExplosion,
+			        "modLevel": modLevel,
+			        "commentHistoryState": commentHistoryState,
+			        "color3": color3,
+			        "moons": moons,
+			        "accSwing": accSwing,
+			        "accJetpack": accJetpack,
+			        "demonBreakdown": {
+			            "easyDemonCompletions": easyDemonCompletions,
+			            "mediumDemonCompletions": mediumDemonCompletions,
+			            "hardDemonCompletions": hardDemonCompletions,
+			            "insaneDemonCompletions": insaneDemonCompletions,
+			            "extremeDemonCompletions": extremeDemonCompletions,
+			            "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+			            "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+			            "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+			            "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+			            "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+			            "weeklyDemonCompletions": weeklyDemonCompletions,
+			            "gauntletDemonCompletions": gauntletDemonCompletions
+			        },
+			        "classicLevelBreakdown": {
+			            "autoCompletions": autoCompletions,
+			            "easyCompletions": easyCompletions,
+			            "normalCompletions": normalCompletions,
+			            "hardCompletions": hardCompletions,
+			            "harderCompletions": harderCompletions,
+			            "insaneCompletions": insaneCompletions,
+			            "dailyCompletions": dailyCompletions,
+			            "gauntletCompletions": gauntletCompletions
+			        },
+			        "platformerLevelBreakdown": {
+			            "autoPlatformerCompletions": autoPlatformerCompletions,
+			            "easyPlatformerCompletions": easyPlatformerCompletions,
+			            "normalPlatformerCompletions": normalPlatformerCompletions,
+			            "hardPlatformerCompletions": hardPlatformerCompletions,
+			            "harderPlatformerCompletions": harderPlatformerCompletions,
+			            "insanePlatformerCompletions": insanePlatformerCompletions
+			        }
+			    }
+			}
+			```
+			'''
 			user = Tools.Parse._parseKeyValuePairs(rawText, ":")
 			result = {"user": user}
 			for key in result["user"]:
@@ -1405,6 +1687,59 @@ class Tools:
 	
 		@staticmethod
 		def downloadGJLevel22(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "level": {"levelID": levelID,
+			              "levelName": levelName,
+			              "description": description,
+			              "levelString": levelString,
+			              "version": version,
+			              "playerID": playerID,
+			              "difficultyDenominator": difficultyDenominator,
+			              "difficultyNumerator": difficultyNumerator,
+			              "downloads": downloads,
+			              "setCompletes": setCompletes,
+			              "officialSong": officialSong,
+			              "gameVersion": gameVersion,
+			              "likes": likes,
+			              "length": length,
+			              "dislikes": dislikes,
+			              "demon": demon,
+			              "stars": stars,
+			              "featureScore": featureScore,
+			              "auto": auto,
+			              "recordString": recordString,
+			              "password": password,
+			              "uploadDate": uploadDate,
+			              "updateDate": updateDate,
+			              "copiedID": copiedID,
+			              "twoPlayer": twoPlayer,
+			              "customSongID": customSongID,
+			              "extraString": extraString,
+			              "coins": coins,
+			              "verifiedCoins": verifiedCoins,
+			              "starsRequested": starsRequested,
+			              "lowDetailMode": lowDetailMode,
+			              "dailyNumber": dailyNumber,
+			              "epic": epic,
+			              "demonDifficulty": demonDifficulty,
+			              "isGauntlet": isGauntlet,
+			              "objects": objects,
+			              "editorTime": editorTime,
+			              "editorTimeCopies": editorTimeCopies,
+			              "settingsString": settingsString,
+			              "songIDs": songIDs,
+			              "sfxIDs": sfxIDs,
+			              "unknown": unknown,
+			              "verificationTime": verificationTime},
+			    "hash1": hash1,
+			    "hash2": hash2,
+			}
+			```
+			'''
 			data = rawText.split("#")
 			level = Tools.Parse._parseKeyValuePairs(data[0], ":")
 			result = {
@@ -1454,6 +1789,82 @@ class Tools:
 	
 		@staticmethod
 		def getGJGauntlets21(rawText: str, normalise: bool = True):
+			'''
+			Format:
+		
+			```py
+			{
+			    "gauntlets": [
+			        {
+			            "gauntletID": gauntletID,
+			            "levels": [
+			                levelID,
+			                ...
+			            ],
+			            "gauntletName": gauntletName
+			        }
+			    ],
+			    "hash": hash
+			}
+			```
+
+			The gauntletIDs are as follows:
+			```
+			"Fire",
+			"Ice",
+			"Poison",
+			"Shadow",
+			"Lava",
+			"Bonus",
+			"Chaos",
+			"Demon",
+			"Time",
+			"Crystal",
+			"Magic",
+			"Spike",
+			"Monster",
+			"Doom",
+			"Death",
+			"Forest",
+			"Rune",
+			"Force",
+			"Spooky",
+			"Dragon",
+			"Water",
+			"Haunted",
+			"Acid",
+			"Witch",
+			"Power",
+			"Potion",
+			"Snake",
+			"Toxic",
+			"Halloween",
+			"Treasure",
+			"Ghost",
+			"Gem",
+			"Inferno",
+			"Portal",
+			"Strange",
+			"Fantasy",
+			"Christmas",
+			"Surprise",
+			"Mystery",
+			"Cursed",
+			"Cyborg",
+			"Castle",
+			"Grave",
+			"Temple",
+			"World",
+			"Galaxy",
+			"Universe",
+			"Discord",
+			"Split",
+			"NCS I",
+			"NCS II",
+			"Space",
+			"Cosmos"
+			```
+			'''
 			data = rawText.split("#")
 		
 			gauntletSection = data[0]
@@ -1496,6 +1907,49 @@ class Tools:
 	
 		@staticmethod
 		def getGJLevelLists(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "lists": [
+			        {
+			            "listID": listID,
+			            "listName": listName,
+			            "description": description,
+			            "version": version,
+			            "difficulty": difficulty,
+			            "downloads": downloads,
+			            "likes": likes,
+			            "rated": rated,
+			            "uploadDate": uploadDate,
+			            "updateDate": updateDate,
+			            "accountID": accountID,
+			            "username": username,
+			            "levelIDs": [
+			                levelID,
+			                ...
+			            ],
+			            "listReward": listReward,
+			            "listRewardRequirement": listRewardRequirement
+			        }
+			    ],
+			    "creators": [
+			        {
+			            "userID": userID,
+			            "username": username,
+			            "accountID": accountID
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    },
+			    "hash": hash
+			}
+			```
+			'''
 			parts = rawText.split("#")
 	
 			listSection = parts[0]
@@ -1534,6 +1988,35 @@ class Tools:
 	
 		@staticmethod
 		def getGJFriendRequests20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+		
+			```py
+			{
+			    "users": [
+			        {
+			            "userName": userName,
+			            "playerID": playerID,
+			            "icon": icon,
+			            "playerColor": playerColor,
+			            "playerColor2": playerColor2,
+			            "iconType": iconType,
+			            "glow": glow,
+			            "accountID": accountID,
+			            "friendRequestID": friendRequestID,
+			            "message": message,
+			            "age": age,
+			            "NewFriendRequest": NewFriendRequest
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    }
+			}
+			```
+			'''
 			parts = rawText.split("#")
 	
 			userSection = parts[0]
@@ -1558,6 +2041,32 @@ class Tools:
 	
 		@staticmethod
 		def getGJMessages20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "messages": [
+			        {
+			            "messageID": messageID,
+			            "accountID": accountID,
+			            "playerID": playerID,
+			            "title": title,
+			            "messageContent": messageContent,
+			            "userName": userName,
+			            "age": age,
+			            "read": read,
+			            "sender": sender
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    }
+			}
+			```
+			'''
 			parts = rawText.split("#")
 	
 			messageSection = parts[0]
@@ -1582,6 +2091,25 @@ class Tools:
 	
 		@staticmethod
 		def downloadGJMessage20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "message": {
+			        "messageID": messageID,
+			        "accountID": accountID,
+			        "playerID": playerID,
+			        "title": title,
+			        "messageContent": messageContent,
+			        "userName": userName,
+			        "age": age,
+			        "read": read,
+			        "sender": sender
+			    }
+			}
+			```
+			'''
 			parts = rawText.split("#")
 	
 			messageSection = parts[0]
@@ -1601,6 +2129,43 @@ class Tools:
 	
 		@staticmethod
 		def getGJMapPacks21(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "packs": [
+			        {
+			            "packID": packID,
+			            "packName": packName,
+			            "levels": [
+			                levelID,
+			                ...
+			            ],
+			            "stars": stars,
+			            "coins": coins,
+			            "difficulty": difficulty,
+			            "textColor": {
+			                "r": r,
+			                "g": g,
+			                "b": b
+			            },
+			            "barColor": {
+			                "r": r,
+			                "g": g,
+			                "b": b
+			            }
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    },
+			    "hash": hash
+			}
+			```
+			'''
 			parts = rawText.split("#")
 	
 			mapSection = parts[0]
@@ -1650,6 +2215,16 @@ class Tools:
 	
 		@staticmethod
 		def getGJDailyLevel(rawText: str):
+			'''
+			Format:
+			
+			```py
+			{
+			    "tempID": tempID,
+			    "secondsLeft": secondsLeft
+			}
+			```
+			'''
 			parts = rawText.split("|")
 	
 			return {
@@ -1659,6 +2234,96 @@ class Tools:
 	
 		@staticmethod
 		def getGJScores20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "users": [
+			        {
+			            "userName": userName,
+			            "userID": userID,
+			            "stars": stars,
+			            "demons": demons,
+			            "ranking": ranking,
+			            "accountHighlight": accountHighlight,
+			            "creatorPoints": creatorPoints,
+			            "iconID": iconID,
+			            "color1": color1,
+			            "color2": color2,
+			            "secretCoins": secretCoins,
+			            "iconType": iconType,
+			            "special": special,
+			            "accountID": accountID,
+			            "userCoins": userCoins,
+			            "messageState": messageState,
+			            "friendsState": friendsState,
+			            "youTube": youTube,
+			            "accIcon": accIcon,
+			            "accShip": accShip,
+			            "accBall": accBall,
+			            "accBird": accBird,
+			            "accWave": accWave,
+			            "accRobot": accRobot,
+			            "accStreak": accStreak,
+			            "accGlow": accGlow,
+			            "isRegistered": isRegistered,
+			            "globalRank": globalRank,
+			            "friendState": friendState,
+			            "messages": messages,
+			            "friendRequests": friendRequests,
+			            "newFriends": newFriends,
+			            "newFriendRequest": newFriendRequest,
+			            "age": age,
+			            "accSpider": accSpider,
+			            "twitter": twitter,
+			            "twitch": twitch,
+			            "diamonds": diamonds,
+			            "accExplosion": accExplosion,
+			            "modLevel": modLevel,
+			            "commentHistoryState": commentHistoryState,
+			            "color3": color3,
+			            "moons": moons,
+			            "accSwing": accSwing,
+			            "accJetpack": accJetpack,
+			            "demonBreakdown": {
+			                "easyDemonCompletions": easyDemonCompletions,
+			                "mediumDemonCompletions": mediumDemonCompletions,
+			                "hardDemonCompletions": hardDemonCompletions,
+			                "insaneDemonCompletions": insaneDemonCompletions,
+			                "extremeDemonCompletions": extremeDemonCompletions,
+			                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+			                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+			                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+			                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+			                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+			                "weeklyDemonCompletions": weeklyDemonCompletions,
+			                "gauntletDemonCompletions": gauntletDemonCompletions
+			            },
+			            "classicLevelBreakdown": {
+			                "autoCompletions": autoCompletions,
+			                "easyCompletions": easyCompletions,
+			                "normalCompletions": normalCompletions,
+			                "hardCompletions": hardCompletions,
+			                "harderCompletions": harderCompletions,
+			                "insaneCompletions": insaneCompletions,
+			                "dailyCompletions": dailyCompletions,
+			                "gauntletCompletions": gauntletCompletions
+			            },
+			            "platformerLevelBreakdown": {
+			                "autoPlatformerCompletions": autoPlatformerCompletions,
+			                "easyPlatformerCompletions": easyPlatformerCompletions,
+			                "normalPlatformerCompletions": normalPlatformerCompletions,
+			                "hardPlatformerCompletions": hardPlatformerCompletions,
+			                "harderPlatformerCompletions": harderPlatformerCompletions,
+			                "insanePlatformerCompletions": insanePlatformerCompletions
+			            }
+			        },
+			        ...
+			    ]
+			}
+			```
+			'''
 			parts = rawText.split("|")
 	
 			users = []
@@ -1681,6 +2346,30 @@ class Tools:
 	
 		@staticmethod
 		def getGJLevelScores211(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "scores": [
+			        {
+			            "userName": userName,
+			            "playerID": playerID,
+			            "percentage": percentage,
+			            "ranking": ranking,
+			            "icon": icon,
+			            "playerColor": playerColor,
+			            "playerColor2": playerColor2,
+			            "coins": coins,
+			            "iconType": iconType,
+			            "special": special,
+			            "accountID": accountID,
+			            "age": age
+			        }
+			    ]
+			}
+			```
+			'''
 			parts = rawText.split("|")
 	
 			scores = []
@@ -1701,10 +2390,53 @@ class Tools:
 	
 		@staticmethod
 		def getGJLevelScoresPlat(rawText: str):
+			'''
+			Format:
+			
+			```py
+			{
+			    "scores": [
+			        {
+			            "userName": userName,
+			            "playerID": playerID,
+			            "percentage": percentage,
+			            "ranking": ranking,
+			            "icon": icon,
+			            "playerColor": playerColor,
+			            "playerColor2": playerColor2,
+			            "coins": coins,
+			            "iconType": iconType,
+			            "special": special,
+			            "accountID": accountID,
+			            "age": age
+			        }
+			    ]
+			}
+			```
+			'''
 			return Tools.Parse.getGJLevelScores211(rawText)
 	
 		@staticmethod
 		def getGJSecretReward(rawText: str):
+			'''
+			Format:
+			
+			```py
+			{
+			    "reward": {
+			        "randomHash": randomHash,
+			        "decodedChk": decodedChk,
+			        "rewardID": rewardID,
+			        "chestType": chestType,
+			        "rewards": {
+			            rewardType: amount,
+			            ...
+			        }
+			    },
+			    "hash": hash
+			}
+			```
+			'''
 			parts = rawText.split("|")
 	
 			reward = {}
@@ -1725,6 +2457,31 @@ class Tools:
 	
 		@staticmethod
 		def getGJSongInfo(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "song": {
+			        "ID": ID,
+			        "name": name,
+			        "artistID": artistID,
+			        "artistName": artistName,
+			        "size": size,
+			        "videoID": videoID,
+			        "youtubeURL": youtubeURL,
+			        "isVerified": isVerified,
+			        "songPriority": songPriority,
+			        "link": link,
+			        "nongEnum": nongEnum,
+			        "extraArtistIDs": extraArtistIDs,
+			        "new": new,
+			        "newType": newType,
+			        "extraArtistNames": extraArtistNames
+			    }
+			}
+			```
+			'''
 			song = Tools.Parse._parseKeyValuePairs(rawText, splitter="~|~")
 
 			if normalise is True:
@@ -1736,6 +2493,32 @@ class Tools:
 	
 		@staticmethod
 		def getGJChallenges(rawText: str):
+			'''
+			Format:
+			
+			```py
+			{
+			    "challenges": {
+			        "randomHash": randomHash,
+			        "uuid": uuid,
+			        "decodedChk": decodedChk,
+			        "udid": udid,
+			        "accountID": accountID,
+			        "secondsLeft": secondsLeft,
+			        "queuedQuests": [
+			            {
+			                "id": id,
+			                "type": type,
+			                "goal": goal,
+			                "reward": reward,
+			                "name": name
+			            }
+			        ]
+			    },
+			    "hash": hash
+			}
+			```
+			'''
 			parts = rawText.split("|")
 	
 			challenges = {}
@@ -1769,10 +2552,66 @@ class Tools:
 	
 		@staticmethod
 		def getGJCommentHistory(rawText: str, normalise: bool = True):
+			'''
+			Format:
+		
+			```py
+			{
+			    "comments": [
+			        {
+			            "content": {
+			                "userName": userName,
+			                "comment": comment,
+			                "authorPlayerID": authorPlayerID,
+			                "likes": likes,
+			                "dislikes": dislikes,
+			                "messageID": messageID,
+			                "spam": spam,
+			                "authorAccountID": authorAccountID,
+			                "age": age,
+			                "percent": percent,
+			                "modBadge": modBadge,
+			                "moderatorChatColor": moderatorChatColor
+			            },
+			            "sender": {
+			                "userName": userName,
+			                "icon": icon,
+			                "playerColor": playerColor,
+			                "playerColor2": playerColor2,
+			                "iconType": iconType,
+			                "glow": glow,
+			                "accountID": accountID
+			            }
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    }
+			}
+			```
+			'''	
 			return Tools.Parse.getGJComments21(rawText, normalise)
 	
 		@staticmethod
 		def getGJUsers20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "users": [
+			        UserObject
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    }
+			}
+			```
+			'''
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
@@ -1798,6 +2637,96 @@ class Tools:
 	
 		@staticmethod
 		def getGJUserList20(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "users": [
+			        {
+			            "userName": userName,
+			            "userID": userID,
+			            "stars": stars,
+			            "demons": demons,
+			            "ranking": ranking,
+			            "accountHighlight": accountHighlight,
+			            "creatorPoints": creatorPoints,
+			            "iconID": iconID,
+			            "color1": color1,
+			            "color2": color2,
+			            "secretCoins": secretCoins,
+			            "iconType": iconType,
+			            "special": special,
+			            "accountID": accountID,
+			            "userCoins": userCoins,
+			            "messageState": messageState,
+			            "friendsState": friendsState,
+			            "youTube": youTube,
+			            "accIcon": accIcon,
+			            "accShip": accShip,
+			            "accBall": accBall,
+			            "accBird": accBird,
+			            "accWave": accWave,
+			            "accRobot": accRobot,
+			            "accStreak": accStreak,
+			            "accGlow": accGlow,
+			            "isRegistered": isRegistered,
+			            "globalRank": globalRank,
+			            "friendState": friendState,
+			            "messages": messages,
+			            "friendRequests": friendRequests,
+			            "newFriends": newFriends,
+			            "newFriendRequest": newFriendRequest,
+			            "age": age,
+			            "accSpider": accSpider,
+			            "twitter": twitter,
+			            "twitch": twitch,
+			            "diamonds": diamonds,
+			            "accExplosion": accExplosion,
+			            "modLevel": modLevel,
+			            "commentHistoryState": commentHistoryState,
+			            "color3": color3,
+			            "moons": moons,
+			            "accSwing": accSwing,
+			            "accJetpack": accJetpack,
+			            "demonBreakdown": {
+			                "easyDemonCompletions": easyDemonCompletions,
+			                "mediumDemonCompletions": mediumDemonCompletions,
+			                "hardDemonCompletions": hardDemonCompletions,
+			                "insaneDemonCompletions": insaneDemonCompletions,
+			                "extremeDemonCompletions": extremeDemonCompletions,
+			                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+			                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+			                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+			                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+			                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+			                "weeklyDemonCompletions": weeklyDemonCompletions,
+			                "gauntletDemonCompletions": gauntletDemonCompletions
+			            },
+			            "classicLevelBreakdown": {
+			                "autoCompletions": autoCompletions,
+			                "easyCompletions": easyCompletions,
+			                "normalCompletions": normalCompletions,
+			                "hardCompletions": hardCompletions,
+			                "harderCompletions": harderCompletions,
+			                "insaneCompletions": insaneCompletions,
+			                "dailyCompletions": dailyCompletions,
+			                "gauntletCompletions": gauntletCompletions
+			            },
+			            "platformerLevelBreakdown": {
+			                "autoPlatformerCompletions": autoPlatformerCompletions,
+			                "easyPlatformerCompletions": easyPlatformerCompletions,
+			                "normalPlatformerCompletions": normalPlatformerCompletions,
+			                "hardPlatformerCompletions": hardPlatformerCompletions,
+			                "harderPlatformerCompletions": harderPlatformerCompletions,
+			                "insanePlatformerCompletions": insanePlatformerCompletions
+			            }
+			        },
+			        ...
+			    ]
+			}
+			```
+			'''
 			commentBlocks = rawText.split("|")
 		
 			users = []
@@ -1817,6 +2746,16 @@ class Tools:
 	
 		@staticmethod
 		def loginGJAccount(rawText: str):
+			'''
+			Format:
+			
+			```py
+			{
+			    "accountID": accountID,
+			    "uuid": uuid
+			}
+			```
+			'''
 			data = rawText.split(",")
 	
 			return {
@@ -1825,7 +2764,39 @@ class Tools:
 			}
 	
 		@staticmethod
-		def getGJTopArtists(rawText: str, normalise: bool = True):		
+		def getGJTopArtists(rawText: str, normalise: bool = True):
+			'''
+			Format:
+			
+			```py
+			{
+			    "artists": [
+			        {
+			            "ID": ID,
+			            "name": name,
+			            "artistID": artistID,
+			            "artistName": artistName,
+			            "size": size,
+			            "videoID": videoID,
+			            "youtubeURL": youtubeURL,
+			            "isVerified": isVerified,
+			            "songPriority": songPriority,
+			            "link": link,
+			            "nongEnum": nongEnum,
+			            "extraArtistIDs": extraArtistIDs,
+			            "new": new,
+			            "newType": newType,
+			            "extraArtistNames": extraArtistNames
+			        }
+			    ],
+			    "pagination": {
+			        "total": total,
+			        "offset": offset,
+			        "amount": amount
+			    }
+			}
+			```
+			'''	
 			mainPart, paginationPart = rawText.rsplit("#", 1)
 			pagination = Tools.Parse._parsePagination(paginationPart)
 		
@@ -1849,7 +2820,46 @@ class Tools:
 			}
 	
 		@staticmethod
-		def syncGJAccountNew(rawText: str):		
+		def syncGJAccountNew(rawText: str, normalise: bool = True):
+			'''
+			Format:
+		
+			```py
+			{
+			    "gameManager": gameManager,    # Decoded string
+			    "levelManager": levelManager,  # Decoded string
+			    "gameVersion": gameVersion,
+			    "binaryVersion": binaryVersion,
+			    "levels": {
+			        levelID: stars,
+			        ...
+			    },
+			    "mapPacks": [
+			        {
+			            "packID": packID,
+			            "packName": packName,
+			            "levels": [
+			                levelID,
+			                ...
+			            ],
+			            "stars": stars,
+			            "coins": coins,
+			            "difficulty": difficulty,
+			            "textColor": {
+			                "r": r,
+			                "g": g,
+			                "b": b
+			            },
+			            "barColor": {
+			                "r": r,
+			                "g": g,
+			                "b": b
+			            }
+			        }
+			    ]
+			}
+			```
+			'''
 			gameManager, levelManager, gameVersion, binaryVersion, levels, mapPacks = rawText.split(";")
 	
 			gameManager = Tools.Encryption.decodeString(gameManager, 17)
@@ -1871,8 +2881,26 @@ class Tools:
 					if isinstance(parsed["3"], str)
 					else [parsed["3"]]
 				)
+				r, g, b = map(int, parsed["7"].split(","))
+				parsed["7"] = {
+					"r": r,
+					"g": g,
+					"b": b
+				}
+				
+				r, g, b = map(int, parsed["8"].split(","))
+				parsed["8"] = {
+					"r": r,
+					"g": g,
+					"b": b
+				}
+				
 				mapBlocks.append(parsed)
-	
+
+			if normalise is True:
+				for mapPack in mapBlocks:
+					Tools.Parse._remap(mapPack, 11)
+
 			return {
 				"gameManager": gameManager,
 				"levelManager": levelManager,
