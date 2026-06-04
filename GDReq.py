@@ -614,7 +614,7 @@ class Tools:
 				b64 = Tools.b64EncodeUrlSafeBytes(compressed)
 				return b64.decode("latin-1")
 	
-			elif type_ == 18:			
+			elif type_ == 18:
 				compressed = zlib.compress(data.encode())
 				b64 = Tools.b64EncodeUrlSafeBytes(compressed).decode()
 				return Tools.generateRs(20) + b64 + Tools.generateRs(20)
@@ -818,7 +818,7 @@ class Tools:
 			return result
 			
 		@staticmethod
-		def _parseLevelCommentBlock(block: str):	
+		def _parseLevelCommentBlock(block: str):
 			contentRaw, senderRaw = block.split(":", 1)
 		
 			contentData = Tools.Parse._parseKeyValuePairs(contentRaw)
@@ -844,7 +844,7 @@ class Tools:
 			}
 	
 		@staticmethod
-		def _parsePagination(lastSegment: str):		
+		def _parsePagination(lastSegment: str):
 			try:
 				total, offset, amount = lastSegment.split(":")
 				return {
@@ -3086,7 +3086,7 @@ class Tools:
 				return "".join(resultChars)
 			else:
 				raise ValueError("Cannot perform cyclic xor using an integer key")
-		elif isinstance(data, bytes):	
+		elif isinstance(data, bytes):
 			if isinstance(key, int):
 				if key != 11:
 					raise ValueError("Only integer key supported is 11")
@@ -3141,7 +3141,7 @@ class Tools:
 	def getXorKey(index: int) -> int | str:
 		"""
 		```
-		1:  Key 11:	Player Save Data
+		1:  Key 11: Player Save Data
 		2:  Key 14251: Player Messages
 		3:  Key 19283: Vault Codes
 		4:  Key 19847: Daily Challenges
