@@ -2602,7 +2602,86 @@ class Tools:
 			```py
 			{
 			    "users": [
-			        UserObject
+			        {
+			            "userName": userName,
+			            "userID": userID,
+			            "stars": stars,
+			            "demons": demons,
+			            "ranking": ranking,
+			            "accountHighlight": accountHighlight,
+			            "creatorPoints": creatorPoints,
+			            "iconID": iconID,
+			            "color1": color1,
+			            "color2": color2,
+			            "secretCoins": secretCoins,
+			            "iconType": iconType,
+			            "special": special,
+			            "accountID": accountID,
+			            "userCoins": userCoins,
+			            "messageState": messageState,
+			            "friendsState": friendsState,
+			            "youTube": youTube,
+			            "accIcon": accIcon,
+			            "accShip": accShip,
+			            "accBall": accBall,
+			            "accBird": accBird,
+			            "accWave": accWave,
+			            "accRobot": accRobot,
+			            "accStreak": accStreak,
+			            "accGlow": accGlow,
+			            "isRegistered": isRegistered,
+			            "globalRank": globalRank,
+			            "friendState": friendState,
+			            "messages": messages,
+			            "friendRequests": friendRequests,
+			            "newFriends": newFriends,
+			            "newFriendRequest": newFriendRequest,
+			            "age": age,
+			            "accSpider": accSpider,
+			            "twitter": twitter,
+			            "twitch": twitch,
+			            "diamonds": diamonds,
+			            "accExplosion": accExplosion,
+			            "modLevel": modLevel,
+			            "commentHistoryState": commentHistoryState,
+			            "color3": color3,
+			            "moons": moons,
+			            "accSwing": accSwing,
+			            "accJetpack": accJetpack,
+			            "demonBreakdown": {
+			                "easyDemonCompletions": easyDemonCompletions,
+			                "mediumDemonCompletions": mediumDemonCompletions,
+			                "hardDemonCompletions": hardDemonCompletions,
+			                "insaneDemonCompletions": insaneDemonCompletions,
+			                "extremeDemonCompletions": extremeDemonCompletions,
+			                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+			                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+			                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+			                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+			                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+			                "weeklyDemonCompletions": weeklyDemonCompletions,
+			                "gauntletDemonCompletions": gauntletDemonCompletions
+			            },
+			            "classicLevelBreakdown": {
+			                "autoCompletions": autoCompletions,
+			                "easyCompletions": easyCompletions,
+			                "normalCompletions": normalCompletions,
+			                "hardCompletions": hardCompletions,
+			                "harderCompletions": harderCompletions,
+			                "insaneCompletions": insaneCompletions,
+			                "dailyCompletions": dailyCompletions,
+			                "gauntletCompletions": gauntletCompletions
+			            },
+			            "platformerLevelBreakdown": {
+			                "autoPlatformerCompletions": autoPlatformerCompletions,
+			                "easyPlatformerCompletions": easyPlatformerCompletions,
+			                "normalPlatformerCompletions": normalPlatformerCompletions,
+			                "hardPlatformerCompletions": hardPlatformerCompletions,
+			                "harderPlatformerCompletions": harderPlatformerCompletions,
+			                "insanePlatformerCompletions": insanePlatformerCompletions
+			            }
+			        },
+			        ...
 			    ],
 			    "pagination": {
 			        "total": total,
@@ -2894,7 +2973,7 @@ class Tools:
 					"g": g,
 					"b": b
 				}
-				
+
 				mapBlocks.append(parsed)
 
 			if normalise is True:
