@@ -1,88 +1,44 @@
-import requests
 import os
 import re
 from time import sleep
+import GDReq
 
-def safe_post(url, data, headers, retries=3, timeout=10):
-    for attempt in range(1, retries + 1):
-        try:
-            return requests.post(url, data=data, headers=headers, timeout=timeout)
-        except requests.exceptions.RequestException as e:
-            print(f"[Network Error] {e} (attempt {attempt}/{retries})")
-            if attempt < retries:
-                sleep(2)
-                continue
-            return None
+def getUserID(username):
+    response = GDReq.getGJUsers20(str_=username)
+    parsed = GDReq.Tools.Parse.getGJUsers20(response)
+    return parsed["users"][0]["userID"]
 
-def get_user_id(username):
-    url = "http://www.boomlings.com/database/getGJUsers20.php"
-    data = {"str": username, "secret": "Wmfd2893gb7"}
-    headers = {"User-Agent": ""}
+def getTotalPages(userID):
+    response = GDReq.getGJLevels21(str_=userID, type_=5, page=0)
+    parsed = GDReq.Tools.Parse.getGJLevels21(response)
+    totalLevels = parsed["pagination"]["total"]
+    totalPages = (totalLevels + 9) // 10
+    return totalPages
 
-    response = safe_post(url, data, headers)
-    if not response or response.text.strip() == "-1":
-        return None
-
-    parts = response.text.split("#")[0].split(":")
-    parsed = {parts[i]: parts[i+1] for i in range(0, len(parts)-1, 2)}
-    return parsed.get("2")  # userID
-
-def get_total_pages(userID):
-    url = "http://www.boomlings.com/database/getGJLevels21.php"
-    data = {"str": userID, "type": 5, "local": 0, "page": 0, "secret": "Wmfd2893gb7"}
-    headers = {"User-Agent": ""}
-    response = safe_post(url, data, headers)
-    if not response or response.text.strip() == "-1":
-        return 0
-
-    sections = response.text.split("#")
-    if len(sections) < 4:
-        return 0
-    page_info = sections[3]  # e.g., "325:0:10"
-    total_levels = int(page_info.split(":")[0])
-    total_pages = (total_levels + 9) // 10
-    return total_pages
-
-def parse_level_ids(response_text):
-    levels_data = response_text.split("#")[0]
-    entries = levels_data.split("|")
+def parseLevelIDs(responseText):
+    levelsData = GDReq.Tools.Parse.getGJLevels21(responseText)["levels"]
     ids = []
-    for entry in entries:
-        parts = entry.split(":")
-        parsed = {parts[i]: parts[i+1] for i in range(0, len(parts)-1, 2)}
-        if "1" in parsed:
-            ids.append(int(parsed["1"]))
+    for entry in levelsData:
+        ids.append(entry["levelID"])
     return ids
 
-def download_level(level_id, save_dir):
-    url = "http://www.boomlings.com/database/downloadGJLevel22.php"
-    data = {"secret": "Wmfd2893gb7", "levelID": level_id}
-    headers = {"User-Agent": ""}
+def downloadLevel(levelID, saveDir):
+    levelData = GDReq.downloadGJLevel22(levelID=levelID)
+    parsed = GDReq.Tools.Parse.downloadGJLevel22(levelData)
+    title = parsed["level"]["levelName"]
+    safeTitle = re.sub(r'[^\w\-_ \.]', '_', title)[:50]
+    os.makedirs(saveDir, exist_ok=True)
+    filePath = f"{saveDir}/{levelID} - {safeTitle}.txt"
+    with open(filePath, "w", encoding="utf-8") as f:
+        f.write(levelData)
+    print(f"[Saved] {levelID} - {safeTitle}")
 
-    response = safe_post(url, data, headers)
-    if not response or response.text.strip() == "-1":
-        print(f"[Skip] Level {level_id} not found.")
-        return
-
-    level_data = response.text
-    title = "unknown_title"
-    match = re.search(r":2:([^:\n\r|#]+)", level_data)
-    if match:
-        title = match.group(1).strip()
-    safe_title = re.sub(r'[^\w\-_ \.]', '_', title)[:50]
-
-    os.makedirs(save_dir, exist_ok=True)
-    file_path = f"{save_dir}/{level_id} - {safe_title}.txt"
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(level_data)
-    print(f"[Saved] {level_id} - {safe_title}")
-
-def get_existing_max_id(save_dir):
+def getExistingMaxID(saveDir):
     """Find the largest level ID already saved in the folder, or 0 if none."""
-    if not os.path.exists(save_dir):
+    if not os.path.exists(saveDir):
         return 0
     ids = []
-    for fname in os.listdir(save_dir):
+    for fname in os.listdir(saveDir):
         match = re.match(r"^(\d+) -", fname)
         if match:
             try:
@@ -93,41 +49,34 @@ def get_existing_max_id(save_dir):
 
 def main():
     username = input("Enter account name: ").strip()
-    userID = get_user_id(username)
+    userID = getUserID(username)
     if not userID:
         print(f"[Error] Could not find user: {username}")
         return
 
     print(f"[Info] Username '{username}' has userID {userID}")
-    total_pages = get_total_pages(userID)
-    print(f"[Info] Found {total_pages} pages of levels.")
+    totalPages = getTotalPages(userID)
+    print(f"[Info] Found {totalPages} pages of levels.")
 
-    save_dir = username
-    os.makedirs(save_dir, exist_ok=True)
+    saveDir = username
+    os.makedirs(saveDir, exist_ok=True)
 
-    existing_max_id = get_existing_max_id(save_dir)
-    if existing_max_id > 0:
-        print(f"[Info] Resuming. Largest saved level ID: {existing_max_id}")
+    existingMaxID = getExistingMaxID(saveDir)
+    if existingMaxID > 0:
+        print(f"[Info] Resuming. Largest saved level ID: {existingMaxID}")
     else:
         print(f"[Info] No existing levels found. Downloading all.")
 
-    for page in range(total_pages):
-        print(f"[Request] Fetching page {page+1}/{total_pages}")
-        url = "http://www.boomlings.com/database/getGJLevels21.php"
-        data = {"str": userID, "type": 5, "local": 0, "page": page, "secret": "Wmfd2893gb7"}
-        headers = {"User-Agent": ""}
-        response = safe_post(url, data, headers)
-        if not response or response.text.strip() == "-1":
-            continue
+    for page in range(totalPages):
+        response = GDReq.getGJLevels21(str_=userID, type_=5, local=0, page=page)
+        levelIDs = parseLevelIDs(response)
 
-        level_ids = parse_level_ids(response.text)
-
-        for level_id in level_ids:
-            if level_id <= existing_max_id:
-                print(f"[Info] Reached already-downloaded level ID {level_id}. Stopping.")
+        for levelID in levelIDs:
+            if levelID <= existingMaxID:
+                print(f"[Info] Reached already-downloaded level ID {levelID}. Stopping.")
                 return  # stop immediately
 
-            download_level(level_id, save_dir)
+            downloadLevel(levelID, saveDir)
             sleep(10)  # avoid rate limit
 
         sleep(2)  # pause between pages
