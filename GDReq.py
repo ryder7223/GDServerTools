@@ -1,7 +1,7 @@
 """
 An API wrapper for Geometry Dash.
 """
-	
+
 import requests
 import base64
 from typing import Any, Union, List, Sequence
@@ -18,8 +18,2251 @@ import xml.etree.ElementTree as ET
 import urllib.request
 import os
 import ssl
+
+
+class Parse:
+
+	@staticmethod
+	def _safeInt(value: str):
+		if value is None:
+			return None
+		if value == "":
+			return ""
+		if str(value).isdigit():
+			return int(value)
+		return value
+
+	@staticmethod
+	def _decode(value: str):
+		try:
+			return Tools.b64DecodeUrlSafe(value)
+		except Exception:
+			return value
+
+	@staticmethod
+	def _parseCreators(segment: str):
+		creators = []
+		entries = segment.split("|")
+
+		for entry in entries:
+			parts = entry.split(":")
+			creators.append({
+				"userID": int(parts[0]),
+				"username": parts[1],
+				"accountID": int(parts[2])
+			})
+
+		return creators
+
+	@staticmethod
+	def _parseSongs(segment: str):
+		songs = []
+		
+		for entry in segment.split(":"):
+			if not entry:
+				continue
+
+			if entry.startswith("~"):
+				entry = entry[1:]
+
+			song = Parse._parseKeyValuePairs(entry, splitter="~|~")
+
+			songs.append(song)
+
+		return songs
+
+	@staticmethod
+	def _parseKeyValuePairs(segment: str, splitter: str = "~"):
+		parts = segment.split(splitter)
+		result = {}
+
+		i = 0
+		while i < len(parts) - 1:
+			key = str(parts[i])
+			value = parts[i + 1]
+	
+			if value.isdigit():
+				value = int(value)
+			elif value == "":
+				value = ""
+
+			result[key] = value
+			i += 2
+
+		return result
+		
+	@staticmethod
+	def _parseLevelCommentBlock(block: str):
+		contentRaw, senderRaw = block.split(":", 1)
+	
+		contentData = Parse._parseKeyValuePairs(contentRaw)
+		senderData = Parse._parseKeyValuePairs(senderRaw)
+	
+		if contentData["2"]:
+			contentData["2"] = Tools.b64DecodeUrlSafe(contentData["2"])
+	
+		return {
+			"content": contentData,
+			"sender": senderData
+		}
+
+	@staticmethod
+	def _parseAccountCommentBlock(block: str):
+		contentData = Parse._parseKeyValuePairs(block)
+	
+		if contentData["2"]:
+			contentData["2"] = Tools.b64DecodeUrlSafe(contentData["2"])
+	
+		return {
+			"content": contentData
+		}
+
+	@staticmethod
+	def _parsePagination(lastSegment: str):
+		try:
+			total, offset, amount = lastSegment.split(":")
+			return {
+				"total": int(total),
+				"offset": int(offset),
+				"amount": int(amount)
+			}
+		except Exception:
+			return None
+
+	@staticmethod
+	def _getObjectMap(type_):
+		"""
+		Type 1: User
+		Type 2: Comment
+		Type 3: Comment User
+		Type 4: Friend Request
+		Type 5: Gauntlet
+		Type 6: Gauntlet Names
+		Type 7: Level Leaderboard
+		Type 8: Level
+		Type 9: Song
+		Type 10: Message
+		Type 11: Map Pack
+		Type 12: List
+		"""
+		if type_ == 1:
+			result = {
+				"1": "userName",
+				"2": "userID",
+				"3": "stars",
+				"4": "demons",
+				"6": "ranking",
+				"7": "accountHighlight",
+				"8": "creatorPoints",
+				"9": "iconID",
+				"10": "color1",
+				"11": "color2",
+				"13": "secretCoins",
+				"14": "iconType",
+				"15": "special",
+				"16": "accountID",
+				"17": "userCoins",
+				"18": "messageState",
+				"19": "friendsState",
+				"20": "youTube",
+				"21": "accIcon",
+				"22": "accShip",
+				"23": "accBall",
+				"24": "accBird",
+				"25": "accWave",
+				"26": "accRobot",
+				"27": "accStreak",
+				"28": "accGlow",
+				"29": "isRegistered",
+				"30": "globalRank",
+				"31": "friendState",
+				"38": "messages",
+				"39": "friendRequests",
+				"40": "newFriends",
+				"41": "newFriendRequest",
+				"42": "age",
+				"43": "accSpider",
+				"44": "twitter",
+				"45": "twitch",
+				"46": "diamonds",
+				"48": "accExplosion",
+				"49": "modLevel",
+				"50": "commentHistoryState",
+				"51": "color3",
+				"52": "moons",
+				"53": "accSwing",
+				"54": "accJetpack",
+				"55": "demonBreakdown",
+				"56": "classicLevelBreakdown",
+				"57": "platformerLevelBreakdown"
+			}
+			return result
+
+		elif type_ == 2:
+			result = {
+				"1": "userName",
+				"2": "comment",
+				"3": "authorPlayerID",
+				"4": "likes",
+				"5": "dislikes",
+				"6": "messageID",
+				"7": "spam",
+				"8": "authorAccountID",
+				"9": "age",
+				"10": "percent",
+				"11": "modBadge",
+				"12": "moderatorChatColor"
+			}
+			return result
+
+		elif type_ == 3:
+			result = {
+				"1": "userName",
+				"9": "icon",
+				"10": "playerColor",
+				"11": "playerColor2",
+				"14": "iconType",
+				"15": "glow",
+				"16": "accountID"
+			}
+			return result
+
+		elif type_ == 4:
+			result = {
+				"1": "userName",
+				"2": "playerID",
+				"9": "icon",
+				"10": "playerColor",
+				"11": "playerColor2",
+				"14": "iconType",
+				"15": "glow",
+				"16": "accountID",
+				"32": "friendRequestID",
+				"35": "message",
+				"37": "age",
+				"41": "NewFriendRequest"
+			}
+			return result
+
+		elif type_ == 5:
+			result = {
+				"1": "gauntletID",
+				"3": "levels",
+			}
+			return result
+
+		elif type_ == 6:
+			result = {
+				"1": "Fire",
+				"2": "Ice",
+				"3": "Poison",
+				"4": "Shadow",
+				"5": "Lava",
+				"6": "Bonus",
+				"7": "Chaos",
+				"8": "Demon",
+				"9": "Time",
+				"10": "Crystal",
+				"11": "Magic",
+				"12": "Spike",
+				"13": "Monster",
+				"14": "Doom",
+				"15": "Death",
+				"16": "Forest",
+				"17": "Rune",
+				"18": "Force",
+				"19": "Spooky",
+				"20": "Dragon",
+				"21": "Water",
+				"22": "Haunted",
+				"23": "Acid",
+				"24": "Witch",
+				"25": "Power",
+				"26": "Potion",
+				"27": "Snake",
+				"28": "Toxic",
+				"29": "Halloween",
+				"30": "Treasure",
+				"31": "Ghost",
+				"32": "Gem",
+				"33": "Inferno",
+				"34": "Portal",
+				"35": "Strange",
+				"36": "Fantasy",
+				"37": "Christmas",
+				"38": "Surprise",
+				"39": "Mystery",
+				"40": "Cursed",
+				"41": "Cyborg",
+				"42": "Castle",
+				"43": "Grave",
+				"44": "Temple",
+				"46": "World",
+				"47": "Galaxy",
+				"48": "Universe",
+				"49": "Discord",
+				"50": "Split",
+				"51": "NCS I",
+				"52": "NCS II",
+				"53": "Space",
+				"54": "Cosmos"
+			}
+			return result
+
+		elif type_ == 7:
+			result = {
+				"1": "userName",
+				"2": "playerID",
+				"3": "percentage",
+				"6": "ranking",
+				"9": "icon",
+				"10": "playerColor",
+				"11": "playerColor2",
+				"13": "coins",
+				"14": "iconType",
+				"15": "special",
+				"16": "accountID",
+				"42": "age"
+			}
+			return result
+
+		elif type_ == 8:
+			result = {
+				"1": "levelID",
+				"2": "levelName",
+				"3": "description",
+				"4": "levelString",
+				"5": "version",
+				"6": "playerID",
+				"8": "difficultyDenominator",
+				"9": "difficultyNumerator",
+				"10": "downloads",
+				"11": "setCompletes",
+				"12": "officialSong",
+				"13": "gameVersion",
+				"14": "likes",
+				"15": "length",
+				"16": "dislikes",
+				"17": "demon",
+				"18": "stars",
+				"19": "featureScore",
+				"25": "auto",
+				"26": "recordString",
+				"27": "password",
+				"28": "uploadDate",
+				"29": "updateDate",
+				"30": "copiedID",
+				"31": "twoPlayer",
+				"35": "customSongID",
+				"36": "extraString",
+				"37": "coins",
+				"38": "verifiedCoins",
+				"39": "starsRequested",
+				"40": "lowDetailMode",
+				"41": "dailyNumber",
+				"42": "epic",
+				"43": "demonDifficulty",
+				"44": "isGauntlet",
+				"45": "objects",
+				"46": "editorTime",
+				"47": "editorTimeCopies",
+				"48": "settingsString",
+				"52": "songIDs",
+				"53": "sfxIDs",
+				"54": "unknown",
+				"57": "verificationTime"
+			}
+			return result
+
+		elif type_ == 9:
+			result = {
+				"1": "ID",
+				"2": "name",
+				"3": "artistID",
+				"4": "artistName",
+				"5": "size",
+				"6": "videoID",
+				"7": "youtubeURL",
+				"8": "isVerified",
+				"9": "songPriority",
+				"10": "link",
+				"11": "nongEnum",
+				"12": "extraArtistIDs",
+				"13": "new",
+				"14": "newType",
+				"15": "extraArtistNames"
+			}
+			return result
+
+		elif type_ == 10:
+			result = {
+				"1": "messageID",
+				"2": "accountID",
+				"3": "playerID",
+				"4": "title",
+				"5": "messageContent",
+				"6": "userName",
+				"7": "age",
+				"8": "read",
+				"9": "sender"
+			}
+			return result
+
+		elif type_ == 11:
+			result = {
+				"1": "packID",
+				"2": "packName",
+				"3": "levels",
+				"4": "stars",
+				"5": "coins",
+				"6": "difficulty",
+				"7": "textColor",
+				"8": "barColor"
+			}
+			return result
+
+		elif type_ == 12:
+			result = {
+				"1": "listID",
+				"2": "listName",
+				"3": "description",
+				"5": "version",
+				"7": "difficulty",
+				"10": "downloads",
+				"14": "likes",
+				"19": "rated",
+				"28": "uploadDate",
+				"29": "updateDate",
+				"49": "accountID",
+				"50": "username",
+				"51": "levelIDs",
+				"55": "listReward",
+				"56": "listRewardRequirement"
+			}
+			return result
+
+		else:
+			return {}
+
+	@staticmethod
+	def _remap(parsed, type_):
+		"""
+		Type 1: User
+		Type 2: Comment
+		Type 3: Comment User
+		Type 4: Friend Request
+		Type 5: Gauntlet
+		Type 6: Gauntlet Names
+		Type 7: Level Leaderboard
+		Type 8: Level
+		Type 9: Song
+		Type 10: Message
+		Type 11: Map Pack
+		Type 12: List
+		"""
+		for oldKey, newKey in Parse._getObjectMap(type_).items():
+			if oldKey in parsed:
+				parsed[newKey] = parsed.pop(oldKey)
+
+	@staticmethod
+	def getGJLevels21(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "levels": [
+		        {
+		            "levelID": levelID,
+		            "levelName": levelName,
+		            "description": description,
+		            "levelString": levelString,
+		            "version": version,
+		            "playerID": playerID,
+		            "difficultyDenominator": difficultyDenominator,
+		            "difficultyNumerator": difficultyNumerator,
+		            "downloads": downloads,
+		            "setCompletes": setCompletes,
+		            "officialSong": officialSong,
+		            "gameVersion": gameVersion,
+		            "likes": likes,
+		            "length": length,
+		            "dislikes": dislikes,
+		            "demon": demon,
+		            "stars": stars,
+		            "featureScore": featureScore,
+		            "auto": auto,
+		            "recordString": recordString,
+		            "password": password,
+		            "uploadDate": uploadDate,
+		            "updateDate": updateDate,
+		            "copiedID": copiedID,
+		            "twoPlayer": twoPlayer,
+		            "customSongID": customSongID,
+		            "extraString": extraString,
+		            "coins": coins,
+		            "verifiedCoins": verifiedCoins,
+		            "starsRequested": starsRequested,
+		            "lowDetailMode": lowDetailMode,
+		            "dailyNumber": dailyNumber,
+		            "epic": epic,
+		            "demonDifficulty": demonDifficulty,
+		            "isGauntlet": isGauntlet,
+		            "objects": objects,
+		            "editorTime": editorTime,
+		            "editorTimeCopies": editorTimeCopies,
+		            "settingsString": settingsString,
+		            "songIDs": songIDs,
+		            "sfxIDs": sfxIDs,
+		            "unknown": unknown,
+		            "verificationTime": verificationTime
+		        }
+		    ],
+		    "creators": [
+		        {
+		            "userID": userID,
+		            "username": username,
+		            "accountID": accountID
+		        }
+		    ],
+		    "songs": [
+		        {
+		            "ID": ID,
+		            "name": name,
+		            "artistID": artistID,
+		            "artistName": artistName,
+		            "size": size,
+		            "videoID": videoID,
+		            "youtubeURL": youtubeURL,
+		            "isVerified": isVerified,
+		            "songPriority": songPriority,
+		            "link": link,
+		            "nongEnum": nongEnum,
+		            "extraArtistIDs": extraArtistIDs,
+		            "new": new,
+		            "newType": newType,
+		            "extraArtistNames": extraArtistNames
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    },
+		    "hash": hash
+		}
+		```
+		'''
+		parts = rawText.split("#")
+
+		levelSection = parts[0]
+		creatorSection = parts[1]
+		songSection = parts[2]
+		pageInfo = parts[3]
+		hashValue = parts[4]
+
+		levels = []
+		for block in levelSection.split("|"):
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+
+			if not parsed:
+				continue
+
+			parsed["3"] = Parse._decode(parsed["3"])
+
+			if normalise is True:
+				Parse._remap(parsed, 8)
+
+			levels.append(parsed)
+
+
+		creators = Parse._parseCreators(creatorSection)
+		songs = Parse._parseSongs(songSection)
+		if normalise is True:
+				for song in songs:
+					Parse._remap(song, 9)
+		pagination = Parse._parsePagination(pageInfo)
+
+		return {
+			"levels": levels,
+			"creators": creators,
+			"songs": songs,
+			"pagination": pagination,
+			"hash": hashValue
+		}
+
+	@staticmethod
+	def getGJComments21(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "comments": [
+		        {
+		            "content": {
+		                "userName": userName,
+		                "comment": comment,
+		                "authorPlayerID": authorPlayerID,
+		                "likes": likes,
+		                "dislikes": dislikes,
+		                "messageID": messageID,
+		                "spam": spam,
+		                "authorAccountID": authorAccountID,
+		                "age": age,
+		                "percent": percent,
+		                "modBadge": modBadge,
+		                "moderatorChatColor": moderatorChatColor
+		            },
+		            "sender": {
+		                "userName": userName,
+		                "icon": icon,
+		                "playerColor": playerColor,
+		                "playerColor2": playerColor2,
+		                "iconType": iconType,
+		                "glow": glow,
+		                "accountID": accountID
+		            }
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''	
+		mainPart, paginationPart = rawText.rsplit("#", 1)
+		pagination = Parse._parsePagination(paginationPart)
+	
+		commentBlocks = mainPart.split("|")
+	
+		comments = []
+		for block in commentBlocks:
+			parsed = Parse._parseLevelCommentBlock(block)
+			if not parsed:
+				continue
+
+			if normalise is True:
+				Parse._remap(parsed["content"], 2)
+				Parse._remap(parsed["sender"], 3)
+
+
+			comments.append(parsed)
+	
+		return {
+			"comments": comments,
+			"pagination": pagination
+		}
+
+	@staticmethod
+	def getGJAccountComments20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "comments": [
+		        {
+		            "content": {
+		                "userName": userName,
+		                "comment": comment,
+		                "authorPlayerID": authorPlayerID,
+		                "likes": likes,
+		                "dislikes": dislikes,
+		                "messageID": messageID,
+		                "spam": spam,
+		                "authorAccountID": authorAccountID,
+		                "age": age,
+		                "percent": percent,
+		                "modBadge": modBadge,
+		                "moderatorChatColor": moderatorChatColor
+		            }
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''
+		mainPart, paginationPart = rawText.rsplit("#", 1)
+		pagination = Parse._parsePagination(paginationPart)
+	
+		commentBlocks = mainPart.split("|")
+	
+		comments = []
+		for block in commentBlocks:
+			parsed = Parse._parseAccountCommentBlock(block)
+			if not parsed:
+				continue
+
+			if normalise is True:
+				Parse._remap(parsed["content"], 2)
+
+			comments.append(parsed)
+	
+		return {
+			"comments": comments,
+			"pagination": pagination
+		}
+
+	@staticmethod
+	def getGJRewards(rawText: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "rewards": {
+		        "randomHash": randomHash,
+		        "uuid": uuid,
+		        "decodedChk": decodedChk,
+		        "udid": udid,
+		        "accountID": accountID,
+		        "smallChestSecondsLeft": smallChestSecondsLeft,
+		        "smallChestRewards": {
+		            "orbs": orbs,
+		            "diamonds": diamonds,
+		            "shardTypes": [
+		                shardType1,
+		                shardType2
+		            ]
+		        },
+		        "smallChestsClaimedBefore": smallChestsClaimedBefore,
+		        "largeChestSecondsLeft": largeChestSecondsLeft,
+		        "largeChestRewards": {
+		            "orbs": orbs,
+		            "diamonds": diamonds,
+		            "shardTypes": [
+		                shardType1,
+		                shardType2
+		            ]
+		        },
+		        "largeChestsClaimedBefore": largeChestsClaimedBefore,
+		        "requestType": requestType
+		    },
+		    "hash": hash
+		}
+		```
+		'''
+		data = rawText.split("|")
+		rewards = Tools.Encryption.decodeString(data[0], 14).split(":")
+		
+	
+		randomHash = rewards[0]
+		uuid = int(rewards[1])
+		decodedChk = int(rewards[2])
+		udid = rewards[3]
+		accountID = int(rewards[4])
+		smallChestSecondsLeft = int(rewards[5])
+	
+		smallChestRewards = rewards[6].split(",")
+		orbs1 = int(smallChestRewards[0])
+		diamonds1 = int(smallChestRewards[1])
+		shard1 = int(smallChestRewards[2])
+		shard2 = int(smallChestRewards[3])
+	
+		smallChestsClaimedBefore = int(rewards[7])
+		largeChestSecondsLeft = int(rewards[8])
+	
+		largeChestRewards = rewards[9].split(",")
+		orbs2 = int(largeChestRewards[0])
+		diamonds2 = int(largeChestRewards[1])
+		shard3 = int(largeChestRewards[2])
+		shard4 = int(largeChestRewards[3])
+	
+		largeChestsClaimedBefore = int(rewards[10])
+		requestType = int(rewards[11])
 	
 	
+		return {"rewards": {
+					"randomHash": randomHash,
+					"uuid": uuid,
+					"decodedChk": decodedChk,
+					"udid": udid,
+					"accountID": accountID,
+					"smallChestSecondsLeft": smallChestSecondsLeft,
+					"smallChestRewards": {
+						"orbs": orbs1,
+						"diamonds": diamonds1,
+						"shardTypes": [
+							shard1,
+							shard2
+							]
+	
+						},
+					"smallChestsClaimedBefore": smallChestsClaimedBefore,
+					"largeChestSecondsLeft": largeChestSecondsLeft,
+					"largeChestRewards": {
+						"orbs": orbs2,
+						"diamonds": diamonds2,
+						"shardTypes": [
+							shard3,
+							shard4
+							]
+	
+						},
+					"largeChestsClaimedBefore": largeChestsClaimedBefore,
+					"requestType": requestType
+					},
+				"hash": data[1]
+				}
+
+	@staticmethod
+	def getGJUserInfo20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "user": {
+		        "userName": userName,
+		        "userID": userID,
+		        "stars": stars,
+		        "demons": demons,
+		        "ranking": ranking,
+		        "accountHighlight": accountHighlight,
+		        "creatorPoints": creatorPoints,
+		        "iconID": iconID,
+		        "color1": color1,
+		        "color2": color2,
+		        "secretCoins": secretCoins,
+		        "iconType": iconType,
+		        "special": special,
+		        "accountID": accountID,
+		        "userCoins": userCoins,
+		        "messageState": messageState,
+		        "friendsState": friendsState,
+		        "youTube": youTube,
+		        "accIcon": accIcon,
+		        "accShip": accShip,
+		        "accBall": accBall,
+		        "accBird": accBird,
+		        "accWave": accWave,
+		        "accRobot": accRobot,
+		        "accStreak": accStreak,
+		        "accGlow": accGlow,
+		        "isRegistered": isRegistered,
+		        "globalRank": globalRank,
+		        "friendState": friendState,
+		        "messages": messages,
+		        "friendRequests": friendRequests,
+		        "newFriends": newFriends,
+		        "newFriendRequest": newFriendRequest,
+		        "age": age,
+		        "accSpider": accSpider,
+		        "twitter": twitter,
+		        "twitch": twitch,
+		        "diamonds": diamonds,
+		        "accExplosion": accExplosion,
+		        "modLevel": modLevel,
+		        "commentHistoryState": commentHistoryState,
+		        "color3": color3,
+		        "moons": moons,
+		        "accSwing": accSwing,
+		        "accJetpack": accJetpack,
+		        "demonBreakdown": {
+		            "easyDemonCompletions": easyDemonCompletions,
+		            "mediumDemonCompletions": mediumDemonCompletions,
+		            "hardDemonCompletions": hardDemonCompletions,
+		            "insaneDemonCompletions": insaneDemonCompletions,
+		            "extremeDemonCompletions": extremeDemonCompletions,
+		            "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+		            "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+		            "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+		            "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+		            "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+		            "weeklyDemonCompletions": weeklyDemonCompletions,
+		            "gauntletDemonCompletions": gauntletDemonCompletions
+		        },
+		        "classicLevelBreakdown": {
+		            "autoCompletions": autoCompletions,
+		            "easyCompletions": easyCompletions,
+		            "normalCompletions": normalCompletions,
+		            "hardCompletions": hardCompletions,
+		            "harderCompletions": harderCompletions,
+		            "insaneCompletions": insaneCompletions,
+		            "dailyCompletions": dailyCompletions,
+		            "gauntletCompletions": gauntletCompletions
+		        },
+		        "platformerLevelBreakdown": {
+		            "autoPlatformerCompletions": autoPlatformerCompletions,
+		            "easyPlatformerCompletions": easyPlatformerCompletions,
+		            "normalPlatformerCompletions": normalPlatformerCompletions,
+		            "hardPlatformerCompletions": hardPlatformerCompletions,
+		            "harderPlatformerCompletions": harderPlatformerCompletions,
+		            "insanePlatformerCompletions": insanePlatformerCompletions
+		        }
+		    }
+		}
+		```
+		'''
+		user = Parse._parseKeyValuePairs(rawText, ":")
+		result = {"user": user}
+		for key in result["user"]:
+			if key == "55":
+				demons = result["user"][key].split(",")
+				for index, value in enumerate(demons):
+					demons[index] = int(value)
+	
+				result["user"][key] = {
+					"easyDemonCompletions": demons[0],
+					"mediumDemonCompletions": demons[1],
+					"hardDemonCompletions": demons[2],
+					"insaneDemonCompletions": demons[3],
+					"extremeDemonCompletions": demons[4],
+					"easyPlatformerDemonCompletions": demons[5],
+					"mediumPlatformerDemonCompletions": demons[6],
+					"hardPlatformerDemonCompletions": demons[7],
+					"insanePlatformerDemonCompletions": demons[8],
+					"extremePlatformerDemonCompletions": demons[9],
+					"weeklyDemonCompletions": demons[10],
+					"gauntletDemonCompletions": demons[11]
+	
+				}
+			elif key == "56":
+				classics = result["user"][key].split(",")
+				for index, value in enumerate(classics):
+					classics[index] = int(value)
+	
+				result["user"][key] = {
+					"autoCompletions": classics[0],
+					"easyCompletions": classics[1],
+					"normalCompletions": classics[2],
+					"hardCompletions": classics[3],
+					"harderCompletions": classics[4],
+					"insaneCompletions": classics[5],
+					"dailyCompletions": classics[6],
+					"gauntletCompletions": classics[7]
+				}
+	
+			elif key == "57":
+				platformers = result["user"][key].split(",")
+				for index, value in enumerate(platformers):
+					platformers[index] = int(value)
+	
+				result["user"][key] = {
+					"autoPlatformerCompletions": platformers[0],
+					"easyPlatformerCompletions": platformers[1],
+					"normalPlatformerCompletions": platformers[2],
+					"hardPlatformerCompletions": platformers[3],
+					"harderPlatformerCompletions": platformers[4],
+					"insanePlatformerCompletions": platformers[5]
+				}
+
+		if normalise is True:
+			Parse._remap(result["user"], 1)
+	
+		return result
+
+	@staticmethod
+	def downloadGJLevel22(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "level": {"levelID": levelID,
+		              "levelName": levelName,
+		              "description": description,
+		              "levelString": levelString,
+		              "version": version,
+		              "playerID": playerID,
+		              "difficultyDenominator": difficultyDenominator,
+		              "difficultyNumerator": difficultyNumerator,
+		              "downloads": downloads,
+		              "setCompletes": setCompletes,
+		              "officialSong": officialSong,
+		              "gameVersion": gameVersion,
+		              "likes": likes,
+		              "length": length,
+		              "dislikes": dislikes,
+		              "demon": demon,
+		              "stars": stars,
+		              "featureScore": featureScore,
+		              "auto": auto,
+		              "recordString": recordString,
+		              "password": password,
+		              "uploadDate": uploadDate,
+		              "updateDate": updateDate,
+		              "copiedID": copiedID,
+		              "twoPlayer": twoPlayer,
+		              "customSongID": customSongID,
+		              "extraString": extraString,
+		              "coins": coins,
+		              "verifiedCoins": verifiedCoins,
+		              "starsRequested": starsRequested,
+		              "lowDetailMode": lowDetailMode,
+		              "dailyNumber": dailyNumber,
+		              "epic": epic,
+		              "demonDifficulty": demonDifficulty,
+		              "isGauntlet": isGauntlet,
+		              "objects": objects,
+		              "editorTime": editorTime,
+		              "editorTimeCopies": editorTimeCopies,
+		              "settingsString": settingsString,
+		              "songIDs": songIDs,
+		              "sfxIDs": sfxIDs,
+		              "unknown": unknown,
+		              "verificationTime": verificationTime},
+		    "hash1": hash1,
+		    "hash2": hash2,
+		}
+		```
+		'''
+		data = rawText.split("#")
+		level = Parse._parseKeyValuePairs(data[0], ":")
+		result = {
+			"level": level,
+			"hash1": data[1],
+			"hash2": data[2],
+		}
+		if len(data) > 1:
+			result["hash1"] = data[1]
+			if len(data) > 2:
+				result["hash2"] = data[2]
+
+		if len(data) > 3:
+			if data[3] != "":
+				userID, username, accountID = data[3].split(":")
+				result["dailyCreator"] = {
+					"userID": userID,
+					"username": username,
+					"accountID": accountID
+				}
+			else:
+				result["dailyCreator"] = {}
+			
+			if len(data) > 4:
+				if data[4] != "":
+					songs = Parse._parseSongs(data[4])
+					result["songs"] = songs
+					if normalise is True:
+						Parse._remap(result["songs"], 9)
+				else:
+					result["songs"] = []
+
+		for key in result["level"]:
+			if key == "3":
+				result["level"][key] = Parse._decode(result["level"][key])
+
+			elif key == "4":
+				result["level"][key] = Tools.Encryption.decodeString(result["level"][key], 16)
+
+			elif key == "27":
+				result["level"][key] = Tools.decodeLevelPassword(result["level"][key])
+
+		if normalise is True:
+			Parse._remap(result["level"], 8)
+
+		return result
+
+	@staticmethod
+	def getGJGauntlets21(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "gauntlets": [
+		        {
+		            "gauntletID": gauntletID,
+		            "levels": [
+		                levelID,
+		                ...
+		            ],
+		            "gauntletName": gauntletName
+		        }
+		    ],
+		    "hash": hash
+		}
+		```
+
+		The gauntletIDs are as follows:
+		```
+		"Fire",
+		"Ice",
+		"Poison",
+		"Shadow",
+		"Lava",
+		"Bonus",
+		"Chaos",
+		"Demon",
+		"Time",
+		"Crystal",
+		"Magic",
+		"Spike",
+		"Monster",
+		"Doom",
+		"Death",
+		"Forest",
+		"Rune",
+		"Force",
+		"Spooky",
+		"Dragon",
+		"Water",
+		"Haunted",
+		"Acid",
+		"Witch",
+		"Power",
+		"Potion",
+		"Snake",
+		"Toxic",
+		"Halloween",
+		"Treasure",
+		"Ghost",
+		"Gem",
+		"Inferno",
+		"Portal",
+		"Strange",
+		"Fantasy",
+		"Christmas",
+		"Surprise",
+		"Mystery",
+		"Cursed",
+		"Cyborg",
+		"Castle",
+		"Grave",
+		"Temple",
+		"World",
+		"Galaxy",
+		"Universe",
+		"Discord",
+		"Split",
+		"NCS I",
+		"NCS II",
+		"Space",
+		"Cosmos"
+		```
+		'''
+		data = rawText.split("#")
+	
+		gauntletSection = data[0]
+		hashValue = data[1]
+	
+		gauntletBlocks = gauntletSection.split("|")
+	
+		gauntlets = []
+
+		gauntletNameMap = Parse._getObjectMap(6)
+	
+		for block in gauntletBlocks:
+			parsed = Parse._parseKeyValuePairs(block, ":")
+	
+			parsed["3"] = (
+				[
+					int(levelID)
+					for levelID in parsed["3"].split(",")
+				]
+				if isinstance(parsed["3"], str)
+				else [parsed["3"]]
+			)
+
+
+
+			if normalise is True:
+				Parse._remap(parsed, 5)
+				gauntletID = str(parsed["gauntletID"])
+				parsed["gauntletName"] = gauntletNameMap.get(
+					gauntletID,
+					"Unknown"
+				)
+	
+			gauntlets.append(parsed)
+	
+		return {
+			"gauntlets": gauntlets,
+			"hash": hashValue
+		}
+
+	@staticmethod
+	def getGJLevelLists(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "lists": [
+		        {
+		            "listID": listID,
+		            "listName": listName,
+		            "description": description,
+		            "version": version,
+		            "difficulty": difficulty,
+		            "downloads": downloads,
+		            "likes": likes,
+		            "rated": rated,
+		            "uploadDate": uploadDate,
+		            "updateDate": updateDate,
+		            "accountID": accountID,
+		            "username": username,
+		            "levelIDs": [
+		                levelID,
+		                ...
+		            ],
+		            "listReward": listReward,
+		            "listRewardRequirement": listRewardRequirement
+		        }
+		    ],
+		    "creators": [
+		        {
+		            "userID": userID,
+		            "username": username,
+		            "accountID": accountID
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    },
+		    "hash": hash
+		}
+		```
+		'''
+		parts = rawText.split("#")
+
+		listSection = parts[0]
+		creatorSection = parts[1]
+		pageInfo = parts[2]
+		hashValue = parts[3]
+
+		lists = []
+		for block in listSection.split("|"):
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			parsed["3"] = Parse._decode(parsed["3"])
+			parsed["51"] = (
+				[
+					int(levelID)
+					for levelID in parsed["51"].split(",")
+				]
+				if isinstance(parsed["51"], str)
+				else [parsed["51"]]
+			)
+
+			if normalise is True:
+				Parse._remap(parsed, 12)
+
+			lists.append(parsed)
+
+		creators = Parse._parseCreators(creatorSection)
+
+		pagination = Parse._parsePagination(pageInfo)
+
+		return {
+			"lists": lists,
+			"creators": creators,
+			"pagination": pagination,
+			"hash": hashValue
+		}
+
+	@staticmethod
+	def getGJFriendRequests20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "users": [
+		        {
+		            "userName": userName,
+		            "playerID": playerID,
+		            "icon": icon,
+		            "playerColor": playerColor,
+		            "playerColor2": playerColor2,
+		            "iconType": iconType,
+		            "glow": glow,
+		            "accountID": accountID,
+		            "friendRequestID": friendRequestID,
+		            "message": message,
+		            "age": age,
+		            "NewFriendRequest": NewFriendRequest
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''
+		parts = rawText.split("#")
+
+		userSection = parts[0]
+		pageInfo = parts[1]
+
+		users = []
+		for block in userSection.split("|"):
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			parsed["35"] = Parse._decode(parsed["35"])
+
+			if normalise is True:
+				Parse._remap(parsed, 4)
+
+			users.append(parsed)
+
+		pagination = Parse._parsePagination(pageInfo)
+
+		return {
+			"users": users,
+			"pagination": pagination
+		}
+
+	@staticmethod
+	def getGJMessages20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "messages": [
+		        {
+		            "messageID": messageID,
+		            "accountID": accountID,
+		            "playerID": playerID,
+		            "title": title,
+		            "messageContent": messageContent,
+		            "userName": userName,
+		            "age": age,
+		            "read": read,
+		            "sender": sender
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''
+		parts = rawText.split("#")
+
+		messageSection = parts[0]
+		pageInfo = parts[1]
+
+		messages = []
+		for block in messageSection.split("|"):
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			parsed["4"] = Parse._decode(parsed["4"])
+
+			if normalise is True:
+				Parse._remap(parsed, 10)
+
+			messages.append(parsed)
+
+		pagination = Parse._parsePagination(pageInfo)
+
+		return {
+			"messages": messages,
+			"pagination": pagination
+		}
+
+	@staticmethod
+	def downloadGJMessage20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "message": {
+		        "messageID": messageID,
+		        "accountID": accountID,
+		        "playerID": playerID,
+		        "title": title,
+		        "messageContent": messageContent,
+		        "userName": userName,
+		        "age": age,
+		        "read": read,
+		        "sender": sender
+		    }
+		}
+		```
+		'''
+		parts = rawText.split("#")
+
+		messageSection = parts[0]
+		parsed = {}
+
+		for block in messageSection.split("|"):
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			parsed["4"] = Parse._decode(parsed["4"])
+			parsed["5"] = Tools.Encryption.decodeString(parsed["5"], 2)
+
+			if normalise is True:
+				Parse._remap(parsed, 10)
+
+		return {
+			"message": parsed
+		}
+
+	@staticmethod
+	def getGJMapPacks21(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "packs": [
+		        {
+		            "packID": packID,
+		            "packName": packName,
+		            "levels": [
+		                levelID,
+		                ...
+		            ],
+		            "stars": stars,
+		            "coins": coins,
+		            "difficulty": difficulty,
+		            "textColor": {
+		                "r": r,
+		                "g": g,
+		                "b": b
+		            },
+		            "barColor": {
+		                "r": r,
+		                "g": g,
+		                "b": b
+		            }
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    },
+		    "hash": hash
+		}
+		```
+		'''
+		parts = rawText.split("#")
+
+		mapSection = parts[0]
+		pageInfo = parts[1]
+		hashValue = parts[2]
+
+		packs = []
+		for block in mapSection.split("|"):
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			parsed["4"] = Parse._decode(parsed["4"])
+
+			parsed["3"] = (
+				[
+					int(levelID)
+					for levelID in parsed["3"].split(",")
+				]
+				if isinstance(parsed["3"], str)
+				else [parsed["3"]]
+			)
+
+			r, g, b = map(int, parsed["7"].split(","))
+			parsed["7"] = {
+				"r": r,
+				"g": g,
+				"b": b
+			}
+			
+			r, g, b = map(int, parsed["8"].split(","))
+			parsed["8"] = {
+				"r": r,
+				"g": g,
+				"b": b
+			}
+			
+			if normalise is True:
+				Parse._remap(parsed, 11)
+
+			packs.append(parsed)
+
+		pagination = Parse._parsePagination(pageInfo)
+
+		return {
+			"packs": packs,
+			"pagination": pagination,
+			"hash": hashValue
+		}
+
+	@staticmethod
+	def getGJDailyLevel(rawText: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "tempID": tempID,
+		    "secondsLeft": secondsLeft
+		}
+		```
+		'''
+		parts = rawText.split("|")
+
+		return {
+			"tempID": parts[0],
+			"secondsLeft": parts[1]
+		}
+
+	@staticmethod
+	def getGJScores20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "users": [
+		        {
+		            "userName": userName,
+		            "userID": userID,
+		            "stars": stars,
+		            "demons": demons,
+		            "ranking": ranking,
+		            "accountHighlight": accountHighlight,
+		            "creatorPoints": creatorPoints,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "secretCoins": secretCoins,
+		            "iconType": iconType,
+		            "special": special,
+		            "accountID": accountID,
+		            "userCoins": userCoins,
+		            "messageState": messageState,
+		            "friendsState": friendsState,
+		            "youTube": youTube,
+		            "accIcon": accIcon,
+		            "accShip": accShip,
+		            "accBall": accBall,
+		            "accBird": accBird,
+		            "accWave": accWave,
+		            "accRobot": accRobot,
+		            "accStreak": accStreak,
+		            "accGlow": accGlow,
+		            "isRegistered": isRegistered,
+		            "globalRank": globalRank,
+		            "friendState": friendState,
+		            "messages": messages,
+		            "friendRequests": friendRequests,
+		            "newFriends": newFriends,
+		            "newFriendRequest": newFriendRequest,
+		            "age": age,
+		            "accSpider": accSpider,
+		            "twitter": twitter,
+		            "twitch": twitch,
+		            "diamonds": diamonds,
+		            "accExplosion": accExplosion,
+		            "modLevel": modLevel,
+		            "commentHistoryState": commentHistoryState,
+		            "color3": color3,
+		            "moons": moons,
+		            "accSwing": accSwing,
+		            "accJetpack": accJetpack,
+		            "demonBreakdown": {
+		                "easyDemonCompletions": easyDemonCompletions,
+		                "mediumDemonCompletions": mediumDemonCompletions,
+		                "hardDemonCompletions": hardDemonCompletions,
+		                "insaneDemonCompletions": insaneDemonCompletions,
+		                "extremeDemonCompletions": extremeDemonCompletions,
+		                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+		                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+		                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+		                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+		                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+		                "weeklyDemonCompletions": weeklyDemonCompletions,
+		                "gauntletDemonCompletions": gauntletDemonCompletions
+		            },
+		            "classicLevelBreakdown": {
+		                "autoCompletions": autoCompletions,
+		                "easyCompletions": easyCompletions,
+		                "normalCompletions": normalCompletions,
+		                "hardCompletions": hardCompletions,
+		                "harderCompletions": harderCompletions,
+		                "insaneCompletions": insaneCompletions,
+		                "dailyCompletions": dailyCompletions,
+		                "gauntletCompletions": gauntletCompletions
+		            },
+		            "platformerLevelBreakdown": {
+		                "autoPlatformerCompletions": autoPlatformerCompletions,
+		                "easyPlatformerCompletions": easyPlatformerCompletions,
+		                "normalPlatformerCompletions": normalPlatformerCompletions,
+		                "hardPlatformerCompletions": hardPlatformerCompletions,
+		                "harderPlatformerCompletions": harderPlatformerCompletions,
+		                "insanePlatformerCompletions": insanePlatformerCompletions
+		            }
+		        },
+		        ...
+		    ]
+		}
+		```
+		'''
+		parts = rawText.split("|")
+
+		users = []
+		for block in parts:
+			if block != "":
+				parsed = Parse._parseKeyValuePairs(block, splitter=":")
+				if not parsed:
+					continue
+				
+				if normalise is True:
+					Parse._remap(parsed, 1)
+			else:
+				parsed = {}
+
+			users.append(parsed)
+
+		return {
+			"users": users
+		}
+
+	@staticmethod
+	def getGJLevelScores211(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "scores": [
+		        {
+		            "userName": userName,
+		            "playerID": playerID,
+		            "percentage": percentage,
+		            "ranking": ranking,
+		            "icon": icon,
+		            "playerColor": playerColor,
+		            "playerColor2": playerColor2,
+		            "coins": coins,
+		            "iconType": iconType,
+		            "special": special,
+		            "accountID": accountID,
+		            "age": age
+		        }
+		    ]
+		}
+		```
+		'''
+		parts = rawText.split("|")
+
+		scores = []
+		for block in parts:
+			if block != "":
+				parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			else:
+				parsed = {}
+			
+			if normalise is True:
+				Parse._remap(parsed, 7)
+
+			scores.append(parsed)
+
+		return {
+			"scores": scores
+		}
+
+	@staticmethod
+	def getGJLevelScoresPlat(rawText: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "scores": [
+		        {
+		            "userName": userName,
+		            "playerID": playerID,
+		            "percentage": percentage,
+		            "ranking": ranking,
+		            "icon": icon,
+		            "playerColor": playerColor,
+		            "playerColor2": playerColor2,
+		            "coins": coins,
+		            "iconType": iconType,
+		            "special": special,
+		            "accountID": accountID,
+		            "age": age
+		        }
+		    ]
+		}
+		```
+		'''
+		return Parse.getGJLevelScores211(rawText)
+
+	@staticmethod
+	def getGJSecretReward(rawText: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "reward": {
+		        "randomHash": randomHash,
+		        "decodedChk": decodedChk,
+		        "rewardID": rewardID,
+		        "chestType": chestType,
+		        "rewards": {
+		            rewardType: amount,
+		            ...
+		        }
+		    },
+		    "hash": hash
+		}
+		```
+		'''
+		parts = rawText.split("|")
+
+		reward = {}
+		rewardValue = Tools.Encryption.decodeString(parts[0], type_=14).split(":")
+		hashValue = parts[1]
+
+		reward["randomHash"] = rewardValue[0]
+		reward["decodedChk"] = rewardValue[1]
+		reward["rewardID"] = rewardValue[2]
+		reward["chestType"] = rewardValue[3]
+		reward["rewards"] = Parse._parseKeyValuePairs(rewardValue[4], splitter=",")
+		
+
+		return {
+			"reward": reward,
+			"hash": hashValue
+		}
+
+	@staticmethod
+	def getGJSongInfo(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "song": {
+		        "ID": ID,
+		        "name": name,
+		        "artistID": artistID,
+		        "artistName": artistName,
+		        "size": size,
+		        "videoID": videoID,
+		        "youtubeURL": youtubeURL,
+		        "isVerified": isVerified,
+		        "songPriority": songPriority,
+		        "link": link,
+		        "nongEnum": nongEnum,
+		        "extraArtistIDs": extraArtistIDs,
+		        "new": new,
+		        "newType": newType,
+		        "extraArtistNames": extraArtistNames
+		    }
+		}
+		```
+		'''
+		song = Parse._parseKeyValuePairs(rawText, splitter="~|~")
+
+		if normalise is True:
+			Parse._remap(song, 9)
+
+		return {
+			"song": song,
+		}
+
+	@staticmethod
+	def getGJChallenges(rawText: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "challenges": {
+		        "randomHash": randomHash,
+		        "uuid": uuid,
+		        "decodedChk": decodedChk,
+		        "udid": udid,
+		        "accountID": accountID,
+		        "secondsLeft": secondsLeft,
+		        "queuedQuests": [
+		            {
+		                "id": id,
+		                "type": type,
+		                "goal": goal,
+		                "reward": reward,
+		                "name": name
+		            }
+		        ]
+		    },
+		    "hash": hash
+		}
+		```
+		'''
+		parts = rawText.split("|")
+
+		challenges = {}
+		challengeValue = Tools.Encryption.decodeString(parts[0], type_=4).split(":")
+		hashValue = parts[1]
+
+		challenges["randomHash"] = challengeValue[0]
+		challenges["uuid"] = challengeValue[1]
+		challenges["decodedChk"] = challengeValue[2]
+		challenges["udid"] = challengeValue[3]
+		challenges["accountID"] = challengeValue[4]
+		challenges["secondsLeft"] = challengeValue[5]
+		queuedQuests = []
+
+		for blocks in challengeValue[6:]:
+			id_, type_, goal, reward, name = map(lambda x: int(x) if x.isdigit() else str(x), blocks.split(","))
+			queuedQuests.append({
+				"id": id_,
+				"type": type_,
+				"goal": goal,
+				"reward": reward,
+				"name": name
+				})
+
+		challenges["queuedQuests"] = queuedQuests
+
+		return {
+			"challenges": challenges,
+			"hash": hashValue
+		}
+
+	@staticmethod
+	def getGJCommentHistory(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "comments": [
+		        {
+		            "content": {
+		                "userName": userName,
+		                "comment": comment,
+		                "authorPlayerID": authorPlayerID,
+		                "likes": likes,
+		                "dislikes": dislikes,
+		                "messageID": messageID,
+		                "spam": spam,
+		                "authorAccountID": authorAccountID,
+		                "age": age,
+		                "percent": percent,
+		                "modBadge": modBadge,
+		                "moderatorChatColor": moderatorChatColor
+		            },
+		            "sender": {
+		                "userName": userName,
+		                "icon": icon,
+		                "playerColor": playerColor,
+		                "playerColor2": playerColor2,
+		                "iconType": iconType,
+		                "glow": glow,
+		                "accountID": accountID
+		            }
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''	
+		return Parse.getGJComments21(rawText, normalise)
+
+	@staticmethod
+	def getGJUsers20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "users": [
+		        {
+		            "userName": userName,
+		            "userID": userID,
+		            "stars": stars,
+		            "demons": demons,
+		            "ranking": ranking,
+		            "accountHighlight": accountHighlight,
+		            "creatorPoints": creatorPoints,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "secretCoins": secretCoins,
+		            "iconType": iconType,
+		            "special": special,
+		            "accountID": accountID,
+		            "userCoins": userCoins,
+		            "messageState": messageState,
+		            "friendsState": friendsState,
+		            "youTube": youTube,
+		            "accIcon": accIcon,
+		            "accShip": accShip,
+		            "accBall": accBall,
+		            "accBird": accBird,
+		            "accWave": accWave,
+		            "accRobot": accRobot,
+		            "accStreak": accStreak,
+		            "accGlow": accGlow,
+		            "isRegistered": isRegistered,
+		            "globalRank": globalRank,
+		            "friendState": friendState,
+		            "messages": messages,
+		            "friendRequests": friendRequests,
+		            "newFriends": newFriends,
+		            "newFriendRequest": newFriendRequest,
+		            "age": age,
+		            "accSpider": accSpider,
+		            "twitter": twitter,
+		            "twitch": twitch,
+		            "diamonds": diamonds,
+		            "accExplosion": accExplosion,
+		            "modLevel": modLevel,
+		            "commentHistoryState": commentHistoryState,
+		            "color3": color3,
+		            "moons": moons,
+		            "accSwing": accSwing,
+		            "accJetpack": accJetpack,
+		            "demonBreakdown": {
+		                "easyDemonCompletions": easyDemonCompletions,
+		                "mediumDemonCompletions": mediumDemonCompletions,
+		                "hardDemonCompletions": hardDemonCompletions,
+		                "insaneDemonCompletions": insaneDemonCompletions,
+		                "extremeDemonCompletions": extremeDemonCompletions,
+		                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+		                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+		                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+		                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+		                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+		                "weeklyDemonCompletions": weeklyDemonCompletions,
+		                "gauntletDemonCompletions": gauntletDemonCompletions
+		            },
+		            "classicLevelBreakdown": {
+		                "autoCompletions": autoCompletions,
+		                "easyCompletions": easyCompletions,
+		                "normalCompletions": normalCompletions,
+		                "hardCompletions": hardCompletions,
+		                "harderCompletions": harderCompletions,
+		                "insaneCompletions": insaneCompletions,
+		                "dailyCompletions": dailyCompletions,
+		                "gauntletCompletions": gauntletCompletions
+		            },
+		            "platformerLevelBreakdown": {
+		                "autoPlatformerCompletions": autoPlatformerCompletions,
+		                "easyPlatformerCompletions": easyPlatformerCompletions,
+		                "normalPlatformerCompletions": normalPlatformerCompletions,
+		                "hardPlatformerCompletions": hardPlatformerCompletions,
+		                "harderPlatformerCompletions": harderPlatformerCompletions,
+		                "insanePlatformerCompletions": insanePlatformerCompletions
+		            }
+		        },
+		        ...
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''
+		mainPart, paginationPart = rawText.rsplit("#", 1)
+		pagination = Parse._parsePagination(paginationPart)
+	
+		userBlocks = mainPart.split("|")
+	
+		users = []
+	
+		for block in userBlocks:
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+	
+			if not parsed:
+				continue
+			
+			if normalise is True:
+				Parse._remap(parsed, 1)
+	
+			users.append(parsed)
+	
+		return {
+			"users": users,
+			"pagination": pagination
+		}
+
+	@staticmethod
+	def getGJUserList20(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "users": [
+		        {
+		            "userName": userName,
+		            "userID": userID,
+		            "stars": stars,
+		            "demons": demons,
+		            "ranking": ranking,
+		            "accountHighlight": accountHighlight,
+		            "creatorPoints": creatorPoints,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "secretCoins": secretCoins,
+		            "iconType": iconType,
+		            "special": special,
+		            "accountID": accountID,
+		            "userCoins": userCoins,
+		            "messageState": messageState,
+		            "friendsState": friendsState,
+		            "youTube": youTube,
+		            "accIcon": accIcon,
+		            "accShip": accShip,
+		            "accBall": accBall,
+		            "accBird": accBird,
+		            "accWave": accWave,
+		            "accRobot": accRobot,
+		            "accStreak": accStreak,
+		            "accGlow": accGlow,
+		            "isRegistered": isRegistered,
+		            "globalRank": globalRank,
+		            "friendState": friendState,
+		            "messages": messages,
+		            "friendRequests": friendRequests,
+		            "newFriends": newFriends,
+		            "newFriendRequest": newFriendRequest,
+		            "age": age,
+		            "accSpider": accSpider,
+		            "twitter": twitter,
+		            "twitch": twitch,
+		            "diamonds": diamonds,
+		            "accExplosion": accExplosion,
+		            "modLevel": modLevel,
+		            "commentHistoryState": commentHistoryState,
+		            "color3": color3,
+		            "moons": moons,
+		            "accSwing": accSwing,
+		            "accJetpack": accJetpack,
+		            "demonBreakdown": {
+		                "easyDemonCompletions": easyDemonCompletions,
+		                "mediumDemonCompletions": mediumDemonCompletions,
+		                "hardDemonCompletions": hardDemonCompletions,
+		                "insaneDemonCompletions": insaneDemonCompletions,
+		                "extremeDemonCompletions": extremeDemonCompletions,
+		                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
+		                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
+		                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
+		                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
+		                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
+		                "weeklyDemonCompletions": weeklyDemonCompletions,
+		                "gauntletDemonCompletions": gauntletDemonCompletions
+		            },
+		            "classicLevelBreakdown": {
+		                "autoCompletions": autoCompletions,
+		                "easyCompletions": easyCompletions,
+		                "normalCompletions": normalCompletions,
+		                "hardCompletions": hardCompletions,
+		                "harderCompletions": harderCompletions,
+		                "insaneCompletions": insaneCompletions,
+		                "dailyCompletions": dailyCompletions,
+		                "gauntletCompletions": gauntletCompletions
+		            },
+		            "platformerLevelBreakdown": {
+		                "autoPlatformerCompletions": autoPlatformerCompletions,
+		                "easyPlatformerCompletions": easyPlatformerCompletions,
+		                "normalPlatformerCompletions": normalPlatformerCompletions,
+		                "hardPlatformerCompletions": hardPlatformerCompletions,
+		                "harderPlatformerCompletions": harderPlatformerCompletions,
+		                "insanePlatformerCompletions": insanePlatformerCompletions
+		            }
+		        },
+		        ...
+		    ]
+		}
+		```
+		'''
+		commentBlocks = rawText.split("|")
+	
+		users = []
+		for block in commentBlocks:
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			if not parsed:
+				continue
+
+			if normalise is True:
+				Parse._remap(parsed, 1)
+
+			users.append(parsed)
+	
+		return {
+			"users": users
+		}
+
+	@staticmethod
+	def loginGJAccount(rawText: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "accountID": accountID,
+		    "uuid": uuid
+		}
+		```
+		'''
+		data = rawText.split(",")
+
+		return {
+			"accountID": data[0],
+			"uuid": data[1]
+		}
+
+	@staticmethod
+	def getGJTopArtists(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "artists": [
+		        {
+		            "ID": ID,
+		            "name": name,
+		            "artistID": artistID,
+		            "artistName": artistName,
+		            "size": size,
+		            "videoID": videoID,
+		            "youtubeURL": youtubeURL,
+		            "isVerified": isVerified,
+		            "songPriority": songPriority,
+		            "link": link,
+		            "nongEnum": nongEnum,
+		            "extraArtistIDs": extraArtistIDs,
+		            "new": new,
+		            "newType": newType,
+		            "extraArtistNames": extraArtistNames
+		        }
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''	
+		mainPart, paginationPart = rawText.rsplit("#", 1)
+		pagination = Parse._parsePagination(paginationPart)
+	
+		artistBlocks = mainPart.split("|")
+	
+		artists = []
+		for block in artistBlocks:
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+
+			if not parsed:
+				continue
+
+			if normalise is True:
+				Parse._remap(parsed, 9)
+
+			artists.append(parsed)
+	
+		return {
+			"artists": artists,
+			"pagination": pagination
+		}
+
+	@staticmethod
+	def syncGJAccountNew(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "gameManager": gameManager,    # Decoded string
+		    "levelManager": levelManager,  # Decoded string
+		    "gameVersion": gameVersion,
+		    "binaryVersion": binaryVersion,
+		    "levels": {
+		        levelID: stars,
+		        ...
+		    },
+		    "mapPacks": [
+		        {
+		            "packID": packID,
+		            "packName": packName,
+		            "levels": [
+		                levelID,
+		                ...
+		            ],
+		            "stars": stars,
+		            "coins": coins,
+		            "difficulty": difficulty,
+		            "textColor": {
+		                "r": r,
+		                "g": g,
+		                "b": b
+		            },
+		            "barColor": {
+		                "r": r,
+		                "g": g,
+		                "b": b
+		            }
+		        }
+		    ]
+		}
+		```
+		'''
+		gameManager, levelManager, gameVersion, binaryVersion, levels, mapPacks = rawText.split(";")
+
+		gameManager = Tools.Encryption.decodeString(gameManager, 17)
+		levelManager = Tools.Encryption.decodeString(levelManager, 17)
+		
+		levels = Tools.Encryption.decodeString(levels, 18)
+		mapPacks = Tools.Encryption.decodeString(mapPacks, 18)
+
+		levels = Parse._parseKeyValuePairs(levels, splitter=",")
+
+		mapBlocks = []
+		for block in mapPacks.split("|"):
+			parsed = Parse._parseKeyValuePairs(block, splitter=":")
+			parsed["3"] = (
+				[
+					int(levelID)
+					for levelID in parsed["3"].split(",")
+				]
+				if isinstance(parsed["3"], str)
+				else [parsed["3"]]
+			)
+			r, g, b = map(int, parsed["7"].split(","))
+			parsed["7"] = {
+				"r": r,
+				"g": g,
+				"b": b
+			}
+			
+			r, g, b = map(int, parsed["8"].split(","))
+			parsed["8"] = {
+				"r": r,
+				"g": g,
+				"b": b
+			}
+
+			mapBlocks.append(parsed)
+
+		if normalise is True:
+			for mapPack in mapBlocks:
+				Parse._remap(mapPack, 11)
+
+		return {
+			"gameManager": gameManager,
+			"levelManager": levelManager,
+			"gameVersion": gameVersion,
+			"binaryVersion": binaryVersion,
+			"levels": levels,
+			"mapPacks": mapBlocks
+		}
+
 class Tools:
 	
 	class LevelInfo:
@@ -186,23 +2429,6 @@ class Tools:
 			return f"{h}h {m}m {s}s"
 	
 		@staticmethod
-		def _extractPassword(rawData: str) -> str:
-			"""
-			Extracts level password, will not work on gmd files
-			"""
-			meta = Tools.LevelInfo._parseServerLevel(rawData)
-			encoded = meta.get("27", "")
-			if encoded in ("", "0", "Aw=="):
-				return "(none)"
-			try:
-				if encoded.isdigit():
-					return encoded
-				decoded = Tools.decodeLevelPassword(encoded)
-				return decoded if decoded else "(free copy)"
-			except Exception:
-				return "(error)"
-	
-		@staticmethod
 		def _getLevelInfo(
 			meta: dict[str, str],
 			rawData: str,
@@ -268,7 +2494,7 @@ class Tools:
 			info["Two-Player"] = "Yes" if meta.get("31", "0") == "1" else "No"
 			info["Feature Score"] = meta.get("19", "NA")
 			info["Level Size"] = f"{Tools.LevelInfo._formatBytes(len(objectString.encode('utf-8')))}"
-			info["Password"] = Tools.LevelInfo._extractPassword(rawData)
+			info["Password"] = Tools.decodeLevelPassword(rawData)
 			info["Object Count"] = str(sum(counts.values()))
 			return info
 	
@@ -441,7 +2667,7 @@ class Tools:
 		"""
 		Tools related to encoding and decoding data
 		"""
-
+	
 		@staticmethod
 		def buildSaveData(gameManager, localLevels):
 			manager = Tools.Encryption.encodeString(gameManager, 17)
@@ -627,18 +2853,6 @@ class Tools:
 	
 			else: return data
 	
-		@staticmethod
-		def encodeLevelStr(decoded: str, useGzip: bool = True) -> str:
-			data = decoded.encode()
-			if useGzip:
-				buf = io.BytesIO()
-				with gzip.GzipFile(fileobj=buf, mode="wb", mtime=0) as f:
-					f.write(data)
-				compressed = buf.getvalue()
-			else:
-				compressed = zlib.compress(data)[2:-4]
-			return Tools.b64EncodeUrlSafeBytes(compressed).decode()
-	
 	class Hashes:
 	
 		@staticmethod
@@ -751,2249 +2965,6 @@ class Tools:
 		def hashGetGJRewards(undecodedResponse: str) -> str:
 			salt = Tools.getSalt(7)
 			return hashlib.sha1((undecodedResponse[5:] + salt).encode()).hexdigest()
-	
-	class Parse:
-	
-		@staticmethod
-		def _safeInt(value: str):
-			if value is None:
-				return None
-			if value == "":
-				return ""
-			if str(value).isdigit():
-				return int(value)
-			return value
-	
-		@staticmethod
-		def _decode(value: str):
-			try:
-				return Tools.b64DecodeUrlSafe(value)
-			except Exception:
-				return value
-	
-		@staticmethod
-		def _parseCreators(segment: str):
-			creators = []
-			entries = segment.split("|")
-	
-			for entry in entries:
-				parts = entry.split(":")
-				creators.append({
-					"userID": int(parts[0]),
-					"username": parts[1],
-					"accountID": int(parts[2])
-				})
-	
-			return creators
-	
-		@staticmethod
-		def _parseSongs(segment: str):
-			songs = []
-			
-			for entry in segment.split(":"):
-				if not entry:
-					continue
-
-				if entry.startswith("~"):
-					entry = entry[1:]
-
-				song = Tools.Parse._parseKeyValuePairs(entry, splitter="~|~")
-	
-				songs.append(song)
-	
-			return songs
-	
-		@staticmethod
-		def _parseKeyValuePairs(segment: str, splitter: str = "~"):
-			parts = segment.split(splitter)
-			result = {}
-	
-			i = 0
-			while i < len(parts) - 1:
-				key = str(parts[i])
-				value = parts[i + 1]
-		
-				if value.isdigit():
-					value = int(value)
-				elif value == "":
-					value = ""
-	
-				result[key] = value
-				i += 2
-	
-			return result
-			
-		@staticmethod
-		def _parseLevelCommentBlock(block: str):
-			contentRaw, senderRaw = block.split(":", 1)
-		
-			contentData = Tools.Parse._parseKeyValuePairs(contentRaw)
-			senderData = Tools.Parse._parseKeyValuePairs(senderRaw)
-		
-			if contentData["2"]:
-				contentData["2"] = Tools.b64DecodeUrlSafe(contentData["2"])
-		
-			return {
-				"content": contentData,
-				"sender": senderData
-			}
-	
-		@staticmethod
-		def _parseAccountCommentBlock(block: str):
-			contentData = Tools.Parse._parseKeyValuePairs(block)
-		
-			if contentData["2"]:
-				contentData["2"] = Tools.b64DecodeUrlSafe(contentData["2"])
-		
-			return {
-				"content": contentData
-			}
-	
-		@staticmethod
-		def _parsePagination(lastSegment: str):
-			try:
-				total, offset, amount = lastSegment.split(":")
-				return {
-					"total": int(total),
-					"offset": int(offset),
-					"amount": int(amount)
-				}
-			except Exception:
-				return None
-	
-		@staticmethod
-		def _getObjectMap(type_):
-			"""
-			Type 1: User
-			Type 2: Comment
-			Type 3: Comment User
-			Type 4: Friend Request
-			Type 5: Gauntlet
-			Type 6: Gauntlet Names
-			Type 7: Level Leaderboard
-			Type 8: Level
-			Type 9: Song
-			Type 10: Message
-			Type 11: Map Pack
-			Type 12: List
-			"""
-			if type_ == 1:
-				result = {
-					"1": "userName",
-					"2": "userID",
-					"3": "stars",
-					"4": "demons",
-					"6": "ranking",
-					"7": "accountHighlight",
-					"8": "creatorPoints",
-					"9": "iconID",
-					"10": "color1",
-					"11": "color2",
-					"13": "secretCoins",
-					"14": "iconType",
-					"15": "special",
-					"16": "accountID",
-					"17": "userCoins",
-					"18": "messageState",
-					"19": "friendsState",
-					"20": "youTube",
-					"21": "accIcon",
-					"22": "accShip",
-					"23": "accBall",
-					"24": "accBird",
-					"25": "accWave",
-					"26": "accRobot",
-					"27": "accStreak",
-					"28": "accGlow",
-					"29": "isRegistered",
-					"30": "globalRank",
-					"31": "friendState",
-					"38": "messages",
-					"39": "friendRequests",
-					"40": "newFriends",
-					"41": "newFriendRequest",
-					"42": "age",
-					"43": "accSpider",
-					"44": "twitter",
-					"45": "twitch",
-					"46": "diamonds",
-					"48": "accExplosion",
-					"49": "modLevel",
-					"50": "commentHistoryState",
-					"51": "color3",
-					"52": "moons",
-					"53": "accSwing",
-					"54": "accJetpack",
-					"55": "demonBreakdown",
-					"56": "classicLevelBreakdown",
-					"57": "platformerLevelBreakdown"
-				}
-				return result
-	
-			elif type_ == 2:
-				result = {
-					"1": "userName",
-					"2": "comment",
-					"3": "authorPlayerID",
-					"4": "likes",
-					"5": "dislikes",
-					"6": "messageID",
-					"7": "spam",
-					"8": "authorAccountID",
-					"9": "age",
-					"10": "percent",
-					"11": "modBadge",
-					"12": "moderatorChatColor"
-				}
-				return result
-	
-			elif type_ == 3:
-				result = {
-					"1": "userName",
-					"9": "icon",
-					"10": "playerColor",
-					"11": "playerColor2",
-					"14": "iconType",
-					"15": "glow",
-					"16": "accountID"
-				}
-				return result
-	
-			elif type_ == 4:
-				result = {
-					"1": "userName",
-					"2": "playerID",
-					"9": "icon",
-					"10": "playerColor",
-					"11": "playerColor2",
-					"14": "iconType",
-					"15": "glow",
-					"16": "accountID",
-					"32": "friendRequestID",
-					"35": "message",
-					"37": "age",
-					"41": "NewFriendRequest"
-				}
-				return result
-	
-			elif type_ == 5:
-				result = {
-					"1": "gauntletID",
-					"3": "levels",
-				}
-				return result
-	
-			elif type_ == 6:
-				result = {
-					"1": "Fire",
-					"2": "Ice",
-					"3": "Poison",
-					"4": "Shadow",
-					"5": "Lava",
-					"6": "Bonus",
-					"7": "Chaos",
-					"8": "Demon",
-					"9": "Time",
-					"10": "Crystal",
-					"11": "Magic",
-					"12": "Spike",
-					"13": "Monster",
-					"14": "Doom",
-					"15": "Death",
-					"16": "Forest",
-					"17": "Rune",
-					"18": "Force",
-					"19": "Spooky",
-					"20": "Dragon",
-					"21": "Water",
-					"22": "Haunted",
-					"23": "Acid",
-					"24": "Witch",
-					"25": "Power",
-					"26": "Potion",
-					"27": "Snake",
-					"28": "Toxic",
-					"29": "Halloween",
-					"30": "Treasure",
-					"31": "Ghost",
-					"32": "Gem",
-					"33": "Inferno",
-					"34": "Portal",
-					"35": "Strange",
-					"36": "Fantasy",
-					"37": "Christmas",
-					"38": "Surprise",
-					"39": "Mystery",
-					"40": "Cursed",
-					"41": "Cyborg",
-					"42": "Castle",
-					"43": "Grave",
-					"44": "Temple",
-					"46": "World",
-					"47": "Galaxy",
-					"48": "Universe",
-					"49": "Discord",
-					"50": "Split",
-					"51": "NCS I",
-					"52": "NCS II",
-					"53": "Space",
-					"54": "Cosmos"
-				}
-				return result
-
-			elif type_ == 7:
-				result = {
-					"1": "userName",
-					"2": "playerID",
-					"3": "percentage",
-					"6": "ranking",
-					"9": "icon",
-					"10": "playerColor",
-					"11": "playerColor2",
-					"13": "coins",
-					"14": "iconType",
-					"15": "special",
-					"16": "accountID",
-					"42": "age"
-				}
-				return result
-
-			elif type_ == 8:
-				result = {
-					"1": "levelID",
-					"2": "levelName",
-					"3": "description",
-					"4": "levelString",
-					"5": "version",
-					"6": "playerID",
-					"8": "difficultyDenominator",
-					"9": "difficultyNumerator",
-					"10": "downloads",
-					"11": "setCompletes",
-					"12": "officialSong",
-					"13": "gameVersion",
-					"14": "likes",
-					"15": "length",
-					"16": "dislikes",
-					"17": "demon",
-					"18": "stars",
-					"19": "featureScore",
-					"25": "auto",
-					"26": "recordString",
-					"27": "password",
-					"28": "uploadDate",
-					"29": "updateDate",
-					"30": "copiedID",
-					"31": "twoPlayer",
-					"35": "customSongID",
-					"36": "extraString",
-					"37": "coins",
-					"38": "verifiedCoins",
-					"39": "starsRequested",
-					"40": "lowDetailMode",
-					"41": "dailyNumber",
-					"42": "epic",
-					"43": "demonDifficulty",
-					"44": "isGauntlet",
-					"45": "objects",
-					"46": "editorTime",
-					"47": "editorTimeCopies",
-					"48": "settingsString",
-					"52": "songIDs",
-					"53": "sfxIDs",
-					"54": "unknown",
-					"57": "verificationTime"
-				}
-				return result
-
-			elif type_ == 9:
-				result = {
-					"1": "ID",
-					"2": "name",
-					"3": "artistID",
-					"4": "artistName",
-					"5": "size",
-					"6": "videoID",
-					"7": "youtubeURL",
-					"8": "isVerified",
-					"9": "songPriority",
-					"10": "link",
-					"11": "nongEnum",
-					"12": "extraArtistIDs",
-					"13": "new",
-					"14": "newType",
-					"15": "extraArtistNames"
-				}
-				return result
-
-			elif type_ == 10:
-				result = {
-					"1": "messageID",
-					"2": "accountID",
-					"3": "playerID",
-					"4": "title",
-					"5": "messageContent",
-					"6": "userName",
-					"7": "age",
-					"8": "read",
-					"9": "sender"
-				}
-				return result
-
-			elif type_ == 11:
-				result = {
-					"1": "packID",
-					"2": "packName",
-					"3": "levels",
-					"4": "stars",
-					"5": "coins",
-					"6": "difficulty",
-					"7": "textColor",
-					"8": "barColor"
-				}
-				return result
-
-			elif type_ == 12:
-				result = {
-					"1": "listID",
-					"2": "listName",
-					"3": "description",
-					"5": "version",
-					"7": "difficulty",
-					"10": "downloads",
-					"14": "likes",
-					"19": "rated",
-					"28": "uploadDate",
-					"29": "updateDate",
-					"49": "accountID",
-					"50": "username",
-					"51": "levelIDs",
-					"55": "listReward",
-					"56": "listRewardRequirement"
-				}
-				return result
-
-			else:
-				return {}
-	
-		@staticmethod
-		def _remap(parsed, type_):
-			"""
-			Type 1: User
-			Type 2: Comment
-			Type 3: Comment User
-			Type 4: Friend Request
-			Type 5: Gauntlet
-			Type 6: Gauntlet Names
-			Type 7: Level Leaderboard
-			Type 8: Level
-			Type 9: Song
-			Type 10: Message
-			Type 11: Map Pack
-			Type 12: List
-			"""
-			for oldKey, newKey in Tools.Parse._getObjectMap(type_).items():
-				if oldKey in parsed:
-					parsed[newKey] = parsed.pop(oldKey)
-
-		@staticmethod
-		def getGJLevels21(rawText: str, normalise: bool = True):
-			'''
-			Format:
-		
-			```py
-			{
-			    "levels": [
-			        {
-			            "levelID": levelID,
-			            "levelName": levelName,
-			            "description": description,
-			            "levelString": levelString,
-			            "version": version,
-			            "playerID": playerID,
-			            "difficultyDenominator": difficultyDenominator,
-			            "difficultyNumerator": difficultyNumerator,
-			            "downloads": downloads,
-			            "setCompletes": setCompletes,
-			            "officialSong": officialSong,
-			            "gameVersion": gameVersion,
-			            "likes": likes,
-			            "length": length,
-			            "dislikes": dislikes,
-			            "demon": demon,
-			            "stars": stars,
-			            "featureScore": featureScore,
-			            "auto": auto,
-			            "recordString": recordString,
-			            "password": password,
-			            "uploadDate": uploadDate,
-			            "updateDate": updateDate,
-			            "copiedID": copiedID,
-			            "twoPlayer": twoPlayer,
-			            "customSongID": customSongID,
-			            "extraString": extraString,
-			            "coins": coins,
-			            "verifiedCoins": verifiedCoins,
-			            "starsRequested": starsRequested,
-			            "lowDetailMode": lowDetailMode,
-			            "dailyNumber": dailyNumber,
-			            "epic": epic,
-			            "demonDifficulty": demonDifficulty,
-			            "isGauntlet": isGauntlet,
-			            "objects": objects,
-			            "editorTime": editorTime,
-			            "editorTimeCopies": editorTimeCopies,
-			            "settingsString": settingsString,
-			            "songIDs": songIDs,
-			            "sfxIDs": sfxIDs,
-			            "unknown": unknown,
-			            "verificationTime": verificationTime
-			        }
-			    ],
-			    "creators": [
-			        {
-			            "userID": userID,
-			            "username": username,
-			            "accountID": accountID
-			        }
-			    ],
-			    "songs": [
-			        {
-			            "ID": ID,
-			            "name": name,
-			            "artistID": artistID,
-			            "artistName": artistName,
-			            "size": size,
-			            "videoID": videoID,
-			            "youtubeURL": youtubeURL,
-			            "isVerified": isVerified,
-			            "songPriority": songPriority,
-			            "link": link,
-			            "nongEnum": nongEnum,
-			            "extraArtistIDs": extraArtistIDs,
-			            "new": new,
-			            "newType": newType,
-			            "extraArtistNames": extraArtistNames
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    },
-			    "hash": hash
-			}
-			```
-			'''
-			parts = rawText.split("#")
-	
-			levelSection = parts[0]
-			creatorSection = parts[1]
-			songSection = parts[2]
-			pageInfo = parts[3]
-			hashValue = parts[4]
-	
-			levels = []
-			for block in levelSection.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-
-				if not parsed:
-					continue
-
-				parsed["3"] = Tools.Parse._decode(parsed["3"])
-
-				if normalise is True:
-					Tools.Parse._remap(parsed, 8)
-
-				levels.append(parsed)
-
-	
-			creators = Tools.Parse._parseCreators(creatorSection)
-			songs = Tools.Parse._parseSongs(songSection)
-			if normalise is True:
-					for song in songs:
-						Tools.Parse._remap(song, 9)
-			pagination = Tools.Parse._parsePagination(pageInfo)
-	
-			return {
-				"levels": levels,
-				"creators": creators,
-				"songs": songs,
-				"pagination": pagination,
-				"hash": hashValue
-			}
-
-		@staticmethod
-		def getGJComments21(rawText: str, normalise: bool = True):
-			'''
-			Format:
-		
-			```py
-			{
-			    "comments": [
-			        {
-			            "content": {
-			                "userName": userName,
-			                "comment": comment,
-			                "authorPlayerID": authorPlayerID,
-			                "likes": likes,
-			                "dislikes": dislikes,
-			                "messageID": messageID,
-			                "spam": spam,
-			                "authorAccountID": authorAccountID,
-			                "age": age,
-			                "percent": percent,
-			                "modBadge": modBadge,
-			                "moderatorChatColor": moderatorChatColor
-			            },
-			            "sender": {
-			                "userName": userName,
-			                "icon": icon,
-			                "playerColor": playerColor,
-			                "playerColor2": playerColor2,
-			                "iconType": iconType,
-			                "glow": glow,
-			                "accountID": accountID
-			            }
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    }
-			}
-			```
-			'''	
-			mainPart, paginationPart = rawText.rsplit("#", 1)
-			pagination = Tools.Parse._parsePagination(paginationPart)
-		
-			commentBlocks = mainPart.split("|")
-		
-			comments = []
-			for block in commentBlocks:
-				parsed = Tools.Parse._parseLevelCommentBlock(block)
-				if not parsed:
-					continue
-	
-				if normalise is True:
-					Tools.Parse._remap(parsed["content"], 2)
-					Tools.Parse._remap(parsed["sender"], 3)
-	
-	
-				comments.append(parsed)
-		
-			return {
-				"comments": comments,
-				"pagination": pagination
-			}
-	
-		@staticmethod
-		def getGJAccountComments20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-		
-			```py
-			{
-			    "comments": [
-			        {
-			            "content": {
-			                "userName": userName,
-			                "comment": comment,
-			                "authorPlayerID": authorPlayerID,
-			                "likes": likes,
-			                "dislikes": dislikes,
-			                "messageID": messageID,
-			                "spam": spam,
-			                "authorAccountID": authorAccountID,
-			                "age": age,
-			                "percent": percent,
-			                "modBadge": modBadge,
-			                "moderatorChatColor": moderatorChatColor
-			            }
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    }
-			}
-			```
-			'''
-			mainPart, paginationPart = rawText.rsplit("#", 1)
-			pagination = Tools.Parse._parsePagination(paginationPart)
-		
-			commentBlocks = mainPart.split("|")
-		
-			comments = []
-			for block in commentBlocks:
-				parsed = Tools.Parse._parseAccountCommentBlock(block)
-				if not parsed:
-					continue
-
-				if normalise is True:
-					Tools.Parse._remap(parsed["content"], 2)
-
-				comments.append(parsed)
-		
-			return {
-				"comments": comments,
-				"pagination": pagination
-			}
-	
-		@staticmethod
-		def getGJRewards(rawText: str):
-			'''
-			Format:
-			
-			```py
-			{
-			    "rewards": {
-			        "randomHash": randomHash,
-			        "uuid": uuid,
-			        "decodedChk": decodedChk,
-			        "udid": udid,
-			        "accountID": accountID,
-			        "smallChestSecondsLeft": smallChestSecondsLeft,
-			        "smallChestRewards": {
-			            "orbs": orbs,
-			            "diamonds": diamonds,
-			            "shardTypes": [
-			                shardType1,
-			                shardType2
-			            ]
-			        },
-			        "smallChestsClaimedBefore": smallChestsClaimedBefore,
-			        "largeChestSecondsLeft": largeChestSecondsLeft,
-			        "largeChestRewards": {
-			            "orbs": orbs,
-			            "diamonds": diamonds,
-			            "shardTypes": [
-			                shardType1,
-			                shardType2
-			            ]
-			        },
-			        "largeChestsClaimedBefore": largeChestsClaimedBefore,
-			        "requestType": requestType
-			    },
-			    "hash": hash
-			}
-			```
-			'''
-			data = rawText.split("|")
-			rewards = Tools.Encryption.decodeString(data[0], 14).split(":")
-			
-		
-			randomHash = rewards[0]
-			uuid = int(rewards[1])
-			decodedChk = int(rewards[2])
-			udid = rewards[3]
-			accountID = int(rewards[4])
-			smallChestSecondsLeft = int(rewards[5])
-		
-			smallChestRewards = rewards[6].split(",")
-			orbs1 = int(smallChestRewards[0])
-			diamonds1 = int(smallChestRewards[1])
-			shard1 = int(smallChestRewards[2])
-			shard2 = int(smallChestRewards[3])
-		
-			smallChestsClaimedBefore = int(rewards[7])
-			largeChestSecondsLeft = int(rewards[8])
-		
-			largeChestRewards = rewards[9].split(",")
-			orbs2 = int(largeChestRewards[0])
-			diamonds2 = int(largeChestRewards[1])
-			shard3 = int(largeChestRewards[2])
-			shard4 = int(largeChestRewards[3])
-		
-			largeChestsClaimedBefore = int(rewards[10])
-			requestType = int(rewards[11])
-		
-		
-			return {"rewards": {
-						"randomHash": randomHash,
-						"uuid": uuid,
-						"decodedChk": decodedChk,
-						"udid": udid,
-						"accountID": accountID,
-						"smallChestSecondsLeft": smallChestSecondsLeft,
-						"smallChestRewards": {
-							"orbs": orbs1,
-							"diamonds": diamonds1,
-							"shardTypes": [
-								shard1,
-								shard2
-								]
-		
-							},
-						"smallChestsClaimedBefore": smallChestsClaimedBefore,
-						"largeChestSecondsLeft": largeChestSecondsLeft,
-						"largeChestRewards": {
-							"orbs": orbs2,
-							"diamonds": diamonds2,
-							"shardTypes": [
-								shard3,
-								shard4
-								]
-		
-							},
-						"largeChestsClaimedBefore": largeChestsClaimedBefore,
-						"requestType": requestType
-						},
-					"hash": data[1]
-					}
-	
-		@staticmethod
-		def getGJUserInfo20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "user": {
-			        "userName": userName,
-			        "userID": userID,
-			        "stars": stars,
-			        "demons": demons,
-			        "ranking": ranking,
-			        "accountHighlight": accountHighlight,
-			        "creatorPoints": creatorPoints,
-			        "iconID": iconID,
-			        "color1": color1,
-			        "color2": color2,
-			        "secretCoins": secretCoins,
-			        "iconType": iconType,
-			        "special": special,
-			        "accountID": accountID,
-			        "userCoins": userCoins,
-			        "messageState": messageState,
-			        "friendsState": friendsState,
-			        "youTube": youTube,
-			        "accIcon": accIcon,
-			        "accShip": accShip,
-			        "accBall": accBall,
-			        "accBird": accBird,
-			        "accWave": accWave,
-			        "accRobot": accRobot,
-			        "accStreak": accStreak,
-			        "accGlow": accGlow,
-			        "isRegistered": isRegistered,
-			        "globalRank": globalRank,
-			        "friendState": friendState,
-			        "messages": messages,
-			        "friendRequests": friendRequests,
-			        "newFriends": newFriends,
-			        "newFriendRequest": newFriendRequest,
-			        "age": age,
-			        "accSpider": accSpider,
-			        "twitter": twitter,
-			        "twitch": twitch,
-			        "diamonds": diamonds,
-			        "accExplosion": accExplosion,
-			        "modLevel": modLevel,
-			        "commentHistoryState": commentHistoryState,
-			        "color3": color3,
-			        "moons": moons,
-			        "accSwing": accSwing,
-			        "accJetpack": accJetpack,
-			        "demonBreakdown": {
-			            "easyDemonCompletions": easyDemonCompletions,
-			            "mediumDemonCompletions": mediumDemonCompletions,
-			            "hardDemonCompletions": hardDemonCompletions,
-			            "insaneDemonCompletions": insaneDemonCompletions,
-			            "extremeDemonCompletions": extremeDemonCompletions,
-			            "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
-			            "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
-			            "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
-			            "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
-			            "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
-			            "weeklyDemonCompletions": weeklyDemonCompletions,
-			            "gauntletDemonCompletions": gauntletDemonCompletions
-			        },
-			        "classicLevelBreakdown": {
-			            "autoCompletions": autoCompletions,
-			            "easyCompletions": easyCompletions,
-			            "normalCompletions": normalCompletions,
-			            "hardCompletions": hardCompletions,
-			            "harderCompletions": harderCompletions,
-			            "insaneCompletions": insaneCompletions,
-			            "dailyCompletions": dailyCompletions,
-			            "gauntletCompletions": gauntletCompletions
-			        },
-			        "platformerLevelBreakdown": {
-			            "autoPlatformerCompletions": autoPlatformerCompletions,
-			            "easyPlatformerCompletions": easyPlatformerCompletions,
-			            "normalPlatformerCompletions": normalPlatformerCompletions,
-			            "hardPlatformerCompletions": hardPlatformerCompletions,
-			            "harderPlatformerCompletions": harderPlatformerCompletions,
-			            "insanePlatformerCompletions": insanePlatformerCompletions
-			        }
-			    }
-			}
-			```
-			'''
-			user = Tools.Parse._parseKeyValuePairs(rawText, ":")
-			result = {"user": user}
-			for key in result["user"]:
-				if key == "55":
-					demons = result["user"][key].split(",")
-					for index, value in enumerate(demons):
-						demons[index] = int(value)
-		
-					result["user"][key] = {
-						"easyDemonCompletions": demons[0],
-						"mediumDemonCompletions": demons[1],
-						"hardDemonCompletions": demons[2],
-						"insaneDemonCompletions": demons[3],
-						"extremeDemonCompletions": demons[4],
-						"easyPlatformerDemonCompletions": demons[5],
-						"mediumPlatformerDemonCompletions": demons[6],
-						"hardPlatformerDemonCompletions": demons[7],
-						"insanePlatformerDemonCompletions": demons[8],
-						"extremePlatformerDemonCompletions": demons[9],
-						"weeklyDemonCompletions": demons[10],
-						"gauntletDemonCompletions": demons[11]
-		
-					}
-				elif key == "56":
-					classics = result["user"][key].split(",")
-					for index, value in enumerate(classics):
-						classics[index] = int(value)
-		
-					result["user"][key] = {
-						"autoCompletions": classics[0],
-						"easyCompletions": classics[1],
-						"normalCompletions": classics[2],
-						"hardCompletions": classics[3],
-						"harderCompletions": classics[4],
-						"insaneCompletions": classics[5],
-						"dailyCompletions": classics[6],
-						"gauntletCompletions": classics[7]
-					}
-		
-				elif key == "57":
-					platformers = result["user"][key].split(",")
-					for index, value in enumerate(platformers):
-						platformers[index] = int(value)
-		
-					result["user"][key] = {
-						"autoPlatformerCompletions": platformers[0],
-						"easyPlatformerCompletions": platformers[1],
-						"normalPlatformerCompletions": platformers[2],
-						"hardPlatformerCompletions": platformers[3],
-						"harderPlatformerCompletions": platformers[4],
-						"insanePlatformerCompletions": platformers[5]
-					}
-	
-			if normalise is True:
-				Tools.Parse._remap(result["user"], 1)
-		
-			return result
-	
-		@staticmethod
-		def downloadGJLevel22(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "level": {"levelID": levelID,
-			              "levelName": levelName,
-			              "description": description,
-			              "levelString": levelString,
-			              "version": version,
-			              "playerID": playerID,
-			              "difficultyDenominator": difficultyDenominator,
-			              "difficultyNumerator": difficultyNumerator,
-			              "downloads": downloads,
-			              "setCompletes": setCompletes,
-			              "officialSong": officialSong,
-			              "gameVersion": gameVersion,
-			              "likes": likes,
-			              "length": length,
-			              "dislikes": dislikes,
-			              "demon": demon,
-			              "stars": stars,
-			              "featureScore": featureScore,
-			              "auto": auto,
-			              "recordString": recordString,
-			              "password": password,
-			              "uploadDate": uploadDate,
-			              "updateDate": updateDate,
-			              "copiedID": copiedID,
-			              "twoPlayer": twoPlayer,
-			              "customSongID": customSongID,
-			              "extraString": extraString,
-			              "coins": coins,
-			              "verifiedCoins": verifiedCoins,
-			              "starsRequested": starsRequested,
-			              "lowDetailMode": lowDetailMode,
-			              "dailyNumber": dailyNumber,
-			              "epic": epic,
-			              "demonDifficulty": demonDifficulty,
-			              "isGauntlet": isGauntlet,
-			              "objects": objects,
-			              "editorTime": editorTime,
-			              "editorTimeCopies": editorTimeCopies,
-			              "settingsString": settingsString,
-			              "songIDs": songIDs,
-			              "sfxIDs": sfxIDs,
-			              "unknown": unknown,
-			              "verificationTime": verificationTime},
-			    "hash1": hash1,
-			    "hash2": hash2,
-			}
-			```
-			'''
-			data = rawText.split("#")
-			level = Tools.Parse._parseKeyValuePairs(data[0], ":")
-			result = {
-				"level": level,
-				"hash1": data[1],
-				"hash2": data[2],
-			}
-			if len(data) > 1:
-				result["hash1"] = data[1]
-				if len(data) > 2:
-					result["hash2"] = data[2]
-
-			if len(data) > 3:
-				if data[3] != "":
-					userID, username, accountID = data[3].split(":")
-					result["dailyCreator"] = {
-						"userID": userID,
-						"username": username,
-						"accountID": accountID
-					}
-				else:
-					result["dailyCreator"] = {}
-				
-				if len(data) > 4:
-					if data[4] != "":
-						songs = Tools.Parse._parseSongs(data[4])
-						result["songs"] = songs
-						if normalise is True:
-							Tools.Parse._remap(result["songs"], 9)
-					else:
-						result["songs"] = []
-	
-			for key in result["level"]:
-				if key == "3":
-					result["level"][key] = Tools.Parse._decode(result["level"][key])
-	
-				elif key == "4":
-					result["level"][key] = Tools.Encryption.decodeString(result["level"][key], 16)
-	
-				elif key == "27":
-					result["level"][key] = Tools.decodeLevelPassword(result["level"][key])
-
-			if normalise is True:
-				Tools.Parse._remap(result["level"], 8)
-
-			return result
-	
-		@staticmethod
-		def getGJGauntlets21(rawText: str, normalise: bool = True):
-			'''
-			Format:
-		
-			```py
-			{
-			    "gauntlets": [
-			        {
-			            "gauntletID": gauntletID,
-			            "levels": [
-			                levelID,
-			                ...
-			            ],
-			            "gauntletName": gauntletName
-			        }
-			    ],
-			    "hash": hash
-			}
-			```
-
-			The gauntletIDs are as follows:
-			```
-			"Fire",
-			"Ice",
-			"Poison",
-			"Shadow",
-			"Lava",
-			"Bonus",
-			"Chaos",
-			"Demon",
-			"Time",
-			"Crystal",
-			"Magic",
-			"Spike",
-			"Monster",
-			"Doom",
-			"Death",
-			"Forest",
-			"Rune",
-			"Force",
-			"Spooky",
-			"Dragon",
-			"Water",
-			"Haunted",
-			"Acid",
-			"Witch",
-			"Power",
-			"Potion",
-			"Snake",
-			"Toxic",
-			"Halloween",
-			"Treasure",
-			"Ghost",
-			"Gem",
-			"Inferno",
-			"Portal",
-			"Strange",
-			"Fantasy",
-			"Christmas",
-			"Surprise",
-			"Mystery",
-			"Cursed",
-			"Cyborg",
-			"Castle",
-			"Grave",
-			"Temple",
-			"World",
-			"Galaxy",
-			"Universe",
-			"Discord",
-			"Split",
-			"NCS I",
-			"NCS II",
-			"Space",
-			"Cosmos"
-			```
-			'''
-			data = rawText.split("#")
-		
-			gauntletSection = data[0]
-			hashValue = data[1]
-		
-			gauntletBlocks = gauntletSection.split("|")
-		
-			gauntlets = []
-	
-			gauntletNameMap = Tools.Parse._getObjectMap(6)
-		
-			for block in gauntletBlocks:
-				parsed = Tools.Parse._parseKeyValuePairs(block, ":")
-		
-				parsed["3"] = (
-					[
-						int(levelID)
-						for levelID in parsed["3"].split(",")
-					]
-					if isinstance(parsed["3"], str)
-					else [parsed["3"]]
-				)
-	
-	
-	
-				if normalise is True:
-					Tools.Parse._remap(parsed, 5)
-					gauntletID = str(parsed["gauntletID"])
-					parsed["gauntletName"] = gauntletNameMap.get(
-						gauntletID,
-						"Unknown"
-					)
-		
-				gauntlets.append(parsed)
-		
-			return {
-				"gauntlets": gauntlets,
-				"hash": hashValue
-			}
-	
-		@staticmethod
-		def getGJLevelLists(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "lists": [
-			        {
-			            "listID": listID,
-			            "listName": listName,
-			            "description": description,
-			            "version": version,
-			            "difficulty": difficulty,
-			            "downloads": downloads,
-			            "likes": likes,
-			            "rated": rated,
-			            "uploadDate": uploadDate,
-			            "updateDate": updateDate,
-			            "accountID": accountID,
-			            "username": username,
-			            "levelIDs": [
-			                levelID,
-			                ...
-			            ],
-			            "listReward": listReward,
-			            "listRewardRequirement": listRewardRequirement
-			        }
-			    ],
-			    "creators": [
-			        {
-			            "userID": userID,
-			            "username": username,
-			            "accountID": accountID
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    },
-			    "hash": hash
-			}
-			```
-			'''
-			parts = rawText.split("#")
-	
-			listSection = parts[0]
-			creatorSection = parts[1]
-			pageInfo = parts[2]
-			hashValue = parts[3]
-	
-			lists = []
-			for block in listSection.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				parsed["3"] = Tools.Parse._decode(parsed["3"])
-				parsed["51"] = (
-					[
-						int(levelID)
-						for levelID in parsed["51"].split(",")
-					]
-					if isinstance(parsed["51"], str)
-					else [parsed["51"]]
-				)
-
-				if normalise is True:
-					Tools.Parse._remap(parsed, 12)
-
-				lists.append(parsed)
-	
-			creators = Tools.Parse._parseCreators(creatorSection)
-	
-			pagination = Tools.Parse._parsePagination(pageInfo)
-	
-			return {
-				"lists": lists,
-				"creators": creators,
-				"pagination": pagination,
-				"hash": hashValue
-			}
-	
-		@staticmethod
-		def getGJFriendRequests20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-		
-			```py
-			{
-			    "users": [
-			        {
-			            "userName": userName,
-			            "playerID": playerID,
-			            "icon": icon,
-			            "playerColor": playerColor,
-			            "playerColor2": playerColor2,
-			            "iconType": iconType,
-			            "glow": glow,
-			            "accountID": accountID,
-			            "friendRequestID": friendRequestID,
-			            "message": message,
-			            "age": age,
-			            "NewFriendRequest": NewFriendRequest
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    }
-			}
-			```
-			'''
-			parts = rawText.split("#")
-	
-			userSection = parts[0]
-			pageInfo = parts[1]
-	
-			users = []
-			for block in userSection.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				parsed["35"] = Tools.Parse._decode(parsed["35"])
-	
-				if normalise is True:
-					Tools.Parse._remap(parsed, 4)
-	
-				users.append(parsed)
-	
-			pagination = Tools.Parse._parsePagination(pageInfo)
-	
-			return {
-				"users": users,
-				"pagination": pagination
-			}
-	
-		@staticmethod
-		def getGJMessages20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "messages": [
-			        {
-			            "messageID": messageID,
-			            "accountID": accountID,
-			            "playerID": playerID,
-			            "title": title,
-			            "messageContent": messageContent,
-			            "userName": userName,
-			            "age": age,
-			            "read": read,
-			            "sender": sender
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    }
-			}
-			```
-			'''
-			parts = rawText.split("#")
-	
-			messageSection = parts[0]
-			pageInfo = parts[1]
-	
-			messages = []
-			for block in messageSection.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				parsed["4"] = Tools.Parse._decode(parsed["4"])
-
-				if normalise is True:
-					Tools.Parse._remap(parsed, 10)
-
-				messages.append(parsed)
-	
-			pagination = Tools.Parse._parsePagination(pageInfo)
-	
-			return {
-				"messages": messages,
-				"pagination": pagination
-			}
-	
-		@staticmethod
-		def downloadGJMessage20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "message": {
-			        "messageID": messageID,
-			        "accountID": accountID,
-			        "playerID": playerID,
-			        "title": title,
-			        "messageContent": messageContent,
-			        "userName": userName,
-			        "age": age,
-			        "read": read,
-			        "sender": sender
-			    }
-			}
-			```
-			'''
-			parts = rawText.split("#")
-	
-			messageSection = parts[0]
-			parsed = {}
-	
-			for block in messageSection.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				parsed["4"] = Tools.Parse._decode(parsed["4"])
-				parsed["5"] = Tools.Encryption.decodeString(parsed["5"], 2)
-
-				if normalise is True:
-					Tools.Parse._remap(parsed, 10)
-	
-			return {
-				"message": parsed
-			}
-	
-		@staticmethod
-		def getGJMapPacks21(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "packs": [
-			        {
-			            "packID": packID,
-			            "packName": packName,
-			            "levels": [
-			                levelID,
-			                ...
-			            ],
-			            "stars": stars,
-			            "coins": coins,
-			            "difficulty": difficulty,
-			            "textColor": {
-			                "r": r,
-			                "g": g,
-			                "b": b
-			            },
-			            "barColor": {
-			                "r": r,
-			                "g": g,
-			                "b": b
-			            }
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    },
-			    "hash": hash
-			}
-			```
-			'''
-			parts = rawText.split("#")
-	
-			mapSection = parts[0]
-			pageInfo = parts[1]
-			hashValue = parts[2]
-	
-			packs = []
-			for block in mapSection.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				parsed["4"] = Tools.Parse._decode(parsed["4"])
-	
-				parsed["3"] = (
-					[
-						int(levelID)
-						for levelID in parsed["3"].split(",")
-					]
-					if isinstance(parsed["3"], str)
-					else [parsed["3"]]
-				)
-	
-				r, g, b = map(int, parsed["7"].split(","))
-				parsed["7"] = {
-					"r": r,
-					"g": g,
-					"b": b
-				}
-				
-				r, g, b = map(int, parsed["8"].split(","))
-				parsed["8"] = {
-					"r": r,
-					"g": g,
-					"b": b
-				}
-				
-				if normalise is True:
-					Tools.Parse._remap(parsed, 11)
-
-				packs.append(parsed)
-	
-			pagination = Tools.Parse._parsePagination(pageInfo)
-	
-			return {
-				"packs": packs,
-				"pagination": pagination,
-				"hash": hashValue
-			}
-	
-		@staticmethod
-		def getGJDailyLevel(rawText: str):
-			'''
-			Format:
-			
-			```py
-			{
-			    "tempID": tempID,
-			    "secondsLeft": secondsLeft
-			}
-			```
-			'''
-			parts = rawText.split("|")
-	
-			return {
-				"tempID": parts[0],
-				"secondsLeft": parts[1]
-			}
-	
-		@staticmethod
-		def getGJScores20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "users": [
-			        {
-			            "userName": userName,
-			            "userID": userID,
-			            "stars": stars,
-			            "demons": demons,
-			            "ranking": ranking,
-			            "accountHighlight": accountHighlight,
-			            "creatorPoints": creatorPoints,
-			            "iconID": iconID,
-			            "color1": color1,
-			            "color2": color2,
-			            "secretCoins": secretCoins,
-			            "iconType": iconType,
-			            "special": special,
-			            "accountID": accountID,
-			            "userCoins": userCoins,
-			            "messageState": messageState,
-			            "friendsState": friendsState,
-			            "youTube": youTube,
-			            "accIcon": accIcon,
-			            "accShip": accShip,
-			            "accBall": accBall,
-			            "accBird": accBird,
-			            "accWave": accWave,
-			            "accRobot": accRobot,
-			            "accStreak": accStreak,
-			            "accGlow": accGlow,
-			            "isRegistered": isRegistered,
-			            "globalRank": globalRank,
-			            "friendState": friendState,
-			            "messages": messages,
-			            "friendRequests": friendRequests,
-			            "newFriends": newFriends,
-			            "newFriendRequest": newFriendRequest,
-			            "age": age,
-			            "accSpider": accSpider,
-			            "twitter": twitter,
-			            "twitch": twitch,
-			            "diamonds": diamonds,
-			            "accExplosion": accExplosion,
-			            "modLevel": modLevel,
-			            "commentHistoryState": commentHistoryState,
-			            "color3": color3,
-			            "moons": moons,
-			            "accSwing": accSwing,
-			            "accJetpack": accJetpack,
-			            "demonBreakdown": {
-			                "easyDemonCompletions": easyDemonCompletions,
-			                "mediumDemonCompletions": mediumDemonCompletions,
-			                "hardDemonCompletions": hardDemonCompletions,
-			                "insaneDemonCompletions": insaneDemonCompletions,
-			                "extremeDemonCompletions": extremeDemonCompletions,
-			                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
-			                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
-			                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
-			                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
-			                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
-			                "weeklyDemonCompletions": weeklyDemonCompletions,
-			                "gauntletDemonCompletions": gauntletDemonCompletions
-			            },
-			            "classicLevelBreakdown": {
-			                "autoCompletions": autoCompletions,
-			                "easyCompletions": easyCompletions,
-			                "normalCompletions": normalCompletions,
-			                "hardCompletions": hardCompletions,
-			                "harderCompletions": harderCompletions,
-			                "insaneCompletions": insaneCompletions,
-			                "dailyCompletions": dailyCompletions,
-			                "gauntletCompletions": gauntletCompletions
-			            },
-			            "platformerLevelBreakdown": {
-			                "autoPlatformerCompletions": autoPlatformerCompletions,
-			                "easyPlatformerCompletions": easyPlatformerCompletions,
-			                "normalPlatformerCompletions": normalPlatformerCompletions,
-			                "hardPlatformerCompletions": hardPlatformerCompletions,
-			                "harderPlatformerCompletions": harderPlatformerCompletions,
-			                "insanePlatformerCompletions": insanePlatformerCompletions
-			            }
-			        },
-			        ...
-			    ]
-			}
-			```
-			'''
-			parts = rawText.split("|")
-	
-			users = []
-			for block in parts:
-				if block != "":
-					parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-					if not parsed:
-						continue
-					
-					if normalise is True:
-						Tools.Parse._remap(parsed, 1)
-				else:
-					parsed = {}
-	
-				users.append(parsed)
-	
-			return {
-				"users": users
-			}
-	
-		@staticmethod
-		def getGJLevelScores211(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "scores": [
-			        {
-			            "userName": userName,
-			            "playerID": playerID,
-			            "percentage": percentage,
-			            "ranking": ranking,
-			            "icon": icon,
-			            "playerColor": playerColor,
-			            "playerColor2": playerColor2,
-			            "coins": coins,
-			            "iconType": iconType,
-			            "special": special,
-			            "accountID": accountID,
-			            "age": age
-			        }
-			    ]
-			}
-			```
-			'''
-			parts = rawText.split("|")
-	
-			scores = []
-			for block in parts:
-				if block != "":
-					parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				else:
-					parsed = {}
-				
-				if normalise is True:
-					Tools.Parse._remap(parsed, 7)
-
-				scores.append(parsed)
-	
-			return {
-				"scores": scores
-			}
-	
-		@staticmethod
-		def getGJLevelScoresPlat(rawText: str):
-			'''
-			Format:
-			
-			```py
-			{
-			    "scores": [
-			        {
-			            "userName": userName,
-			            "playerID": playerID,
-			            "percentage": percentage,
-			            "ranking": ranking,
-			            "icon": icon,
-			            "playerColor": playerColor,
-			            "playerColor2": playerColor2,
-			            "coins": coins,
-			            "iconType": iconType,
-			            "special": special,
-			            "accountID": accountID,
-			            "age": age
-			        }
-			    ]
-			}
-			```
-			'''
-			return Tools.Parse.getGJLevelScores211(rawText)
-	
-		@staticmethod
-		def getGJSecretReward(rawText: str):
-			'''
-			Format:
-			
-			```py
-			{
-			    "reward": {
-			        "randomHash": randomHash,
-			        "decodedChk": decodedChk,
-			        "rewardID": rewardID,
-			        "chestType": chestType,
-			        "rewards": {
-			            rewardType: amount,
-			            ...
-			        }
-			    },
-			    "hash": hash
-			}
-			```
-			'''
-			parts = rawText.split("|")
-	
-			reward = {}
-			rewardValue = Tools.Encryption.decodeString(parts[0], type_=14).split(":")
-			hashValue = parts[1]
-	
-			reward["randomHash"] = rewardValue[0]
-			reward["decodedChk"] = rewardValue[1]
-			reward["rewardID"] = rewardValue[2]
-			reward["chestType"] = rewardValue[3]
-			reward["rewards"] = Tools.Parse._parseKeyValuePairs(rewardValue[4], splitter=",")
-			
-	
-			return {
-				"reward": reward,
-				"hash": hashValue
-			}
-	
-		@staticmethod
-		def getGJSongInfo(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "song": {
-			        "ID": ID,
-			        "name": name,
-			        "artistID": artistID,
-			        "artistName": artistName,
-			        "size": size,
-			        "videoID": videoID,
-			        "youtubeURL": youtubeURL,
-			        "isVerified": isVerified,
-			        "songPriority": songPriority,
-			        "link": link,
-			        "nongEnum": nongEnum,
-			        "extraArtistIDs": extraArtistIDs,
-			        "new": new,
-			        "newType": newType,
-			        "extraArtistNames": extraArtistNames
-			    }
-			}
-			```
-			'''
-			song = Tools.Parse._parseKeyValuePairs(rawText, splitter="~|~")
-
-			if normalise is True:
-				Tools.Parse._remap(song, 9)
-	
-			return {
-				"song": song,
-			}
-	
-		@staticmethod
-		def getGJChallenges(rawText: str):
-			'''
-			Format:
-			
-			```py
-			{
-			    "challenges": {
-			        "randomHash": randomHash,
-			        "uuid": uuid,
-			        "decodedChk": decodedChk,
-			        "udid": udid,
-			        "accountID": accountID,
-			        "secondsLeft": secondsLeft,
-			        "queuedQuests": [
-			            {
-			                "id": id,
-			                "type": type,
-			                "goal": goal,
-			                "reward": reward,
-			                "name": name
-			            }
-			        ]
-			    },
-			    "hash": hash
-			}
-			```
-			'''
-			parts = rawText.split("|")
-	
-			challenges = {}
-			challengeValue = Tools.Encryption.decodeString(parts[0], type_=4).split(":")
-			hashValue = parts[1]
-	
-			challenges["randomHash"] = challengeValue[0]
-			challenges["uuid"] = challengeValue[1]
-			challenges["decodedChk"] = challengeValue[2]
-			challenges["udid"] = challengeValue[3]
-			challenges["accountID"] = challengeValue[4]
-			challenges["secondsLeft"] = challengeValue[5]
-			queuedQuests = []
-	
-			for blocks in challengeValue[6:]:
-				id_, type_, goal, reward, name = map(lambda x: int(x) if x.isdigit() else str(x), blocks.split(","))
-				queuedQuests.append({
-					"id": id_,
-					"type": type_,
-					"goal": goal,
-					"reward": reward,
-					"name": name
-					})
-	
-			challenges["queuedQuests"] = queuedQuests
-	
-			return {
-				"challenges": challenges,
-				"hash": hashValue
-			}
-	
-		@staticmethod
-		def getGJCommentHistory(rawText: str, normalise: bool = True):
-			'''
-			Format:
-		
-			```py
-			{
-			    "comments": [
-			        {
-			            "content": {
-			                "userName": userName,
-			                "comment": comment,
-			                "authorPlayerID": authorPlayerID,
-			                "likes": likes,
-			                "dislikes": dislikes,
-			                "messageID": messageID,
-			                "spam": spam,
-			                "authorAccountID": authorAccountID,
-			                "age": age,
-			                "percent": percent,
-			                "modBadge": modBadge,
-			                "moderatorChatColor": moderatorChatColor
-			            },
-			            "sender": {
-			                "userName": userName,
-			                "icon": icon,
-			                "playerColor": playerColor,
-			                "playerColor2": playerColor2,
-			                "iconType": iconType,
-			                "glow": glow,
-			                "accountID": accountID
-			            }
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    }
-			}
-			```
-			'''	
-			return Tools.Parse.getGJComments21(rawText, normalise)
-	
-		@staticmethod
-		def getGJUsers20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "users": [
-			        {
-			            "userName": userName,
-			            "userID": userID,
-			            "stars": stars,
-			            "demons": demons,
-			            "ranking": ranking,
-			            "accountHighlight": accountHighlight,
-			            "creatorPoints": creatorPoints,
-			            "iconID": iconID,
-			            "color1": color1,
-			            "color2": color2,
-			            "secretCoins": secretCoins,
-			            "iconType": iconType,
-			            "special": special,
-			            "accountID": accountID,
-			            "userCoins": userCoins,
-			            "messageState": messageState,
-			            "friendsState": friendsState,
-			            "youTube": youTube,
-			            "accIcon": accIcon,
-			            "accShip": accShip,
-			            "accBall": accBall,
-			            "accBird": accBird,
-			            "accWave": accWave,
-			            "accRobot": accRobot,
-			            "accStreak": accStreak,
-			            "accGlow": accGlow,
-			            "isRegistered": isRegistered,
-			            "globalRank": globalRank,
-			            "friendState": friendState,
-			            "messages": messages,
-			            "friendRequests": friendRequests,
-			            "newFriends": newFriends,
-			            "newFriendRequest": newFriendRequest,
-			            "age": age,
-			            "accSpider": accSpider,
-			            "twitter": twitter,
-			            "twitch": twitch,
-			            "diamonds": diamonds,
-			            "accExplosion": accExplosion,
-			            "modLevel": modLevel,
-			            "commentHistoryState": commentHistoryState,
-			            "color3": color3,
-			            "moons": moons,
-			            "accSwing": accSwing,
-			            "accJetpack": accJetpack,
-			            "demonBreakdown": {
-			                "easyDemonCompletions": easyDemonCompletions,
-			                "mediumDemonCompletions": mediumDemonCompletions,
-			                "hardDemonCompletions": hardDemonCompletions,
-			                "insaneDemonCompletions": insaneDemonCompletions,
-			                "extremeDemonCompletions": extremeDemonCompletions,
-			                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
-			                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
-			                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
-			                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
-			                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
-			                "weeklyDemonCompletions": weeklyDemonCompletions,
-			                "gauntletDemonCompletions": gauntletDemonCompletions
-			            },
-			            "classicLevelBreakdown": {
-			                "autoCompletions": autoCompletions,
-			                "easyCompletions": easyCompletions,
-			                "normalCompletions": normalCompletions,
-			                "hardCompletions": hardCompletions,
-			                "harderCompletions": harderCompletions,
-			                "insaneCompletions": insaneCompletions,
-			                "dailyCompletions": dailyCompletions,
-			                "gauntletCompletions": gauntletCompletions
-			            },
-			            "platformerLevelBreakdown": {
-			                "autoPlatformerCompletions": autoPlatformerCompletions,
-			                "easyPlatformerCompletions": easyPlatformerCompletions,
-			                "normalPlatformerCompletions": normalPlatformerCompletions,
-			                "hardPlatformerCompletions": hardPlatformerCompletions,
-			                "harderPlatformerCompletions": harderPlatformerCompletions,
-			                "insanePlatformerCompletions": insanePlatformerCompletions
-			            }
-			        },
-			        ...
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    }
-			}
-			```
-			'''
-			mainPart, paginationPart = rawText.rsplit("#", 1)
-			pagination = Tools.Parse._parsePagination(paginationPart)
-		
-			userBlocks = mainPart.split("|")
-		
-			users = []
-		
-			for block in userBlocks:
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-		
-				if not parsed:
-					continue
-				
-				if normalise is True:
-					Tools.Parse._remap(parsed, 1)
-		
-				users.append(parsed)
-		
-			return {
-				"users": users,
-				"pagination": pagination
-			}
-	
-		@staticmethod
-		def getGJUserList20(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "users": [
-			        {
-			            "userName": userName,
-			            "userID": userID,
-			            "stars": stars,
-			            "demons": demons,
-			            "ranking": ranking,
-			            "accountHighlight": accountHighlight,
-			            "creatorPoints": creatorPoints,
-			            "iconID": iconID,
-			            "color1": color1,
-			            "color2": color2,
-			            "secretCoins": secretCoins,
-			            "iconType": iconType,
-			            "special": special,
-			            "accountID": accountID,
-			            "userCoins": userCoins,
-			            "messageState": messageState,
-			            "friendsState": friendsState,
-			            "youTube": youTube,
-			            "accIcon": accIcon,
-			            "accShip": accShip,
-			            "accBall": accBall,
-			            "accBird": accBird,
-			            "accWave": accWave,
-			            "accRobot": accRobot,
-			            "accStreak": accStreak,
-			            "accGlow": accGlow,
-			            "isRegistered": isRegistered,
-			            "globalRank": globalRank,
-			            "friendState": friendState,
-			            "messages": messages,
-			            "friendRequests": friendRequests,
-			            "newFriends": newFriends,
-			            "newFriendRequest": newFriendRequest,
-			            "age": age,
-			            "accSpider": accSpider,
-			            "twitter": twitter,
-			            "twitch": twitch,
-			            "diamonds": diamonds,
-			            "accExplosion": accExplosion,
-			            "modLevel": modLevel,
-			            "commentHistoryState": commentHistoryState,
-			            "color3": color3,
-			            "moons": moons,
-			            "accSwing": accSwing,
-			            "accJetpack": accJetpack,
-			            "demonBreakdown": {
-			                "easyDemonCompletions": easyDemonCompletions,
-			                "mediumDemonCompletions": mediumDemonCompletions,
-			                "hardDemonCompletions": hardDemonCompletions,
-			                "insaneDemonCompletions": insaneDemonCompletions,
-			                "extremeDemonCompletions": extremeDemonCompletions,
-			                "easyPlatformerDemonCompletions": easyPlatformerDemonCompletions,
-			                "mediumPlatformerDemonCompletions": mediumPlatformerDemonCompletions,
-			                "hardPlatformerDemonCompletions": hardPlatformerDemonCompletions,
-			                "insanePlatformerDemonCompletions": insanePlatformerDemonCompletions,
-			                "extremePlatformerDemonCompletions": extremePlatformerDemonCompletions,
-			                "weeklyDemonCompletions": weeklyDemonCompletions,
-			                "gauntletDemonCompletions": gauntletDemonCompletions
-			            },
-			            "classicLevelBreakdown": {
-			                "autoCompletions": autoCompletions,
-			                "easyCompletions": easyCompletions,
-			                "normalCompletions": normalCompletions,
-			                "hardCompletions": hardCompletions,
-			                "harderCompletions": harderCompletions,
-			                "insaneCompletions": insaneCompletions,
-			                "dailyCompletions": dailyCompletions,
-			                "gauntletCompletions": gauntletCompletions
-			            },
-			            "platformerLevelBreakdown": {
-			                "autoPlatformerCompletions": autoPlatformerCompletions,
-			                "easyPlatformerCompletions": easyPlatformerCompletions,
-			                "normalPlatformerCompletions": normalPlatformerCompletions,
-			                "hardPlatformerCompletions": hardPlatformerCompletions,
-			                "harderPlatformerCompletions": harderPlatformerCompletions,
-			                "insanePlatformerCompletions": insanePlatformerCompletions
-			            }
-			        },
-			        ...
-			    ]
-			}
-			```
-			'''
-			commentBlocks = rawText.split("|")
-		
-			users = []
-			for block in commentBlocks:
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				if not parsed:
-					continue
-	
-				if normalise is True:
-					Tools.Parse._remap(parsed, 1)
-	
-				users.append(parsed)
-		
-			return {
-				"users": users
-			}
-	
-		@staticmethod
-		def loginGJAccount(rawText: str):
-			'''
-			Format:
-			
-			```py
-			{
-			    "accountID": accountID,
-			    "uuid": uuid
-			}
-			```
-			'''
-			data = rawText.split(",")
-	
-			return {
-				"accountID": data[0],
-				"uuid": data[1]
-			}
-	
-		@staticmethod
-		def getGJTopArtists(rawText: str, normalise: bool = True):
-			'''
-			Format:
-			
-			```py
-			{
-			    "artists": [
-			        {
-			            "ID": ID,
-			            "name": name,
-			            "artistID": artistID,
-			            "artistName": artistName,
-			            "size": size,
-			            "videoID": videoID,
-			            "youtubeURL": youtubeURL,
-			            "isVerified": isVerified,
-			            "songPriority": songPriority,
-			            "link": link,
-			            "nongEnum": nongEnum,
-			            "extraArtistIDs": extraArtistIDs,
-			            "new": new,
-			            "newType": newType,
-			            "extraArtistNames": extraArtistNames
-			        }
-			    ],
-			    "pagination": {
-			        "total": total,
-			        "offset": offset,
-			        "amount": amount
-			    }
-			}
-			```
-			'''	
-			mainPart, paginationPart = rawText.rsplit("#", 1)
-			pagination = Tools.Parse._parsePagination(paginationPart)
-		
-			artistBlocks = mainPart.split("|")
-		
-			artists = []
-			for block in artistBlocks:
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-
-				if not parsed:
-					continue
-
-				if normalise is True:
-					Tools.Parse._remap(parsed, 9)
-
-				artists.append(parsed)
-		
-			return {
-				"artists": artists,
-				"pagination": pagination
-			}
-	
-		@staticmethod
-		def syncGJAccountNew(rawText: str, normalise: bool = True):
-			'''
-			Format:
-		
-			```py
-			{
-			    "gameManager": gameManager,    # Decoded string
-			    "levelManager": levelManager,  # Decoded string
-			    "gameVersion": gameVersion,
-			    "binaryVersion": binaryVersion,
-			    "levels": {
-			        levelID: stars,
-			        ...
-			    },
-			    "mapPacks": [
-			        {
-			            "packID": packID,
-			            "packName": packName,
-			            "levels": [
-			                levelID,
-			                ...
-			            ],
-			            "stars": stars,
-			            "coins": coins,
-			            "difficulty": difficulty,
-			            "textColor": {
-			                "r": r,
-			                "g": g,
-			                "b": b
-			            },
-			            "barColor": {
-			                "r": r,
-			                "g": g,
-			                "b": b
-			            }
-			        }
-			    ]
-			}
-			```
-			'''
-			gameManager, levelManager, gameVersion, binaryVersion, levels, mapPacks = rawText.split(";")
-	
-			gameManager = Tools.Encryption.decodeString(gameManager, 17)
-			levelManager = Tools.Encryption.decodeString(levelManager, 17)
-			
-			levels = Tools.Encryption.decodeString(levels, 18)
-			mapPacks = Tools.Encryption.decodeString(mapPacks, 18)
-	
-			levels = Tools.Parse._parseKeyValuePairs(levels, splitter=",")
-	
-			mapBlocks = []
-			for block in mapPacks.split("|"):
-				parsed = Tools.Parse._parseKeyValuePairs(block, splitter=":")
-				parsed["3"] = (
-					[
-						int(levelID)
-						for levelID in parsed["3"].split(",")
-					]
-					if isinstance(parsed["3"], str)
-					else [parsed["3"]]
-				)
-				r, g, b = map(int, parsed["7"].split(","))
-				parsed["7"] = {
-					"r": r,
-					"g": g,
-					"b": b
-				}
-				
-				r, g, b = map(int, parsed["8"].split(","))
-				parsed["8"] = {
-					"r": r,
-					"g": g,
-					"b": b
-				}
-
-				mapBlocks.append(parsed)
-
-			if normalise is True:
-				for mapPack in mapBlocks:
-					Tools.Parse._remap(mapPack, 11)
-
-			return {
-				"gameManager": gameManager,
-				"levelManager": levelManager,
-				"gameVersion": gameVersion,
-				"binaryVersion": binaryVersion,
-				"levels": levels,
-				"mapPacks": mapBlocks
-			}
 	
 	@staticmethod
 	def b64EncodeUrlSafe(data: str) -> str:
@@ -3296,10 +3267,23 @@ class Tools:
 		return b.rstrip("=")
 	
 	@staticmethod
-	def decodeLevelPassword(encoded: str) -> str:
-		padded = encoded + "=" * (-len(encoded) % 4)
-		raw = Tools.b64DecodeUrlSafe(padded)
-		return Tools.xorCipher(raw, Tools.getXorKey(5))[1:].lstrip("0")
+	def decodeLevelPassword(encoded: int | str) -> str:
+		encoded = str(encoded)
+		if encoded in ("", "0"):
+			return "(none)"
+	
+		try:
+			if encoded.isdigit():
+				return encoded
+	
+			padded = encoded + "=" * (-len(encoded) % 4)
+			raw = Tools.b64DecodeUrlSafe(padded)
+			decoded = Tools.xorCipher(raw, Tools.getXorKey(5))[1:].lstrip("0")
+	
+			return decoded if decoded else "(free copy)"
+	
+		except Exception:
+			return "(error)"
 	
 	@staticmethod
 	def generateRs(length: int = 10) -> str:
@@ -3509,7 +3493,7 @@ def backupGJAccountNew(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"userName": userName,
 		"password": password,
@@ -3518,15 +3502,15 @@ def backupGJAccountNew(
 		"binaryVersion": binaryVersion,
 		"secret": secret
 	}
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq("http://www.robtopgames.org/database/accounts/backupGJAccountNew.php", data)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"backupGJAccountNew Failed: {response.text}")
-
+	
 	return response.text
 
 def loginGJAccount(
@@ -3536,7 +3520,7 @@ def loginGJAccount(
 	sID: str | None = None
 ) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"udid": udid,
 		"userName": userName,
@@ -3555,7 +3539,7 @@ def loginGJAccount(
 
 def registerGJAccount(userName: str, password: str, email: str) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"userName": userName,
 		"password": password,
@@ -3578,7 +3562,7 @@ def syncGJAccountNew(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -3609,7 +3593,7 @@ def updateGJAccSettings20(
 	twitch: str | None = None
 ) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -3651,50 +3635,50 @@ def getGJScores20(
 	stat: 0 = stars, 1 = moons, 2 = demons, 3 = coins
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if stat is not None:
 		data["stat"] = stat
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if type_ is not None:
 		data["type"] = type_  # "top", "relative", "friends", "creators"
-
+	
 	if count is not None:
 		# Hard cap at 100 (server-side limit)
 		data["count"] = min(count, 100)
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJScores20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJScores20 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJUserInfo20(
@@ -3706,35 +3690,35 @@ def getGJUserInfo20(
 	gjp2: str | None = None
 	) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"targetAccountID": targetAccountID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJUserInfo20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJUserInfo20 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJUsers20(
@@ -3746,37 +3730,37 @@ def getGJUsers20(
 	total: int | None = None
 	) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if str_ is not None:
 		data["str"] = str_
-
+	
 	if page is not None:
 		data["page"] = page
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJUsers20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJUsers20 Failed: {response.text}")
-
+	
 	return response.text
 
 def updateGJUserScore22(
@@ -3818,12 +3802,12 @@ def updateGJUserScore22(
 	seed: str | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	if seed is None:
 		import random
 		chars = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
 		seed = "".join(random.sample(chars, 10))
-
+	
 	seed2 = Tools.genChk(
 		15,
 		[
@@ -3853,7 +3837,7 @@ def updateGJUserScore22(
 		],
 		4
 	)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -3886,39 +3870,39 @@ def updateGJUserScore22(
 		"seed2": seed2,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if userName is not None:
 		data["userName"] = userName
-
+	
 	if color1 is not None:
 		data["color1"] = color1
-
+	
 	if color2 is not None:
 		data["color2"] = color2
-
+	
 	if color3 is not None:
 		data["color3"] = color3
-
+	
 	if special is not None:
 		data["special"] = special
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/updateGJUserScore22.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"updateGJUserScore22 Failed: {response.text}")
-
+	
 	return response.text
 		
 def deleteGJLevelUser20(
@@ -3930,31 +3914,31 @@ def deleteGJLevelUser20(
 	gdw: int | None = None
 	) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"levelID": levelID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJLevelUser20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"deleteGJLevelUser20 Failed: {response.text}")
-
+	
 	return response.text
 
 def uploadGJLevel21(
@@ -3991,7 +3975,7 @@ def uploadGJLevel21(
 	secret = Tools.getSecret(1)
 	if seed2 is None:
 		seed2 = Tools._generateLevelUploadSeed2(levelString)
-
+	
 	data: dict[str, str | int] = {
 		"gameVersion": gameVersion,
 		"accountID": accountID,
@@ -4019,33 +4003,33 @@ def uploadGJLevel21(
 	}
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if wt is not None:
 		data["wt"] = wt
-
+	
 	if wt2 is not None:
 		data["wt2"] = wt2
-
+	
 	if seed is not None:
 		data["seed"] = seed
-
+	
 	if extraString is not None:
 		data["extraString"] = extraString
-
+	
 	if levelInfo is not None:
 		data["levelInfo"] = levelInfo
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJLevel21.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadGJLevel21 Failed: {response.text}")
-
+	
 	return response.text
 
 def updateGJDesc20(
@@ -4058,7 +4042,7 @@ def updateGJDesc20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -4066,24 +4050,24 @@ def updateGJDesc20(
 		"levelDesc": levelDesc,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/updateGJDesc20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"updateGJDesc20 Failed: {response.text}")
-
+	
 	return response.text
 
 def suggestGJStars(
@@ -4097,7 +4081,7 @@ def suggestGJStars(
 	gdw: int = 0
 ) -> str:
 	secret = Tools.getSecret(4)
-
+	
 	data: dict[str, str | int] = {
 		"gameVersion": gameVersion,
 		"binaryVersion": binaryVersion,
@@ -4109,24 +4093,24 @@ def suggestGJStars(
 		"gdw": gdw,
 		"secret": secret
 	}
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/suggestGJStars20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"suggestGJStars Failed: {response.text}")
-
+	
 	return response.text
 
 def reportGJLevel(levelID: int | None = None) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if levelID is not None:
 		data["levelID"] = levelID
 	response = Tools.makeReq(
@@ -4158,48 +4142,48 @@ def rateGJStars211(
 		chk = Tools.genChkRateStars(
 			levelID, stars, rs, accountID, udid, uuid
 		)
-
+	
 	data: dict[str, str | int] = {
 		"levelID": levelID,
 		"stars": stars,
 		"secret": secret
 	}
-
+	
 	if rs is not None:
 		data["rs"] = rs
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	if chk is not None:
 		data["chk"] = chk
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/rateGJStars211.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"rateGJStars211 Failed: {response.text}")
-
+	
 	return response.text
 
 def rateGJDemon21(
@@ -4212,7 +4196,7 @@ def rateGJDemon21(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(4)
-
+	
 	data: dict[str, str | int] = {
 		"gameVersion": gameVersion,
 		"binaryVersion": binaryVersion,
@@ -4222,18 +4206,18 @@ def rateGJDemon21(
 		"rating": rating,
 		"secret": secret
 	}
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/rateGJDemon21.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"rateGJDemon21 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJMapPacks21(
@@ -4243,31 +4227,31 @@ def getGJMapPacks21(
 	page: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if page is not None:
 		data["page"] = page
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJMapPacks21.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJMapPacks21 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJGauntlets21(
@@ -4277,31 +4261,31 @@ def getGJGauntlets21(
 	special: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if special is not None:
 		data["special"] = special
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJGauntlets21.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJGauntlets21 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJDailyLevel(
@@ -4313,37 +4297,37 @@ def getGJDailyLevel(
 	weekly: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if weekly is not None:
 		data["weekly"] = weekly
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJDailyLevel.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJDailyLevel Failed: {response.text}")
-
+	
 	return response.text
 
 def downloadGJLevel22(
@@ -4374,55 +4358,55 @@ def downloadGJLevel22(
 			levelID, incForChk, rs, accountID, udid, uuid
 		)
 		autoChk = True
-
+	
 	data: dict[str, str | int] = {
 		"levelID": levelID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	if inc is not None:
 		data["inc"] = inc
 	elif autoChk:
 		data["inc"] = incForChk
-
+	
 	if extras is not None:
 		data["extras"] = extras
-
+	
 	if rs is not None:
 		data["rs"] = rs
-
+	
 	if chk is not None:
 		data["chk"] = chk
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/downloadGJLevel22.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"downloadGJLevel22 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJLevels21(
@@ -4489,115 +4473,115 @@ def getGJLevels21(
 	```
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if type_ is not None:
 		data["type"] = type_
-
+	
 	if str_ is not None:
 		data["str"] = str_
-
+	
 	if page is not None:
 		data["page"] = page
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	if gjp is not None:
 		data["gjp"] = gjp
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if gauntlet is not None:
 		data["gauntlet"] = gauntlet
-
+	
 	if diff is not None:
 		data["diff"] = diff
-
+	
 	if demonFilter is not None:
 		data["demonFilter"] = demonFilter
-
+	
 	if len_ is not None:
 		data["len"] = len_
-
+	
 	if uncompleted is not None:
 		data["uncompleted"] = uncompleted
-
+	
 	if onlyCompleted is not None:
 		data["onlyCompleted"] = onlyCompleted
-
+	
 	if completedLevels is not None:
 		data["completedLevels"] = completedLevels
-
+	
 	if featured is not None:
 		data["featured"] = featured
-
+	
 	if original is not None:
 		data["original"] = original
-
+	
 	if twoPlayer is not None:
 		data["twoPlayer"] = twoPlayer
-
+	
 	if coins is not None:
 		data["coins"] = coins
-
+	
 	if epic is not None:
 		data["epic"] = epic
-
+	
 	if legendary is not None:
 		data["legendary"] = legendary
-
+	
 	if mythic is not None:
 		data["mythic"] = mythic
-
+	
 	if noStar is not None:
 		data["noStar"] = noStar
-
+	
 	if star is not None:
 		data["star"] = star
-
+	
 	if song is not None:
 		data["song"] = song
-
+	
 	if customSong is not None:
 		data["customSong"] = customSong
-
+	
 	if followed is not None:
 		data["followed"] = followed
-
+	
 	if local is not None:
 		data["local"] = local
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJLevels21.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJLevels21 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJLevelScores211(
@@ -4624,67 +4608,67 @@ def getGJLevelScores211(
 	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int | float] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"levelID": levelID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if time is not None:
 		data["time"] = time
-
+	
 	if points is not None:
 		data["points"] = points
-
+	
 	if plat is not None:
 		data["plat"] = plat
-
+	
 	if percent is not None:
 		data["percent"] = percent
-
+	
 	if type_ is not None:
 		data["type"] = type_
-
+	
 	if s1 is not None:
 		data["s1"] = s1
-
+	
 	if s2 is not None:
 		data["s2"] = s2
-
+	
 	if s3 is not None:
 		data["s3"] = s3
-
+	
 	if s4 is not None:
 		data["s4"] = s4
-
+	
 	if s5 is not None:
 		data["s5"] = s5
-
+	
 	if s6 is not None:
 		data["s6"] = s6
-
+	
 	if s7 is not None:
 		data["s7"] = s7
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJLevelScores211.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJLevelScores211 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJLevelScoresPlat(
@@ -4712,70 +4696,70 @@ def getGJLevelScoresPlat(
 	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int | float] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"levelID": levelID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if time is not None:
 		data["time"] = time
-
+	
 	if points is not None:
 		data["points"] = points
-
+	
 	if plat is not None:
 		data["plat"] = plat
-
+	
 	if percent is not None:
 		data["percent"] = percent
-
+	
 	if type_ is not None:
 		data["type"] = type_
-
+	
 	if mode is not None:
 		data["mode"] = mode
-
+	
 	if s1 is not None:
 		data["s1"] = s1
-
+	
 	if s2 is not None:
 		data["s2"] = s2
-
+	
 	if s3 is not None:
 		data["s3"] = s3
-
+	
 	if s4 is not None:
 		data["s4"] = s4
-
+	
 	if s5 is not None:
 		data["s5"] = s5
-
+	
 	if s6 is not None:
 		data["s6"] = s6
-
+	
 	if s7 is not None:
 		data["s7"] = s7
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJLevelScoresPlat.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJLevelScoresPlat Failed: {response.text}")
-
+	
 	return response.text
 		
 def getGJComments21(
@@ -4791,36 +4775,36 @@ def getGJComments21(
 	mode: Set to 0 for most recent, and 1 for most liked
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"levelID": levelID,
 		"page": page,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if mode is not None:
 		data["mode"] = mode
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJComments21.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJComments21 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJCommentHistory(
@@ -4838,42 +4822,42 @@ def getGJCommentHistory(
 	mode: Set to 0 for most recent, and 1 for most liked
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"userID": userID,
 		"page": page,
 		"secret": secret
 	}
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if mode is not None:
 		data["mode"] = mode
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJCommentHistory.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJCommentHistory Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJAccountComments20(
@@ -4885,33 +4869,33 @@ def getGJAccountComments20(
 	total: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"page": page,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJAccountComments20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJAccountComments20 Failed: {response.text}")
-
+	
 	return response.text
 
 def uploadGJAccComment20(
@@ -4927,34 +4911,34 @@ def uploadGJAccComment20(
 	cType: The comment type, 0 for level, 1 for user
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"comment": Tools.b64EncodeUrlSafe(comment),
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if cType is not None:
 		data["cType"] = cType  # 0 = level, 1 = user
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJAccComment20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadGJAccComment20 Failed: {response.text}")
-
+	
 	return response.text
 
 def deleteGJAccComment20(
@@ -4967,7 +4951,7 @@ def deleteGJAccComment20(
 	gdw: int | None = None
 	) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"targetAccountID": targetAccountID,
@@ -4975,24 +4959,24 @@ def deleteGJAccComment20(
 		"commentID": commentID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJAccComment20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"deleteGJAccComment20 Failed: {response.text}")
-
+	
 	return response.text
 
 def uploadGJComment21(
@@ -5011,7 +4995,7 @@ def uploadGJComment21(
 	chk = Tools.genChkLevelComment(
 		userName, commentB64, levelID, percent, 0
 	)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -5022,24 +5006,24 @@ def uploadGJComment21(
 		"percent": percent,
 		"chk": chk
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJComment21.php", 
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadGJComment21 Failed: {response.text}")
-
+	
 	return response.text
 
 def deleteGJComment20(
@@ -5052,7 +5036,7 @@ def deleteGJComment20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -5060,24 +5044,24 @@ def deleteGJComment20(
 		"levelID": levelID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJComment20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"deleteGJComment20 Failed: {response.text}")
-
+	
 	return response.text
 		
 def uploadGJLevelList(
@@ -5105,7 +5089,7 @@ def uploadGJLevelList(
 		seed2 = Tools._generateListSeed2()
 	if seed is None:
 		seed = Tools._generateListUploadSeed(listLevels, accountID, seed2)
-
+	
 	data: dict[str, str | int] = {
 		"gameVersion": gameVersion,
 		"accountID": accountID,
@@ -5122,18 +5106,18 @@ def uploadGJLevelList(
 		"seed2": seed2,
 		"secret": secret
 	}
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJLevelList.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadGJLevelList Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJLevelLists(
@@ -5171,58 +5155,58 @@ def getGJLevelLists(
 	```
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if type_ is not None:
 		data["type"] = type_
-
+	
 	if str_ is not None:
 		data["str"] = str_
-
+	
 	if page is not None:
 		data["page"] = page
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if diff is not None:
 		data["diff"] = diff
-
+	
 	if demonFilter is not None:
 		data["demonFilter"] = demonFilter
-
+	
 	if star is not None:
 		data["star"] = star
-
+	
 	if followed is not None:
 		data["followed"] = followed
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJLevelLists.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJLevelLists Failed: {response.text}")
-
+	
 	return response.text
 
 def deleteGJLevelList(
@@ -5235,34 +5219,34 @@ def deleteGJLevelList(
 	uuid: int | None = None
 ) -> str:
 	secret = Tools.getSecret(3)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"listID": listID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJLevelList.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"deleteGJLevelList Failed: {response.text}")
-
+	
 	return response.text
 		
 def getSaveData(
@@ -5271,28 +5255,28 @@ def getSaveData(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getSaveData.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getSaveData Failed: {response.text}")
-
+	
 	return response.text
 
 def getAccountURL(accountID: int, type_: int) -> str:
@@ -5300,21 +5284,21 @@ def getAccountURL(accountID: int, type_: int) -> str:
 	type_: used to decide which endpoint is used after the data server is found - 1 = backup data/ 2 = sync data
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"type": type_,
 		"secret": secret
 	}
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getAccountURL.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getAccountURL Failed: {response.text}")
-
+	
 	return response.text
 
 def likeGJItem211(
@@ -5337,9 +5321,9 @@ def likeGJItem211(
 	type_: 1 for level, 2 for level comment, 3 for account comment, 4 for list
 	special: (0 = Level, LevelID = Level Comment, CommentID = Other Comment)
 	like: (0 = dislike, 1 = like)
-
+	
 	targetAccountID is not sent in the request but it may be used for special, which is sent.
-
+	
 	For likes to go through, it's recommended to provide:
 	```
 	itemID
@@ -5353,10 +5337,10 @@ def likeGJItem211(
 	"""
 	secret = Tools.getSecret(1)
 	likeVal = 1 if like is None else like
-
+	
 	if rs is None:
 		rs = Tools.generateRs()
-
+	
 	if type_ == 1:
 		special = 0
 	elif type_ == 3:
@@ -5366,7 +5350,7 @@ def likeGJItem211(
 			special = itemID
 	else:
 		special = itemID
-
+	
 	if chk is None and (rs is not None and
 						accountID is not None and
 						udid is not None and
@@ -5374,52 +5358,52 @@ def likeGJItem211(
 		chk = Tools.genChkLikeItem(
 			special, itemID, likeVal, type_, rs, accountID, udid, uuid
 		)
-
+	
 	data: dict[str, str | int] = {
 		"itemID": itemID,
 		"type": type_,
 		"special": special,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	if rs is not None:
 		data["rs"] = rs
-
+	
 	if like is not None:
 		data["like"] = like
-
+	
 	if chk is not None:
 		data["chk"] = chk
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/likeGJItem211.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"likeGJItem211 Failed: {response.text}")
-
+	
 	return response.text
 
 def requestUserAccess(
@@ -5430,48 +5414,48 @@ def requestUserAccess(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/requestUserAccess.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"requestUserAccess Failed: {response.text}")
-
+	
 	return response.text
 
 def restoreGJItems(udid: str) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"udid": udid,
 		"secret": secret
 	}
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/restoreGJItems.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"restoreGJItems Failed: {response.text}")
-
+	
 	return response.text
 
 def getTop1000() -> str:
@@ -5479,7 +5463,7 @@ def getTop1000() -> str:
 		"http://www.boomlings.com/database/accounts/getTop1000.php",
 		headers={"User-Agent": ""}
 	)
-
+	
 	return response.text
 		
 def getGJSecretReward(
@@ -5494,46 +5478,46 @@ def getGJSecretReward(
 	uuid: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	if chk is None:
 		chk = Tools.generateWraithRewardChk()
-
+	
 	if udid is None:
 		udid = Tools.generateUdid()
-
+	
 	data: dict[str, str | int] = {
 		"rewardKey": rewardKey,
 		"udid": udid,
 		"chk": chk,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJSecretReward.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJSecretReward Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJRewards(
@@ -5556,9 +5540,9 @@ def getGJRewards(
 	secret = Tools.getSecret(1)
 	if chk is None:
 		chk = Tools.generateChestMenuChk()
-
+	
 	r1, r2 = [Tools.generateRn() for _ in range(2)]
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -5567,41 +5551,41 @@ def getGJRewards(
 		"r1": r1,
 		"r2": r2
 	}
-
+	
 	if udid is not None:
 		data["udid"] = udid
 	else:
 		data["udid"] = Tools.generateUdid()
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	if rewardType is not None:
 		data["rewardType"] = rewardType
-
+	
 	if r1 is not None:
 		data["r1"] = r1
-
+	
 	if r2 is not None:
 		data["r2"] = r2
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJRewards.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJRewards Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJChallenges(
@@ -5618,46 +5602,46 @@ def getGJChallenges(
 	secret = Tools.getSecret(1)
 	if chk is None:
 		chk = Tools.generateQuestChk()
-
+	
 	data: dict[str, str | int] = {
 		"chk": chk,
 		"secret": secret
 	}
-
+	
 	if udid is not None:
 		data["udid"] = udid
 	else:
 		data["udid"] = Tools.generateUdid()
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	if world is not None:
 		data["world"] = world
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJChallenges.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJChallenges Failed: {response.text}")
-
+	
 	return response.text
 		
 def getGJMessages20(
@@ -5671,39 +5655,39 @@ def getGJMessages20(
 	getSent: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if page is not None:
 		data["page"] = page
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	if getSent is not None:
 		data["getSent"] = getSent
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJMessages20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJMessages20 Failed: {response.text}")
-
+	
 	return response.text
 
 def downloadGJMessage20(
@@ -5715,31 +5699,31 @@ def downloadGJMessage20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"messageID": messageID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/downloadGJMessage20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"downloadGJMessage20 Failed: {response.text}")
-
+	
 	return response.text
 
 def uploadGJMessage20(
@@ -5753,7 +5737,7 @@ def uploadGJMessage20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -5762,24 +5746,24 @@ def uploadGJMessage20(
 		"body": Tools.b64EncodeUrlSafe(body),
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJMessage20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadGJMessage20 Failed: {response.text}")
-
+	
 	return response.text
 
 def deleteGJMessages20(
@@ -5792,34 +5776,34 @@ def deleteGJMessages20(
 	isSender: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"messageID": messageID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if isSender is not None:
 		data["isSender"] = isSender
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJMessages20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"deleteGJMessages20 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJFriendRequests20(
@@ -5833,39 +5817,39 @@ def getGJFriendRequests20(
 	getSent: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if page is not None:
 		data["page"] = page
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	if getSent is not None:
 		data["getSent"] = getSent
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJFriendRequests20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJFriendRequests20 Failed: {response.text}")
-
+	
 	return response.text
 
 def uploadFriendRequest20(
@@ -5877,31 +5861,31 @@ def uploadFriendRequest20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"toAccountID": toAccountID,
 		"gjp2": gjp2,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadFriendRequest20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadFriendRequest20 Failed: {response.text}")
-
+	
 	return response.text
 
 def deleteGJFriendRequests20(
@@ -5915,37 +5899,37 @@ def deleteGJFriendRequests20(
 	isSender: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"targetAccountID": targetAccountID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if accounts is not None:
 		data["accounts"] = accounts
-
+	
 	if isSender is not None:
 		data["isSender"] = isSender
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJFriendRequests20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"deleteGJFriendRequests20 Failed: {response.text}")
-
+	
 	return response.text
 
 def acceptGJFriendRequest20(
@@ -5958,34 +5942,34 @@ def acceptGJFriendRequest20(
 	requestID: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"targetAccountID": targetAccountID,
 		"gjp2": gjp2,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if requestID is not None:
 		data["requestID"] = requestID
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/acceptGJFriendRequest20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"acceptGJFriendRequest20 Failed: {response.text}")
-
+	
 	return response.text
 
 def readGJFriendRequest20(
@@ -5997,31 +5981,31 @@ def readGJFriendRequest20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"requestID": requestID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/readGJFriendRequest20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"readGJFriendRequest20 Failed: {response.text}")
-
+	
 	return response.text
 
 def removeGJFriend20(
@@ -6033,31 +6017,31 @@ def removeGJFriend20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"targetAccountID": targetAccountID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/removeGJFriend20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"removeGJFriend20 Failed: {response.text}")
-
+	
 	return response.text
 
 def blockGJUser20(
@@ -6069,31 +6053,31 @@ def blockGJUser20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"targetAccountID": targetAccountID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/blockGJUser20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"blockGJUser20 Failed: {response.text}")
-
+	
 	return response.text
 
 def unblockGJUser20(
@@ -6105,31 +6089,31 @@ def unblockGJUser20(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"targetAccountID": targetAccountID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/unblockGJUser20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"unblockGJUser20 Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJUserList20(
@@ -6144,33 +6128,33 @@ def getGJUserList20(
 	type_: 0 for friends, 1 for blocklist. Defaults to 0 if left out
 	"""
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if type_ is not None:
 		data["type"] = type_
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJUserList20.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJUserList20 Failed: {response.text}")
-
+	
 	return response.text
 		
 def getGJSongInfo(
@@ -6183,38 +6167,38 @@ def getGJSongInfo(
 	uuid: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"songID": songID,
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if accountID is not None:
 		data["accountID"] = accountID
-
+	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
-
+	
 	if udid is not None:
 		data["udid"] = udid
-
+	
 	if uuid is not None:
 		data["uuid"] = uuid
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJSongInfo.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJSongInfo Failed: {response.text}")
-
+	
 	return response.text
 
 def getGJTopArtists(
@@ -6225,34 +6209,34 @@ def getGJTopArtists(
 	total: int | None = None
 ) -> str:
 	secret = Tools.getSecret(1)
-
+	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	if page is not None:
 		data["page"] = page
-
+	
 	if total is not None:
 		data["total"] = total
-
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJTopArtists.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJTopArtists Failed: {response.text}")
-
+	
 	return response.text
 
 def testSong(songID: int) -> str:
@@ -6260,7 +6244,7 @@ def testSong(songID: int) -> str:
 		f"http://www.boomlings.com/database/testSong.php?songID={songID}",
 		headers={"User-Agent": ""}
 	)
-
+	
 	return response.text
 
 def fetchMusicLibraryDat(
@@ -6279,7 +6263,7 @@ def fetchMusicLibraryDat(
 		token = Tools._generateCdnToken(endpoint, expires)
 	if token is not None:
 		params["token"] = token
-
+	
 	response = requests.get(
 		url,
 		params=params or None,
@@ -6300,15 +6284,15 @@ def fetchSfxLibraryDat(
 		token = Tools._generateCdnToken(endpoint, expires)
 	if token is not None:
 		params["token"] = token
-
+	
 	response = requests.get(
 		url,
 		params=params or None,
 		headers={"User-Agent": ""}
 	)
-
-	return response.content
 	
+	return response.content
+
 def joinMPLobby(
 	accountID: int,
 	gjp2: str,
@@ -6319,7 +6303,7 @@ def joinMPLobby(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -6327,24 +6311,24 @@ def joinMPLobby(
 		"gameID": gameID,
 		"lastCommentID": lastCommentID
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"https://www.geometrydash.com/database/joinMPLobby.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"joinMPLobby Failed: {response.text}")
-
+	
 	return response.text
 
 def exitMPLobby(
@@ -6356,31 +6340,31 @@ def exitMPLobby(
 	gdw: int | None = None
 ) -> str:
 	secret = Tools.getSecret(2)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"secret": secret,
 		"gameID": gameID
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"https://www.geometrydash.com/database/exitMPLobby.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"exitMPLobby Failed: {response.text}")
-
+	
 	return response.text
 
 def uploadMPComment(
@@ -6397,7 +6381,7 @@ def uploadMPComment(
 	secret = Tools.getSecret(2)
 	if chk is None:
 		chk = Tools.genChk(11, [accountID, comment, gameID, extra], 1)
-
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
@@ -6407,22 +6391,22 @@ def uploadMPComment(
 		"gameID": gameID,
 		"chk": chk
 	}
-
+	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
-
+	
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
-
+	
 	if gdw is not None:
 		data["gdw"] = gdw
-
+	
 	response = Tools.makeReq(
 		"https://www.geometrydash.com/database/uploadMPComment.php",
 		data
 	)
-
+	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadMPComment Failed: {response.text}")
-
+	
 	return response.text
