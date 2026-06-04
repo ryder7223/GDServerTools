@@ -3141,7 +3141,7 @@ class Tools:
 	def getXorKey(index: int) -> int | str:
 		"""
 		```
-		1:  Key 11: Player Save Data
+		1:  Key 11:    Player Save Data
 		2:  Key 14251: Player Messages
 		3:  Key 19283: Vault Codes
 		4:  Key 19847: Daily Challenges
