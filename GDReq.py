@@ -2682,7 +2682,7 @@ class Tools:
 			- Type 2:  Player Messages
 			- Type 3:  Vault Codes
 			- Type 4:  Daily Challenges
-			Type 5:  Level Password
+			- Type 5:  Level Password
 			Type 6:  Comment Integrity
 			Type 7:  Account Password
 			Type 8:  Level Leaderboard Integrity
@@ -2723,6 +2723,9 @@ class Tools:
 				return Tools.xorCipher(
 					Tools.b64DecodeUrlSafe(data[5:]), Tools.getXorKey(4)
 					)
+
+			elif type_ == 5:
+				return Tools.decodeLevelPassword(data)
 	
 			elif type_ == 14:
 				return Tools.xorCipher(
@@ -2771,7 +2774,7 @@ class Tools:
 			- Type 2:  Player Messages
 			- Type 3:  Vault Codes
 			- Type 4:  Daily Challenges
-			Type 5:  Level Password
+			- Type 5:  Level Password
 			Type 6:  Comment Integrity
 			Type 7:  Account Password
 			Type 8:  Level Leaderboard Integrity
@@ -2815,6 +2818,9 @@ class Tools:
 					)
 				)
 				return Tools.generateRs(5) + encoded
+			
+			elif type_ == 5:
+				return Tools.encodeLevelPassword(data)
 	
 			elif type_ == 14:
 				encoded = Tools.b64EncodeUrlSafe(
@@ -3259,29 +3265,39 @@ class Tools:
 		s = padded.replace("-", "+").replace("_", "/")
 		raw = base64.b64decode(s.encode()).decode()
 		return Tools.xorCipher(raw, Tools.getXorKey(7))
-	
+
 	@staticmethod
 	def encodeLevelPassword(plain: str) -> str:
-		xored = Tools.xorCipher(plain, Tools.getXorKey(5))
-		b = Tools.b64EncodeUrlSafe(xored)
-		return b.rstrip("=")
-	
+		if plain in ("", "0", "(none)", "(free copy)", "(error)"):
+			return "0"
+		xored = Tools.xorCipher("1" + plain, Tools.getXorKey(5))
+		return Tools.b64EncodeUrlSafe(xored)
+
 	@staticmethod
 	def decodeLevelPassword(encoded: int | str) -> str:
-		encoded = str(encoded)
+		encoded = str(encoded).strip()
 		if encoded in ("", "0"):
 			return "(none)"
-	
+
 		try:
 			if encoded.isdigit():
 				return encoded
-	
-			padded = encoded + "=" * (-len(encoded) % 4)
+
+			padded = encoded + ("=" * (-len(encoded) % 4))
 			raw = Tools.b64DecodeUrlSafe(padded)
-			decoded = Tools.xorCipher(raw, Tools.getXorKey(5))[1:].lstrip("0")
-	
-			return decoded if decoded else "(free copy)"
-	
+			decoded = Tools.xorCipher(raw, Tools.getXorKey(5))[1:]
+
+			if decoded and decoded[0] == "\x01":
+				decoded = decoded[1:]
+			decoded = decoded.lstrip("0")
+			if decoded == "":
+				return "(free copy)"
+
+			if decoded in ("(none)", "(free copy)", "(error)"):
+				return decoded
+
+			return decoded
+
 		except Exception:
 			return "(error)"
 	
