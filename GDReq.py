@@ -4439,7 +4439,7 @@ def getGJLevels21(
 	gauntlet: int | None = None,
 	diff: int | None = None,
 	demonFilter: int | None = None,
-	len_: int | None = None,
+	len_: int | str | None = None,
 	uncompleted: int | None = None,
 	onlyCompleted: int | None = None,
 	completedLevels: str | None = None,
