@@ -18,7 +18,371 @@ import xml.etree.ElementTree as ET
 import urllib.request
 import os
 import ssl
+from xml.etree import ElementTree as ET
 
+
+class LocalLevels:
+	levelKeys = {
+		"k1": "levelID",
+		"k2": "levelName",
+		"k3": "description",
+		"k4": "startLevelObject",
+		"k5": "creator",
+		"k6": "userID",
+		"k7": "difficulty",
+		"k8": "officialSongID",
+		"k9": "rating",
+		"k10": "ratingSum",
+		"k11": "downloads",
+		"k12": "setCompletes",
+		"k13": "isEditable",
+		"k14": "verified",
+		"k15": "uploaded",
+		"k16": "levelVersion",
+		"k17": "gameVersion",
+		"k18": "attempts",
+		"k19": "normalPercent",
+		"k20": "practicePercent",
+		"k21": "levelType",
+		"k22": "likeRating",
+		"k23": "length",
+		"k24": "dislikes",
+		"k25": "isDemon",
+		"k26": "stars",
+		"k27": "featureScore",
+		"k33": "auto",
+		"k34": "replayData",
+		"k35": "isPlayable",
+		"k36": "jumps",
+		"k37": "requiredCoins",
+		"k38": "isUnlocked",
+		"k39": "levelSize",
+		"k40": "buildVersion",
+		"k41": "password",
+		"k42": "originalID",
+		"k43": "twoPlayerMode",
+		"k45": "customSongID",
+		"k46": "levelRevision",
+		"k47": "hasBeenModified",
+		"k48": "objectCount",
+		"k50": "binaryVersion",
+		"k51": "capacity001",
+		"k52": "capacity002",
+		"k53": "capacity003",
+		"k54": "capacity004",
+		"k60": "accountID",
+		"k61": "firstCoinAcquired",
+		"k62": "secondCoinAcquired",
+		"k63": "thirdCoinAcquired",
+		"k64": "totalCoins",
+		"k65": "areCoinsVerified",
+		"k66": "requestedStars",
+		"k67": "capacityString",
+		"k68": "triggeredAntiCheat",
+		"k69": "highObjectCount",
+		"k71": "manaOrbPercent",
+		"k72": "hasLowDetailMode",
+		"k73": "toggleLDM",
+		"k74": "timelyID",
+		"k75": "epicRating",
+		"k76": "demonType",
+		"k77": "isGauntlet",
+		"k78": "isAltGame",
+		"k79": "unlisted",
+		"k80": "secondsSpentEditing",
+		"k81": "secondsSpentEditingCopies",
+		"k82": "isFavourited",
+		"k83": "levelOrder",
+		"k84": "levelFolder",
+		"k85": "clicks",
+		"k86": "playerTime",
+		"k87": "levelSeed",
+		"k88": "levelProgress",
+		"k89": "vfDChk",
+		"k90": "leaderboardPercent",
+		"k95": "verificationTime",
+		"k96": "levelIDs",
+		"k97": "levels",
+		"k98": "uploadDate",
+		"k99": "updateDate",
+		"k104": "songList",
+		"k105": "sfxList",
+		"k107": "bestTime",
+		"k108": "bestPoints",
+		"k109": "localBestTimes",
+		"k110": "localBestPoints",
+		"k111": "platformerSeed",
+		"k112": "noShake",
+		"k113": "diamondReward",
+		"k114": "requiredLevels",
+		"kI1": "editorCameraX",
+		"kI2": "editorCameraY",
+		"kI3": "editorCameraZoom",
+		"kI4": "buildTabPage",
+		"kI5": "buildTab",
+		"kI6": "buildTabPages",
+		"kI7": "editorLayer"
+	}
+
+	@staticmethod
+	def _parseNode(node) -> Any:
+		if node.tag == "i":
+			return int(node.text or 0)
+			
+		if node.tag == "s":
+			return node.text or ""
+
+		if node.tag == "t":
+			return True
+
+		if node.tag in ("d", "dict"):
+			result = {}
+			children = list(node)
+			i = 0
+			while i < len(children):
+				keyNode = children[i]
+				if keyNode.tag != "k":
+					i += 1
+					continue
+
+				key = keyNode.text or ""
+				valueNode = children[i + 1]
+				result[key] = LocalLevels._parseNode(valueNode)
+				i += 2
+
+			return result
+
+		return None
+
+	@staticmethod
+	def _decodeDescription(value: str) -> str:
+		if not value:
+			return ""
+
+		try:
+			return Tools.b64DecodeUrlSafe(value)
+		except Exception:
+			return value
+
+	@staticmethod
+	def _remap(level: dict[str, Any]) -> dict[str, Any]:
+		result = {}
+
+		for key, value in level.items():
+			newKey = LocalLevels.levelKeys.get(key, key)
+
+			if key == "k3":
+				value = LocalLevels._decodeDescription(value)
+
+			result[newKey] = value
+
+		return result
+
+	@staticmethod
+	def _getLevels(rootDict: dict[str, Any]) -> list[dict[str, Any]]:
+		levelsRoot = rootDict.get("LLM_01", {})
+
+		levels = []
+
+		for key, value in levelsRoot.items():
+			if not key.startswith("k_"):
+				continue
+
+			if not isinstance(value, dict):
+				continue
+
+			if "k1" not in value:
+				continue
+
+			levels.append(LocalLevels._remap(value))
+
+		return levels
+
+	@staticmethod
+	def _getBinaryVersion(rootDict: dict[str, Any]) -> list[dict[str, Any]]:
+		return rootDict.get("LLM_02", {})
+
+	@staticmethod
+	def _getLists(rootDict: dict[str, Any]) -> list[dict[str, Any]]:
+		listsRoot = rootDict.get("LLM_03", {})
+
+		lists = []
+
+		for key, value in listsRoot.items():
+			if not key.startswith("k_"):
+				continue
+
+			if not isinstance(value, dict):
+				continue
+
+			if "k1" not in value:
+				continue
+
+			value = LocalLevels._remap(value)
+
+			for levelID, subDict in value["levels"].items():
+				value["levels"][levelID] = LocalLevels._remap(subDict)
+				value["levels"][levelID].pop("kCEK")
+
+			value["levelIDs"] = value["levelIDs"].split(",")
+			value["listID"] = value.pop("levelID")
+			value["listName"] = value.pop("levelName")
+
+			lists.append(value)
+
+		return lists
+
+	@staticmethod
+	def parse(saveFile: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "levels": [
+		        {
+		            "levelID": levelID,
+		            "levelName": levelName,
+		            "description": description,
+		            "startLevelObject": startLevelObject,
+		            "creator": creator,
+		            "userID": userID,
+		            "difficulty": difficulty,
+		            "officialSongID": officialSongID,
+		            "rating": rating,
+		            "ratingSum": ratingSum,
+		            "downloads": downloads,
+		            "setCompletes": setCompletes,
+		            "isEditable": isEditable,
+		            "verified": verified,
+		            "uploaded": uploaded,
+		            "levelVersion": levelVersion,
+		            "gameVersion": gameVersion,
+		            "attempts": attempts,
+		            "normalPercent": normalPercent,
+		            "practicePercent": practicePercent,
+		            "levelType": levelType,
+		            "likeRating": likeRating,
+		            "length": length,
+		            "dislikes": dislikes,
+		            "isDemon": isDemon,
+		            "stars": stars,
+		            "featureScore": featureScore,
+		            "auto": auto,
+		            "replayData": replayData,
+		            "isPlayable": isPlayable,
+		            "jumps": jumps,
+		            "requiredCoins": requiredCoins,
+		            "isUnlocked": isUnlocked,
+		            "levelSize": levelSize,
+		            "buildVersion": buildVersion,
+		            "password": password,
+		            "originalID": originalID,
+		            "twoPlayerMode": twoPlayerMode,
+		            "customSongID": customSongID,
+		            "levelRevision": levelRevision,
+		            "hasBeenModified": hasBeenModified,
+		            "objectCount": objectCount,
+		            "binaryVersion": binaryVersion,
+		            "capacity001": capacity001,
+		            "capacity002": capacity002,
+		            "capacity003": capacity003,
+		            "capacity004": capacity004,
+		            "accountID": accountID,
+		            "firstCoinAcquired": firstCoinAcquired,
+		            "secondCoinAcquired": secondCoinAcquired,
+		            "thirdCoinAcquired": thirdCoinAcquired,
+		            "totalCoins": totalCoins,
+		            "areCoinsVerified": areCoinsVerified,
+		            "requestedStars": requestedStars,
+		            "capacityString": capacityString,
+		            "triggeredAntiCheat": triggeredAntiCheat,
+		            "highObjectCount": highObjectCount,
+		            "manaOrbPercent": manaOrbPercent,
+		            "hasLowDetailMode": hasLowDetailMode,
+		            "toggleLDM": toggleLDM,
+		            "timelyID": timelyID,
+		            "epicRating": epicRating,
+		            "demonType": demonType,
+		            "isGauntlet": isGauntlet,
+		            "isAltGame": isAltGame,
+		            "unlisted": unlisted,
+		            "secondsSpentEditing": secondsSpentEditing,
+		            "secondsSpentEditingCopies": secondsSpentEditingCopies,
+		            "isFavourited": isFavourited,
+		            "levelOrder": levelOrder,
+		            "levelFolder": levelFolder,
+		            "clicks": clicks,
+		            "playerTime": playerTime,
+		            "levelSeed": levelSeed,
+		            "levelProgress": levelProgress,
+		            "vfDChk": vfDChk,
+		            "leaderboardPercent": leaderboardPercent,
+		            "verificationTime": verificationTime,
+		            "songList": songList,
+		            "sfxList": sfxList,
+		            "bestTime": bestTime,
+		            "bestPoints": bestPoints,
+		            "localBestTimes": localBestTimes,
+		            "localBestPoints": localBestPoints,
+		            "platformerSeed": platformerSeed,
+		            "noShake": noShake,
+		            "diamondReward": diamondReward,
+		            "requiredLevels": requiredLevels,
+		            "editorCameraX": editorCameraX,
+		            "editorCameraY": editorCameraY,
+		            "editorCameraZoom": editorCameraZoom,
+		            "buildTabPage": buildTabPage,
+		            "buildTab": buildTab,
+		            "buildTabPages": buildTabPages,
+		            "editorLayer": editorLayer
+		        },
+		        ...
+		    ],
+		    "binaryVersion": binaryVersion,
+		    "lists": [
+		        {
+		            "listID": listID,
+		            "listName": listName,
+		            "levels": {
+		                levelID: {
+		                        "levelID": levelID,
+		                        "length": length,
+		                        "levelName": levelName,
+		                        "creator": creator,
+		                        "verificationTime": verificationTime,
+		                        "accountID": accountID,
+		                        "downloads":downloads,
+		                        "levelType": levelType,
+		                        "levelVersion": levelVersion,
+		                        "customSongID": customSongID,
+		                },
+		                ...
+		            },
+		            "levelIDs": [ ... ]
+		        }
+		    ]
+		}
+		```
+		'''
+		decoded = Tools.Encryption.decodeString(saveFile, 1)
+		root = ET.fromstring(decoded)
+		dictNode = root.find("dict")
+		if dictNode is None:
+			raise ValueError("No <dict> node found")
+		rawData = LocalLevels._parseNode(dictNode)
+		levels = LocalLevels._getLevels(rawData)
+		binaryVersion = LocalLevels._getBinaryVersion(rawData)
+		lists = LocalLevels._getLists(rawData)
+		for level in levels:
+			level.pop("kCEK")
+		for list_ in lists:
+			list_.pop("kCEK")
+		return {
+			"levels": levels,
+			"binaryVersion": binaryVersion,
+			"lists": lists
+		}
 
 class Parse:
 
@@ -516,14 +880,16 @@ class Parse:
 		            "sfxIDs": sfxIDs,
 		            "unknown": unknown,
 		            "verificationTime": verificationTime
-		        }
+		        },
+		        ...
 		    ],
 		    "creators": [
 		        {
 		            "userID": userID,
 		            "username": username,
 		            "accountID": accountID
-		        }
+		        },
+		        ...
 		    ],
 		    "songs": [
 		        {
@@ -542,7 +908,8 @@ class Parse:
 		            "new": new,
 		            "newType": newType,
 		            "extraArtistNames": extraArtistNames
-		        }
+		        },
+		        ...
 		    ],
 		    "pagination": {
 		        "total": total,
@@ -579,8 +946,8 @@ class Parse:
 		creators = Parse._parseCreators(creatorSection)
 		songs = Parse._parseSongs(songSection)
 		if normalise is True:
-				for song in songs:
-					Parse._remap(song, 9)
+			for song in songs:
+				Parse._remap(song, 9)
 		pagination = Parse._parsePagination(pageInfo)
 
 		return {
