@@ -1043,9 +1043,6 @@ class Parse:
 			if key == "3":
 				result["level"][key] = Parse._decode(result["level"][key])
 
-			elif key == "4":
-				result["level"][key] = Tools.Encryption.decodeString(result["level"][key], 16)
-
 			elif key == "27":
 				result["level"][key] = Tools.decodeLevelPassword(result["level"][key])
 
@@ -2284,7 +2281,7 @@ class Tools:
 			Type 9:  Level Integrity
 			Type 10: Load Data
 			Type 11: Multiplayer
-			Type 12: Music/SFX Library Secret
+			- Type 12: Music/SFX Library Secret
 			Type 13: Rating Integrity
 			- Type 14: Chest Rewards
 			Type 15: Stat Submission Integrity
@@ -2321,6 +2318,13 @@ class Tools:
 
 			elif type_ == 5:
 				return Tools.decodeLevelPassword(data)
+
+			elif type_ == 12:
+				return zlib.decompress(
+					Tools.b64DecodeUrlSafeBytes(
+						data.encode("latin-1")
+						)
+					).decode("latin-1")
 	
 			elif type_ == 14:
 				return Tools.xorCipher(
@@ -2376,7 +2380,7 @@ class Tools:
 			Type 9:  Level Integrity
 			Type 10: Load Data
 			Type 11: Multiplayer
-			Type 12: Music/SFX Library Secret
+			- Type 12: Music/SFX Library Secret
 			Type 13: Rating Integrity
 			- Type 14: Chest Rewards
 			Type 15: Stat Submission Integrity
@@ -2416,6 +2420,13 @@ class Tools:
 			
 			elif type_ == 5:
 				return Tools.encodeLevelPassword(data)
+
+			elif type_ == 12:
+				return Tools.b64EncodeUrlSafeBytes(
+					zlib.compress(
+						data.encode("latin-1")
+						)
+					).decode("latin-1")
 	
 			elif type_ == 14:
 				encoded = Tools.b64EncodeUrlSafe(
