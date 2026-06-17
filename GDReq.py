@@ -190,7 +190,7 @@ class Parse:
 
 		elif type_ == 2:
 			result = {
-				"1": "userName",
+				"1": "levelID",
 				"2": "comment",
 				"3": "authorPlayerID",
 				"4": "likes",
@@ -594,7 +594,7 @@ class Parse:
 		    "comments": [
 		        {
 		            "content": {
-		                "userName": userName,
+		                "levelID": levelID,
 		                "comment": comment,
 		                "authorPlayerID": authorPlayerID,
 		                "likes": likes,
@@ -659,7 +659,7 @@ class Parse:
 		    "comments": [
 		        {
 		            "content": {
-		                "userName": userName,
+		                "levelID": levelID,
 		                "comment": comment,
 		                "authorPlayerID": authorPlayerID,
 		                "likes": likes,
@@ -1824,7 +1824,7 @@ class Parse:
 		    "comments": [
 		        {
 		            "content": {
-		                "userName": userName,
+		                "levelID": levelID,
 		                "comment": comment,
 		                "authorPlayerID": authorPlayerID,
 		                "likes": likes,
