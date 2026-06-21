@@ -14,6 +14,7 @@ from flask import request, Response
 import base64
 import json
 from threading import Lock
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 downloadLogPath = "downloadLogs.json"
 downloadLogLock = Lock()
@@ -26,19 +27,74 @@ DB_FILE = "levels.db"
 SAVE_DIR = "./save"
 MUSIC_LIB_URL = "https://geometrydashfiles.b-cdn.net/music/musiclibrary_02.dat"
 MUSIC_LIB_FILE = "musiclibrary.dat"
+"""
 REMOTE_SEARCH_URLS = [
-    "http://129.146.187.13:5000/api/search"
+    "http://1.2.3.4:5000/api/search"
 ]
+"""
+REMOTE_SEARCH_URLS = []
 
-def getRemoteBaseUrl():
-    if REMOTE_SEARCH_URLS:
-        base_url = REMOTE_SEARCH_URLS[0].replace("/api/search", "")
-        return base_url
-    return None
+
+abortDescription = """Level file not found
+\nThis can be for a few reasons.
+1. The level file could be corrupt or deleted.
+2. The level hasn't been added to the index.
+3. The level has been archived to save space on the server.
+4. The level was removed as per a user's request.
+\nContact me for specific download requests, I'll get back to you as fast as I can.
+If the level is still online, you can use this script to obtain its gmd file: https://github.com/ryder7223/GDServerTools/blob/main/downloadGMD.py"""
+
+HIDDEN_LEVEL_IDS = {
+    128
+}
+
+HIDDEN_TITLE_STRINGS = {
+    "levelname28572"
+}
+
+HIDDEN_USER_STRINGS = {
+    "importantuser28572"
+}
+
+def isHiddenLevelTitle(levelName):
+    lowerName = levelName.lower()
+
+    for hiddenString in HIDDEN_TITLE_STRINGS:
+        if hiddenString.lower() in lowerName:
+            return True
+
+    return False
+
+def isHiddenUser(userName):
+    lowerName = userName.lower()
+
+    for hiddenString in HIDDEN_USER_STRINGS:
+        if hiddenString.lower() == lowerName:
+            return True
+
+    return False
+
+def getRemoteBaseUrls():
+    """Get all remote base URLs (without /api/search) for download fallback."""
+    base_urls = []
+    for url in REMOTE_SEARCH_URLS:
+        base_url = url.replace("/api/search", "")
+        base_urls.append(base_url)
+    return base_urls
 
 AUTH_USERS = {
     "Username": "Password"
 }
+
+FILTER_BYPASS_USERS = {
+    "Username"
+}
+
+def userCanBypassFilters(username):
+    return username.lower() in {
+        user.lower()
+        for user in FILTER_BYPASS_USERS
+    }
 
 def searchRemoteDatabases(queryArgs, auth_header=None, client_ip=None, user_agent=None):
     combinedResults = []
@@ -59,7 +115,9 @@ def searchRemoteDatabases(queryArgs, auth_header=None, client_ip=None, user_agen
 
     for url in REMOTE_SEARCH_URLS:
         try:
-            r = requests.get(url, params=queryArgs, headers=headers, timeout=3)
+            # Large offsets (high page numbers) can be slower on some remotes.
+            # Use a slightly higher timeout so remote results don't silently disappear.
+            r = requests.get(url, params=queryArgs, headers=headers, timeout=10)
             r.raise_for_status()
             data = r.json()
             combinedResults.extend(data["results"])
@@ -97,7 +155,7 @@ def collectRequestAnalytics():
     requestStart = time.time()
     requestTimestamp = getFormattedTimestamp(requestStart)
 
-    clientIp = request.headers.get("X-Forwarded-For", request.remote_addr)
+    clientIp = request.remote_addr
     userAgent = request.user_agent
 
     data = []
@@ -171,9 +229,6 @@ def getFormattedTimestamp(epochTime=None):
     return f"{datePart} {time12}"
 
 def getClientIp():
-    if request.headers.get("X-Forwarded-For"):
-        # Handles proxies/load balancers
-        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
     return request.remote_addr
 
 def logAuthEvent(event, username=None):
@@ -307,7 +362,7 @@ def findLevelFile(levelId):
         return result
 
     # If not found, try the alternative path if accessible
-    altPath = "/media/ryder7223/New Volume/Personal/Games/Geometry Dash/Other/ServerRip"
+    altPath = "/media/ryder7223/New Volume1/Personal/Games/Geometry Dash/Other/ServerRip"
     if os.path.exists(altPath) and os.access(altPath, os.R_OK):
         result = searchDirectory(altPath)
         if result:
@@ -372,6 +427,7 @@ MUSIC_LIBRARY = parseMusicLibrary(_music_content)
 
 # --- Flask App ---
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 
 HTML = """
 <!doctype html>
@@ -677,10 +733,29 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
                   sort_by, sort_order, page, page_size,
                   original_id, rcoins, scoins, version, length,
                   min_editor_time, max_editor_time, editor_ctime,
-                  requested_rating, two_player, min_object_count, max_object_count, player_id):
+                  requested_rating, two_player, min_object_count, max_object_count, player_id, bypassFilters=False):
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
+    where = []
+    params = []
+    
+    if not bypassFilters:
+        if HIDDEN_LEVEL_IDS:
+            placeholders = ",".join("?" * len(HIDDEN_LEVEL_IDS))
+            where.append(f"ID NOT IN ({placeholders})")
+            params.extend(HIDDEN_LEVEL_IDS)
+    
+        if HIDDEN_TITLE_STRINGS:
+            for hiddenTitle in HIDDEN_TITLE_STRINGS:
+                where.append("LOWER(Name) NOT LIKE ?")
+                params.append(f"%{hiddenTitle.lower()}%")
+
+        if HIDDEN_USER_STRINGS:
+            for hiddenUser in HIDDEN_USER_STRINGS:
+                where.append("LOWER(Username) != ?")
+                params.append(hiddenUser.lower())
+    
     select_sql = """
         SELECT
           ID, Name, Username, CreatorPoints, Description, Size, songID,
@@ -689,9 +764,6 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
         FROM levels
         WHERE 1=1
     """
-
-    where = []
-    params = []
 
     # Helper functions
     def exact_text(field, value):
@@ -842,6 +914,9 @@ def search_levels(level_id, name, username, description, song_id, min_cp, max_cp
 def index():
     info = collectRequestAnalytics()
     print(f"\n[{getFormattedTimestamp()}] {info[14]}")
+
+    username = getUsername()
+    bypassFilters = userCanBypassFilters(username)
     level_id = request.args.get("level_id", "")
     name = request.args.get("name", "")
     username = request.args.get("username", "")
@@ -874,21 +949,36 @@ def index():
     page_size = int(request.args.get("page_size") or 10)
     page = int(request.args.get("page", 1))
 
+    # Fetch a larger window from both sources to ensure proper merging and sorting
+    # We'll fetch 3x the page_size to have enough context for accurate pagination
+    # This balances performance with correctness
+    fetch_window_size = page_size * 3
+    # Calculate the starting page for the fetch window (centered around current page)
+    # This ensures we have results from before and after the requested page for proper sorting
+    fetch_start_page = max(1, page - 1)
+    
+    # Get local results with larger window
     localResults, localCount = search_levels(
         level_id, name, username, description, song_id,
         min_cp, max_cp, min_size, max_size,
         search_mode, case_sensitive, sort_by,
-        sort_order, page, page_size,
+        sort_order, fetch_start_page, fetch_window_size,
         original_id, rcoins, scoins, version, length,
         min_editor_time, max_editor_time, editor_ctime,
-        requested_rating, two_player, min_object_count, max_object_count, player_id
+        requested_rating, two_player, min_object_count, max_object_count, player_id, bypassFilters=bypassFilters
     )
+    
     # Forward authentication header and client information to remote search
     auth_header = request.headers.get("Authorization")
     client_ip = getClientIp()
     user_agent = request.headers.get("User-Agent")
+    
+    # For remote search, fetch the same window
+    remote_query_args = request.args.to_dict(flat=True)
+    remote_query_args["page"] = str(fetch_start_page)
+    remote_query_args["page_size"] = str(fetch_window_size)
     remoteResults, remoteCount = searchRemoteDatabases(
-        request.args, 
+        remote_query_args, 
         auth_header=auth_header,
         client_ip=client_ip,
         user_agent=user_agent
@@ -905,12 +995,53 @@ def index():
     elif sort_by == "Size":
         results.sort(key=lambda r: parseSizeToInt(r[5]), reverse=reverse)
 
-    # Paginate after merging local and remote results
-    start = (page - 1) * page_size
+    # Extract the correct page from the merged window
+    # We fetched starting from fetch_start_page, so we need to calculate the offset within our window
+    window_offset = (page - fetch_start_page) * page_size
+    start = max(0, window_offset)  # Ensure we don't go negative
     end = start + page_size
     results = results[start:end]
 
     total_pages = max(1, math.ceil(total_count / page_size))
+
+    # Fallback: if the merged-window slice ended up empty but the user is requesting
+    # a page that should exist, re-fetch using the exact requested page (no window).
+    # This most commonly happens when one source runs out of rows mid-window and the
+    # computed slice lands past the end of the merged list.
+    if not results and total_count > 0 and 1 <= page <= total_pages:
+        localResultsExact, localCountExact = search_levels(
+            level_id, name, username, description, song_id,
+            min_cp, max_cp, min_size, max_size,
+            search_mode, case_sensitive, sort_by,
+            sort_order, page, page_size,
+            original_id, rcoins, scoins, version, length,
+            min_editor_time, max_editor_time, editor_ctime,
+            requested_rating, two_player, min_object_count, max_object_count, player_id, bypassFilters=bypassFilters
+        )
+
+        remote_query_args_exact = request.args.to_dict(flat=True)
+        remote_query_args_exact["page"] = str(page)
+        remote_query_args_exact["page_size"] = str(page_size)
+        remoteResultsExact, remoteCountExact = searchRemoteDatabases(
+            remote_query_args_exact,
+            auth_header=auth_header,
+            client_ip=client_ip,
+            user_agent=user_agent
+        )
+
+        results = localResultsExact + remoteResultsExact
+        total_count = localCountExact + remoteCountExact
+        reverse = (sort_order == "desc")
+
+        if sort_by == "ID":
+            results.sort(key=lambda r: r[0], reverse=reverse)
+        elif sort_by == "CreatorPoints":
+            results.sort(key=lambda r: r[3], reverse=reverse)
+        elif sort_by == "Size":
+            results.sort(key=lambda r: parseSizeToInt(r[5]), reverse=reverse)
+
+        results = results[:page_size]
+        total_pages = max(1, math.ceil(total_count / page_size))
 
     return render_template_string(
         HTML,
@@ -931,6 +1062,51 @@ def index():
         max_object_count=max_object_count, player_id=player_id
     )
 
+@app.route("/api/search")
+@requireAuth
+def apiSearch():
+    args = request.args.to_dict(flat=True)
+
+    page = int(args.pop("page", 1))
+    pageSize = int(args.pop("page_size", 50))
+
+    results, totalCount = search_levels(
+        args.get("level_id", ""),
+        args.get("name", ""),
+        args.get("username", ""),
+        args.get("description", ""),
+        args.get("song_id", ""),
+        args.get("min_cp"),
+        args.get("max_cp"),
+        args.get("min_size"),
+        args.get("max_size"),
+        args.get("search_mode", "contains"),
+        args.get("case_sensitive", "insensitive"),
+        args.get("sort_by", "ID"),
+        args.get("sort_order", "desc"),
+        page,
+        pageSize,
+        args.get("original_id", ""),
+        args.get("rcoins", ""),
+        args.get("scoins", ""),
+        args.get("version", ""),
+        args.get("length", ""),
+        args.get("min_editor_time", ""),
+        args.get("max_editor_time", ""),
+        args.get("editor_ctime", ""),
+        args.get("requested_rating", ""),
+        args.get("two_player", ""),
+        args.get("min_object_count", ""),
+        args.get("max_object_count", ""),
+        args.get("player_id", "")
+    )
+    results = [row for row in results]
+
+    return jsonify({
+        "results": results,
+        "total": totalCount
+    })
+
 @app.route("/download/<int:level_id>")
 @requireAuth
 def download(level_id):
@@ -938,53 +1114,81 @@ def download(level_id):
     username = getUsername()
     print(f"\n[{getFormattedTimestamp()}] {username} downloaded level {level_id}")
     logLevelDownload(level_id, username)
+
+    conn = sqlite3.connect(DB_FILE)
+    cur = conn.cursor()
+    
+    cur.execute(
+        "SELECT Username FROM levels WHERE ID=?",
+        (level_id,)
+    )
+    
+    row = cur.fetchone()
+    conn.close()
+    creatorName = row[0]
+
+    if not userCanBypassFilters(username):
+        if level_id in HIDDEN_LEVEL_IDS:
+            abort(404, description=abortDescription)
+
+        if isHiddenUser(creatorName):
+            abort(404, description=abortDescription)
     file_path = findLevelFile(str(level_id))
     if not file_path:
-        # Try remote download from old level index
-        remote_base_url = getRemoteBaseUrl()
-        if remote_base_url:
-            try:
-                remote_url = f"{remote_base_url}/download/{level_id}"
-                auth_header = request.headers.get("Authorization")
-                client_ip = getClientIp()
-                user_agent = request.headers.get("User-Agent")
-                
-                headers = {}
-                if auth_header:
-                    headers["Authorization"] = auth_header
-                if client_ip:
-                    headers["X-Forwarded-For"] = client_ip
-                if user_agent:
-                    headers["User-Agent"] = user_agent
-                
-                r = requests.get(remote_url, headers=headers, timeout=10, stream=True)
-                r.raise_for_status()
-                
-                # Forward the remote response
-                def generate():
-                    for chunk in r.iter_content(chunk_size=4096):
-                        if chunk:
-                            yield chunk
-                
-                return Response(
-                    generate(),
-                    mimetype=r.headers.get("Content-Type", "application/octet-stream"),
-                    headers={
-                        "Content-Disposition": r.headers.get("Content-Disposition", f"attachment; filename={level_id}.gmd")
-                    }
-                )
-            except requests.exceptions.RequestException as e:
-                # If remote download fails, return 404
-                abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
+        # Try remote download from all remote level indexes
+        remote_base_urls = getRemoteBaseUrls()
+        if remote_base_urls:
+            auth_header = request.headers.get("Authorization")
+            client_ip = getClientIp()
+            user_agent = request.headers.get("User-Agent")
+            
+            headers = {}
+            if auth_header:
+                headers["Authorization"] = auth_header
+            if client_ip:
+                headers["X-Forwarded-For"] = client_ip
+            if user_agent:
+                headers["User-Agent"] = user_agent
+            
+            # Try each remote source until one succeeds
+            for remote_base_url in remote_base_urls:
+                try:
+                    remote_url = f"{remote_base_url}/download/{level_id}"
+                    r = requests.get(remote_url, headers=headers, timeout=10, stream=True)
+                    r.raise_for_status()
+                    
+                    # Forward the remote response
+                    def generate():
+                        for chunk in r.iter_content(chunk_size=4096):
+                            if chunk:
+                                yield chunk
+                    
+                    return Response(
+                        generate(),
+                        mimetype=r.headers.get("Content-Type", "application/octet-stream"),
+                        headers={
+                            "Content-Disposition": r.headers.get("Content-Disposition", f"attachment; filename={level_id}.gmd")
+                        }
+                    )
+                except requests.exceptions.RequestException:
+                    # Try next remote source
+                    continue
+            
+            # If all remote downloads failed, return 404
+            abort(404, description=abortDescription)
         else:
-            abort(404, description="Level file not found\n\nContact me to enable older downloads, I'll get back to you as fast as I can.")
-        #abort(404, description="Level file not found\n\nOlder levels are archived seperately and are thus harder to serve, contact me for specific requests.")
+            abort(404, description=abortDescription)
+            #abort(404, description="Level file not found\n\nOlder levels are archived seperately and are thus harder to serve, contact me for specific requests.")
 
     filename = os.path.splitext(os.path.basename(file_path))[0]  # remove extension
     if " - " in filename:
         _, level_name = filename.split(" - ", 1)
     else:
         level_name = filename
+
+    if not userCanBypassFilters(username):
+        if isHiddenLevelTitle(level_name):
+            abort(404, description=abortDescription)
 
     safe_level_name = "".join(c for c in level_name if c.isalnum() or c in " _-").rstrip()
 
