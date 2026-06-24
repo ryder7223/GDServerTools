@@ -171,7 +171,7 @@ Object ID | Name                          | Count
 browseUnlisted.py is a web-server which provides an interface for searching through a particular database containing level info.
 
 The schema for the database is as follows:
-```js
+```sql
 CREATE TABLE "levels" (
     "ID"    INTEGER,
     "Name"  TEXT,
