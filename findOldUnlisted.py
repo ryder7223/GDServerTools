@@ -19,8 +19,10 @@ This program finds unlisted ids by:
 5. It will then check if the creator of each level
    has creator points so that it's easier
    to find interesting levels.
-5. It then repeats with the 100 earlier ids.
-6. All levels and logs are saved, so
+6. It then checks the recent tab until a
+   new 100 levels are uploaded.
+7. Finally it repeats with the 100 new ids.
+8. All levels and logs are saved, so
    even if someone deletes their level, you'll
    have a copy.
 
