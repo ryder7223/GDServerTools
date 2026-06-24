@@ -10,19 +10,21 @@
 How does this work?
 
 This program finds unlisted ids by:
-1. Requesting a 100 ID list for listed levels.
-2. Checking which ids are returned.
-3. Looking for gaps between adjacent ids.
+1. Loading a recent tab page.
+2. Requests a 100 ID list for listed levels
+   up to the newest id.
+3. Checking which ids are returned.
+4. Looking for gaps between adjacent ids.
    These gaps are caused by levels being
    deleted or uploaded unlisted.
-4. It then tries to download these levels.
-5. It will then check if the creator of each level
+5. It then tries to download these levels.
+6. It will then check if the creator of each level
    has creator points so that it's easier
    to find interesting levels.
-6. It then checks the recent tab until a
+7. It then checks the recent tab until a
    new 100 levels are uploaded.
-7. Finally it repeats with the 100 new ids.
-8. All levels and logs are saved, so
+8. Finally it repeats with the 100 new ids.
+9. All levels and logs are saved, so
    even if someone deletes their level, you'll
    have a copy.
 
