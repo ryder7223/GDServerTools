@@ -250,7 +250,7 @@ Functionally identical to [browseUnlisted.py](https://github.com/ryder7223/GDSer
 A very WIP script which takes GMD files as input and generates an image of the level.
 
 ### Required files
- - object.json
+ - [object.json](https://github.com/ryder7223/GDServerTools/blob/main/object.json)
  - GJ_GameSheet-uhd.plist
  - GJ_GameSheet02-uhd.plist
  - GJ_GameSheet.plist
