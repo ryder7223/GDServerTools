@@ -11,7 +11,7 @@ Please consider starring this if you like it!
 pip install -i https://test.pypi.org/simple/ GDReq
 ```
 GDReq is an API wrapper and response parser designed to make interacting with the Geometry Dash servers through python simpler by creating as much abstraction as possible from the usual difficult process of sending valid requests.
-## Example usage:
+## Example usage
 ```py
 # Original
 
@@ -170,7 +170,7 @@ Object ID | Name                          | Count
 ## [browseUnlisted.py](https://github.com/ryder7223/GDServerTools/blob/main/browseUnlisted.py)
 browseUnlisted.py is a web-server which provides an interface for searching through a particular database containing level info.
 
-The schema for the database is as follows:
+The schema for the database is as follows
 ```sql
 CREATE TABLE "levels" (
     "ID"    INTEGER,
@@ -274,30 +274,79 @@ A program that runs forever until terminated which scans for new unlisted ids, a
  - Saves it's live terminal output of downloads to timestamped log files.
 
 ### How does it work?
-1. Loading a recent tab page.
-2. Checking which ids are returned.
-3. Looking for gaps between adjacent ids.
+1. Loading a recent tab page
+2. Checking which ids are returned
+3. Looking for gaps between adjacent ids
    These gaps are caused by levels being
-   deleted or uploaded unlisted.
-4. It then tries to download these levels.
+   deleted or uploaded unlisted
+4. It then tries to download these levels
 
 
 
 
 ## [findOldUnlisted.py](https://github.com/ryder7223/GDServerTools/blob/main/findOldUnlisted.py)
-Does the same thing as findUnlisted.py, but it's method of scanning is different.
+Does the a similar thing as findUnlisted.py, where it works backwards decrementing ids instead of working forward, and it's method of scanning is different.
 
 ### How does it work?
-1. Loading a recent tab page.
-2. Requesting a 100 ID list for listed levels up to the newest id.
-3. Checking which ids are returned.
-4. Looking for gaps between adjacent ids. These gaps are caused by levels being deleted or uploaded unlisted.
-5. It then tries to download these levels.
-6. It then checks the recent tab until a new 100 levels are uploaded.
-7. Finally it repeats with the 100 new ids.
+1. Loading a recent tab page
+2. Requesting a 100 ID list for listed levels up to the newest id
+3. Checking which ids are returned
+4. Looking for gaps between adjacent ids. These gaps are caused by levels being deleted or uploaded unlisted
+5. It then tries to download these levels
+6. It then moves back to the 100 previous ids and repeats
 
+
+
+
+## [findUnlistedNew.py](https://github.com/ryder7223/GDServerTools/blob/main/findUnlistedNew.py)
+Uses the same scanning method as findOldUnlisted.py, but works forwards incrementing ids instead of working backwards.
+
+### How does it work?
+1. Loading a recent tab page
+2. Requesting a 100 ID list for listed levels up to the newest id
+3. Checking which ids are returned
+4. Looking for gaps between adjacent ids. These gaps are caused by levels being deleted or uploaded unlisted
+5. It then tries to download these levels
+6. It then checks the recent tab until a new 100 levels are uploaded
+7. Finally it repeats with the 100 new ids
 
 
 
 ## [editGDShare.py](https://github.com/ryder7223/GDServerTools/blob/main/editGDShare.py)
 Allows for the editing, adding, and removing of k tags in gmd files.
+
+
+
+
+## [updatePassword.py](https://github.com/ryder7223/GDServerTools/blob/main/updatePassword.py)
+Edits your save file `CCGameManager.dat` to change the tag called `GJA_005` which contains your hashed password. It supports both types of save files, them being windows and mobile/macOS.
+
+### Why use this?
+If you change your password in-game, all logged in devices will stop functioning correctly and anything that requires authentication will stop working, this can usually be fixed by saving and loading your data, but if your save file is too large to save, this will no longer be an option, that's why this script exists.
+
+### How to use
+- Specify the file path of the save file in the case it cannot be auto-detected
+- Enter the new password
+- The save file will be automatically updated
+
+### Installation
+ - Install Python 3.12
+     - [Windows](https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe)/[macOS](https://www.python.org/ftp/python/3.12.4/python-3.12.4-macos11.pkg)
+ - Install pycryptodome
+     - Windows:
+       ```powershell
+       py -3.12 -m pip install pycryptodome
+       ```
+     - macOS:
+       ```powershell
+       python3.12 -m pip install pycryptodome
+       ```
+ - Run specifying the python version
+     - Windows
+       ```powershell
+       py -3.12 updatePassword.py
+       ```
+     - macOS
+       ```powershell
+       python3.12 updatePassword.py
+       ```
