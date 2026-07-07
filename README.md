@@ -350,3 +350,46 @@ If you change your password in-game, all logged in devices will stop functioning
        ```powershell
        python3.12 updatePassword.py
        ```
+
+
+
+
+## [unlistedWrapper.py](https://github.com/ryder7223/GDServerTools/blob/main/unlistedWrapper.py)
+Handles making automated requests to https://unlisted.ryder7223.hrsn.dev, retuning a normalised result.
+
+### Example usage
+```py
+from pprint import pprint
+from unlistedWrapper import makeRequest
+
+pprint(makeRequest(
+	"username",
+	"password",
+	username="Ryder7223",
+	pageSize=1,
+	page=5
+	),
+sort_dicts=False)
+```
+
+### Response
+```py
+{'results': [{'ID': 123533560,
+              'Name': '22unlistedtest',
+              'Username': 'ryder7223',
+              'CP': 0,
+              'Description': '',
+              'Size': '644 B',
+              'OriginalID': '0',
+              'rCoins': '0',
+              'sCoins': 0,
+              'Version': 0,
+              'Length': '1',
+              'EditorTime': 'Tiny',
+              'EditorCTime': 7,
+              'RequestedRating': 0,
+              'TwoPlayer': '0',
+              'ObjectCount': 'No',
+              'PlayerID': 1}],
+ 'total': 6}
+```
