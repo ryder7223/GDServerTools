@@ -1,6 +1,5 @@
 from typing import Any, Literal
 import requests
-from pprint import pprint
 
 
 def normaliseResults(data: dict[str, Any]) -> dict[str, Any]:
@@ -11,6 +10,7 @@ def normaliseResults(data: dict[str, Any]) -> dict[str, Any]:
 		"CP",
 		"Description",
 		"Size",
+		"songID",
 		"OriginalID",
 		"rCoins",
 		"sCoins",
