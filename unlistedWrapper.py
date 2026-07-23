@@ -1,6 +1,8 @@
 from typing import Any, Literal
 import requests
+import urllib3
 
+urllib3.disable_warnings()
 
 def normaliseResults(data: dict[str, Any]) -> dict[str, Any]:
 	keys = [
@@ -149,7 +151,7 @@ def makeRequest(
 	response = requests.get(
 		"https://unlisted.ryder7223.hrsn.dev/api/search",
 		params=params,
-		auth=(user, password)
+		auth=(user, password), verify=False
 	)
 
 	response.raise_for_status()
