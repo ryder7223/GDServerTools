@@ -13,8 +13,6 @@ import zlib
 import random
 import string
 import time
-from collections import Counter
-import xml.etree.ElementTree as ET
 import urllib.request
 import os
 import ssl
