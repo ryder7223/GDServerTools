@@ -2709,6 +2709,30 @@ class Tools:
 		return chk
 	
 	@staticmethod
+	def getObjectIDs(objectString: str) -> list:
+		"""
+		Returns all object IDs in an object string such that it's length evaluates to the object count
+		"""
+		objects = objectString.split(";")
+		objectIds: list[str] = []
+		for obj in objects:
+			if not obj.strip():
+				continue
+			fields = obj.split(",")
+			for i in range(0, len(fields) - 1, 2):
+				if fields[i] == "1":
+					objId = fields[i + 1]
+					if objId == "747":
+						objectIds.append(objId)
+						objectIds.append(objId)
+					elif objId == "31":
+						pass
+					else:
+						objectIds.append(objId)
+					break
+		return objectIds
+
+	@staticmethod
 	def _generateClassicLeaderboardSeed(
 		jumps: int,
 		percentage: int,
@@ -3566,30 +3590,59 @@ def uploadGJLevel21(
 	levelVersion: int,
 	levelLength: int,
 	audioTrack: int,
-	auto: int,
 	password: int,
-	original: int,
 	twoPlayer: int,
 	songID: int,
-	objects: int,
 	coins: int,
 	requestedStars: int,
-	unlisted: int,
 	ldm: int,
 	levelString: str,
+	original: int | None = None,
+	auto: int | None = None,
+	unlisted: int | None = None,
 	seed2: str | None = None,
+	objects: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	wt: int | None = None,
 	wt2: int | None = None,
 	seed: str | None = None,
 	extraString: str | None = None,
-	levelInfo: str | None = None
+	levelInfo: str | None = None,
+	dvs: int | None = None,
+	ts: int | None = None,
+	lrs: str | None = None
 ) -> str:
+	"""
+	levelID: 0 = new level, ID = updating level
+	levelDesc: Description in plaintext
+	levelLength: 0 to 4 = Tiny to XL, 5 = Platformer
+	audioTrack: 0 if newgrounds is used
+	password: 0 = no copy, 1 = free copy
+	songID: Set to 0 if using audioTrack
+	auto: 0 by default
+	unlisted: 0 = public, 1 = friends only, 2 = unlisted, 0 by default
+	levelString: Encoded level string
+	wt: The amount of time spent in the editor
+	wt2: The amount of time spent in the editor in previous copies
+	"""
 	secret = Tools.getSecret(1)
 	if seed2 is None:
 		seed2 = Tools._generateLevelUploadSeed2(levelString)
 	
+	if original is None:
+		original = 0
+
+	if auto is None:
+		auto = 0
+
+	if unlisted is None:
+		unlisted = 0
+
+	if objects is None:
+		objectString = Tools.Encryption.decodeString(levelString, 16)
+		objects = len(Tools.getObjectIDs(objectString))
+
 	data: dict[str, str | int] = {
 		"gameVersion": gameVersion,
 		"accountID": accountID,
@@ -3597,7 +3650,7 @@ def uploadGJLevel21(
 		"userName": userName,
 		"levelID": levelID,
 		"levelName": levelName,
-		"levelDesc": levelDesc,
+		"levelDesc": Tools.b64EncodeUrlSafe(levelDesc),
 		"levelVersion": levelVersion,
 		"levelLength": levelLength,
 		"audioTrack": audioTrack,
@@ -3615,6 +3668,7 @@ def uploadGJLevel21(
 		"seed2": seed2,
 		"secret": secret
 	}
+
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
 	
@@ -3635,6 +3689,15 @@ def uploadGJLevel21(
 	
 	if levelInfo is not None:
 		data["levelInfo"] = levelInfo
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	if ts is not None:
+		data["ts"] = ts
+
+	if lrs is not None:
+		data["lrs"] = lrs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJLevel21.php",
