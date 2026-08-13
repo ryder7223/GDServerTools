@@ -3195,23 +3195,39 @@ def backupGJAccountNew(
 	userName: str,
 	password: str,
 	saveData: str,
+	uuid: int,
 	gameVersion: int = 22,
 	binaryVersion: int = 47,
-	gdw: int | None = None
+	gdw: int | None = None,
+	udid: str | None = None,
+	dvs: int | None = None
 ) -> str:
+	"""
+	udid: The player's UDID
+	uuid: The player's player ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
 	secret = Tools.getSecret(2)
-	
+
+	if udid is None:
+		udid = Tools.generateUdid()
+
 	data: dict[str, str | int] = {
 		"userName": userName,
 		"password": password,
 		"saveData": saveData,
 		"gameVersion": gameVersion,
 		"binaryVersion": binaryVersion,
+		"udid": udid,
+		"uuid": uuid,
 		"secret": secret
 	}
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq("http://www.robtopgames.org/database/accounts/backupGJAccountNew.php", data)
 	
@@ -3221,25 +3237,31 @@ def backupGJAccountNew(
 	return response.text
 
 def loginGJAccount(
-	udid: str,
 	userName: str,
-	password: str,
+	gjp2: str,
+	udid: str | None = None,
 	sID: str | None = None
 ) -> str:
 	secret = Tools.getSecret(2)
 	
+	if udid is None:
+		udid = Tools.generateUdid()
+
 	data: dict[str, str | int] = {
-		"udid": udid,
+		"udid": "anything",
 		"userName": userName,
-		"password": password,
+		"gjp2": gjp2,
 		"secret": secret
 	}
+
 	if sID is not None:
 		data["sID"] = sID
+
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/accounts/loginGJAccount.php",
 		data
 	)
+
 	if not Tools.checkResponse(response.text):
 		print(f"loginGJAccount Failed: {response.text}")
 	return response.text
@@ -3275,18 +3297,24 @@ def syncGJAccountNew(
 		"gjp2": gjp2,
 		"secret": secret
 	}
+
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
+
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
+
 	if gdw is not None:
 		data["gdw"] = gdw
+
 	response = Tools.makeReq(
 		"http://www.robtopgames.org/database/accounts/syncGJAccountNew.php",
 		data
 	)
+
 	if not Tools.checkResponse(response.text):
 		print(f"syncGJAccountNew Failed: {response.text}")
+
 	return response.text
 
 def updateGJAccSettings20(
@@ -3306,24 +3334,33 @@ def updateGJAccSettings20(
 		"gjp2": gjp2,
 		"secret": secret
 	}
+
 	if mS is not None:
 		data["mS"] = mS
+
 	if frS is not None:
 		data["frS"] = frS
+
 	if cS is not None:
 		data["cS"] = cS
+
 	if yt is not None:
 		data["yt"] = yt
+
 	if twitter is not None:
 		data["twitter"] = twitter
+
 	if twitch is not None:
 		data["twitch"] = twitch
+
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/updateGJAccSettings20.php",
 		data
 	)
+
 	if not Tools.checkResponse(response.text):
 		print(f"updateGJAccSettings20 Failed: {response.text}")
+
 	return response.text
 		
 def getGJScores20(
@@ -4381,7 +4418,7 @@ def getGJLevelScores211(
 	plat: Always 0
 	mode: Undocumented, seems to be 0
 	udid: The player's UDID
-	uuid: The player's user ID
+	uuid: The player's player ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	s1: User's attempts
 	s2: User's clicks
@@ -4449,14 +4486,14 @@ def getGJLevelScores211(
 	if mode is not None:
 		data["mode"] = mode
 
-	if dvs is not None:
-		data["dvs"] = dvs
-
 	if udid is not None:
 		data["udid"] = udid
 
 	if uuid is not None:
 		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	if s1 is not None:
 		data["s1"] = s1 + 8354
@@ -4592,7 +4629,7 @@ def getGJLevelScoresPlat(
 	plat: Always 1
 	mode: Undocumented, seems to be 0
 	udid: The player's UDID
-	uuid: The player's user ID
+	uuid: The player's player ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	s1: User's attempts
 	s2: User's clicks
@@ -4660,14 +4697,14 @@ def getGJLevelScoresPlat(
 	if mode is not None:
 		data["mode"] = mode
 
-	if dvs is not None:
-		data["dvs"] = dvs
-
 	if udid is not None:
 		data["udid"] = udid
 
 	if uuid is not None:
 		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	if s1 is not None:
 		data["s1"] = s1 + 8354
