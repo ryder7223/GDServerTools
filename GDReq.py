@@ -4559,26 +4559,80 @@ def getGJLevelScoresPlat(
 	percent: int | None = None,
 	type_: int | None = None,
 	mode: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
 	s1: int | None = None,
 	s2: int | None = None,
 	s3: int | None = None,
-	s4: int | None = None,
-	s5: float | None = None,
+	s4: tuple[int, int, int, bool] | None = None,
+	s5: bool | None = None,
 	s6: str | None = None,
-	s7: str | None = None
+	s7: bool | None = None,
+	s8: int | None = None,
+	s9: int | None = None,
+	s10: int | None = None,
+	s11: int | None = None,
+	s12: bool | Literal[0] | None = None,
+	s13: int | None = None,
+	s14: int | None = None,
+	s15: bool | Literal[0] | None = None,
+	s16: str | None = None,
+	s17: str | None = None,
+	s18: int | None = None,
+	s19: bool | Literal[0] | None = None,
+	s20: int | None = None,
+	chk: tuple[int, int, int, int, int, int, bool] | None = None,
 ) -> str:
 	"""
 	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
+	percent: If left out, the leaderboard will be fetched without updating your score
+	time: Time in milliseconds if the user completed the level, otherwise 0
+	points: The amount of points the user has
+	plat: Always 1
+	mode: Undocumented, seems to be 0
+	udid: The player's UDID
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	s1: User's attempts
+	s2: User's clicks
+	s3: User's attempt time in seconds
+	s4: level seed, pass in a tuple containing (jumps, percent, seconds, hasPlayed)
+	s5: Random number, Set to True to include
+	s6: List of PB differences (For example from 0 to 50, then 69, it would be 50,19)
+	s7: Randomly Generated 10 character string, set to True to include
+	s8: Attempt count
+	s9: The amount of coins the user got
+	s10: Same as timelyID
+	s11: 0 if level has not been completed, otherwise, amount of ticks on the best time attempt
+	s12: 0 if level has not been completed, otherwise True
+	s13: Unknown value, starts at 1171520
+	s14: 0 if level has not been completed, otherwise, amount of clicks on the best time attempt
+	s15: 0 if level has not been completed, otherwise True
+	s16: Seemingly always empty
+	s17: Seemingly always empty
+	s18: 0 if level has not been completed, otherwise the amount of collected coins on the best time attempt
+	s19: 0 if level has not been completed, otherwise True
+	s20: The level version
+	chk: Pass in a tuple containing (percent, jumps, attempts, coins, timelyID, seconds, hasPlayed), also include s6 and s7 in the parameters for chk to generate
+
+	attempts: Total level attempts
+	coins: The number of coins collected
+	timelyID: The ordinal number of the daily/weekly, 0 otherwise
+	jumps: Jumps in the current attempt
+	seconds: Duration of attempt
+	hasPlayed: ALways True
 	"""
 	secret = Tools.getSecret(1)
+
 	
-	data: dict[str, str | int | float] = {
+	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"levelID": levelID,
 		"secret": secret
 	}
-	
+
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
 	
@@ -4602,30 +4656,96 @@ def getGJLevelScoresPlat(
 	
 	if type_ is not None:
 		data["type"] = type_
-	
+
 	if mode is not None:
 		data["mode"] = mode
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
 	
 	if s1 is not None:
-		data["s1"] = s1
+		data["s1"] = s1 + 8354
 	
 	if s2 is not None:
-		data["s2"] = s2
+		data["s2"] = s2 + 3991
 	
 	if s3 is not None:
-		data["s3"] = s3
+		data["s3"] = s3 + 4085
 	
-	if s4 is not None:
-		data["s4"] = s4
+	if isinstance(s4, tuple):
+		jumps, percent, seconds, hasPlayed = s4
+		data["s4"] = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, hasPlayed)
 	
-	if s5 is not None:
-		data["s5"] = s5
+	if s5 is True:
+		data["s5"] = Tools._generateLeaderboardRandom(False)
 	
 	if s6 is not None:
-		data["s6"] = s6
+		key = Tools.getXorKey(9)
+		value = Tools.b64EncodeUrlSafe(Tools.xorCipher(s6, key))
+		s6, data["s6"] = value, value
 	
-	if s7 is not None:
-		data["s7"] = s7
+	if s7 is True:
+		data["s7"] = Tools.generateRs()
+
+	if s8 is not None:
+		data["s8"] = s8
+
+	if s9 is not None:
+		data["s9"] = s9 + 5819
+	
+	if s10 is not None:
+		data["s10"] = s10
+	
+	if s11 is not None:
+		if s11 != 0:
+			s11 += 46533
+		data["s11"] = s11
+	
+	if s12 is not None:
+		data["s12"] = 25645 if s12 is True else 0
+	
+	if s13 is not None:
+		if s13 < 1171520:
+			s13 = 1171520
+		data["s13"] = s13
+	
+	if s14 is not None:
+		if s14 != 0:
+			s14 += 7684
+		data["s14"] = s14
+	
+	if s15 is not None:
+		data["s15"] = 3453 if s15 is True else 0
+	
+	if s16 is not None:
+		data["s16"] = s16
+	
+	if s17 is not None:
+		data["s17"] = s17
+	
+	if s18 is not None:
+		if s18 != 0:
+			s18 += 6433
+		data["s18"] = s18
+	
+	if s19 is not None:
+		data["s19"] = 6323 if s19 is True else 0
+
+	if s20 is not None:
+		data["s20"] = s20
+
+	if (s6 is not None and
+		s7 is not None and
+		isinstance(chk, list)):
+		percent, jumps, attempts, coins, timelyID, seconds, hasPlayed = chk
+		seed = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, hasPlayed)
+		data["chk"] = Tools.genChk(8, [accountID, levelID, percent, jumps, attempts, seed, s6, 1, coins, timelyID, data["s7"]], 5)
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJLevelScoresPlat.php",
