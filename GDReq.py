@@ -3661,12 +3661,13 @@ def uploadGJLevel21(
 	levelID: 0 = new level, ID = updating level
 	levelDesc: Description in plaintext
 	levelLength: 0 to 4 = Tiny to XL, 5 = Platformer
-	audioTrack: 0 if newgrounds is used
+	audioTrack: Main level song id, 0 if songID is used
 	password: 0 = no copy, 1 = free copy
-	songID: Set to 0 if using audioTrack
+	songID: Newgrounds song id, set to 0 if using audioTrack
 	auto: 0 by default
 	unlisted: 0 = public, 1 = friends only, 2 = unlisted, 0 by default
-	levelString: Encoded level string
+	levelString: The encoded object string of the level. This can be
+	extracted from a parsed online level at GDReq.Parse.downloadGJLevel22(level)["level"]["levelString"]
 	wt: The amount of time spent in the editor
 	wt2: The amount of time spent in the editor in previous copies
 	"""
