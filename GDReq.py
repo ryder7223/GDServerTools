@@ -3248,7 +3248,7 @@ def loginGJAccount(
 		udid = Tools.generateUdid()
 
 	data: dict[str, str | int] = {
-		"udid": "anything",
+		"udid": udid,
 		"userName": userName,
 		"gjp2": gjp2,
 		"secret": secret
