@@ -3242,6 +3242,10 @@ def loginGJAccount(
 	udid: str | None = None,
 	sID: str | None = None
 ) -> str:
+	"""
+	udid: The player's UDID
+	sID: The player's Steam ID
+	"""
 	secret = Tools.getSecret(2)
 	
 	if udid is None:
@@ -3266,7 +3270,16 @@ def loginGJAccount(
 		print(f"loginGJAccount Failed: {response.text}")
 	return response.text
 
-def registerGJAccount(userName: str, password: str, email: str) -> str:
+def registerGJAccount(
+	userName: str,
+	password: str,
+	email: str
+) -> str:
+	"""
+	userName: The new account username.
+	password: The new account password.
+	email: The account email address.
+	"""
 	secret = Tools.getSecret(2)
 	
 	data: dict[str, str | int] = {
@@ -3288,8 +3301,19 @@ def syncGJAccountNew(
 	gjp2: str,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
+	gdw: int | None = None,
+	gdl: int | None = None
 ) -> str:
+	"""
+	udid: The player's UDID
+	uuid: The player's player ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	gdw: 1 if the request is coming from GD World
+	gdl: 1 if the request is coming from GD Lite
+	"""
 	secret = Tools.getSecret(2)
 	
 	data: dict[str, str | int] = {
@@ -3303,6 +3327,15 @@ def syncGJAccountNew(
 
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
+
+	if udid is not None:
+		data["udid"] = udid
+
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
 
 	if gdw is not None:
 		data["gdw"] = gdw
@@ -3327,6 +3360,16 @@ def updateGJAccSettings20(
 	twitter: str | None = None,
 	twitch: str | None = None
 ) -> str:
+	"""
+	accountID: The account ID to update.
+	gjp2: The player's GJP2 password token.
+	mS: Message privacy setting.
+	frS: Friend request privacy setting.
+	cS: Comment privacy setting.
+	yt: YouTube channel URL.
+	twitter: Twitter handle.
+	twitch: Twitch username.
+	"""
 	secret = Tools.getSecret(2)
 	
 	data: dict[str, str | int] = {
@@ -3373,7 +3416,8 @@ def getGJScores20(
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	udid: str | None = None,
-	uuid: int | None = None
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
 	"""
 	stat: 0 = stars, 1 = moons, 2 = demons, 3 = coins
@@ -3415,6 +3459,9 @@ def getGJScores20(
 	if uuid is not None:
 		data["uuid"] = uuid
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJScores20.php",
 		data
@@ -3431,8 +3478,22 @@ def getGJUserInfo20(
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	accountID: int | None = None,
-	gjp2: str | None = None
+	gjp2: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 	) -> str:
+	"""
+	targetAccountID: The user account ID whose profile info is being fetched.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	accountID: The requesting account ID, if logged in.
+	gjp2: The requesting account's GJP2 token, if logged in.
+	udid: The player's UDID.
+	uuid: The player's player ID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -3455,6 +3516,15 @@ def getGJUserInfo20(
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
 	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJUserInfo20.php",
 		data
@@ -3471,8 +3541,22 @@ def getGJUsers20(
 	gdw: int | None = None,
 	str_: str | None = None,
 	page: int | None = None,
-	total: int | None = None
+	total: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	dvs: int | None = None
 	) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	str_: Search text or query for user lookup.
+	page: Which page of results to request.
+	total: Likely the cached total page count.
+	accountID: The requesting account ID, if logged in.
+	gjp2: The requesting account's GJP2 token, if logged in.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -3496,6 +3580,15 @@ def getGJUsers20(
 	
 	if total is not None:
 		data["total"] = total
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+	
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJUsers20.php",
@@ -3545,6 +3638,44 @@ def updateGJUserScore22(
 	special: int | None = None,
 	seed: str | None = None
 ) -> str:
+	"""
+	accountID: The user's account ID.
+	gjp2: The user's GJP2 token.
+	stars: Total stars.
+	moons: Total moons.
+	demons: Total demons.
+	diamonds: Total diamonds.
+	icon: Selected icon ID.
+	iconType: Type of icon set (0 = cube, 1 = ship, etc.).
+	coins: Total secret coins collected.
+	userCoins: Total user coins collected.
+	accIcon: Selected icon for account icon.
+	accShip: Selected ship ID.
+	accBall: Selected ball ID.
+	accBird: Selected bird ID.
+	accDart: Selected dart ID.
+	accRobot: Selected robot ID.
+	accGlow: Selected glow trail ID.
+	accSpider: Selected spider ID.
+	accExplosion: Selected explosion ID.
+	accSwing: Selected swing ID.
+	accJetpack: Selected jetpack ID.
+	dinfo: Decoration info string.
+	dinfow: Decoration info color value.
+	dinfog: Decoration info green value.
+	sinfo: Stats info string.
+	sinfod: Statistics detail value.
+	sinfog: Statistics group value.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	userName: Optional username override.
+	color1: Optional primary color.
+	color2: Optional secondary color.
+	color3: Optional tertiary color.
+	special: Optional special icon flag.
+	seed: Optional random seed override.
+	"""
 	secret = Tools.getSecret(1)
 	
 	if seed is None:
@@ -3657,6 +3788,14 @@ def deleteGJLevelUser20(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 	) -> str:
+	"""
+	accountID: The account ID deleting the level record.
+	gjp2: The user's GJP2 token.
+	levelID: The level ID to remove from the user's list.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(2)
 	
 	data: dict[str, str | int] = {
@@ -3720,18 +3859,38 @@ def uploadGJLevel21(
 	lrs: str | None = None
 ) -> str:
 	"""
-	levelID: 0 = new level, ID = updating level
-	levelDesc: Description in plaintext
-	levelLength: 0 to 4 = Tiny to XL, 5 = Platformer
-	audioTrack: Main level song id, 0 if songID is used
-	password: 0 = no copy, 1 = free copy
-	songID: Newgrounds song id, set to 0 if using audioTrack
-	auto: 0 by default
-	unlisted: 0 = public, 1 = friends only, 2 = unlisted, 0 by default
-	levelString: The encoded object string of the level. This can be
-	extracted from a parsed online level at GDReq.Parse.downloadGJLevel22(level)["level"]["levelString"]
-	wt: The amount of time spent in the editor
-	wt2: The amount of time spent in the editor in previous copies
+	gameVersion: The client's game version.
+	accountID: The account ID uploading the level.
+	gjp2: The account's GJP2 token.
+	userName: The creator username.
+	levelID: 0 = new level; an existing level ID = update.
+	levelName: The level name.
+	levelDesc: Description in plaintext; it is base64 URL-safe encoded before sending.
+	levelVersion: The level version number.
+	levelLength: 0 to 4 = Tiny to XL, 5 = Platformer.
+	audioTrack: Main level song ID, 0 if songID is used.
+	password: 0 = no copy, 1 = free copy.
+	twoPlayer: 1 if the level is two-player enabled.
+	songID: Newgrounds song ID, set to 0 if using audioTrack.
+	requestedStars: Requested star count.
+	ldm: Level data model flag.
+	levelString: The encoded object string of the level.
+	original: 1 if the level was uploaded as an original level.
+	auto: 0 by default.
+	unlisted: 0 = public, 1 = friends only, 2 = unlisted, 0 by default.
+	seed2: Upload seed2 value; auto-generated if omitted.
+	objects: Number of objects in the level; auto-detected if omitted.
+	coins: Number of coins in the level; auto-detected if omitted.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	wt: Total editor time spent in the current upload session.
+	wt2: Total editor time spent in earlier copies.
+	seed: Optional upload seed value.
+	extraString: Optional extra info string.
+	levelInfo: Optional additional metadata string.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	ts: Timestamp value.
+	lrs: Last revision string.
 	"""
 	secret = Tools.getSecret(1)
 	if seed2 is None:
@@ -3829,6 +3988,15 @@ def updateGJDesc20(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 ) -> str:
+	"""
+	accountID: The account ID updating the level description.
+	gjp2: The account's GJP2 token.
+	levelID: The level ID whose description is being updated.
+	levelDesc: The new description text.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -3868,6 +4036,16 @@ def suggestGJStars(
 	feature: int,
 	gdw: int = 0
 ) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	accountID: The account ID suggesting the stars.
+	gjp2: The account's GJP2 token.
+	levelID: The level ID being suggested.
+	stars: The star count being suggested.
+	feature: Feature flag for the suggestion.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(4)
 	
 	data: dict[str, str | int] = {
@@ -3893,6 +4071,9 @@ def suggestGJStars(
 	return response.text
 
 def reportGJLevel(levelID: int | None = None) -> str:
+	"""
+	levelID: The level ID to report. If omitted, the request may still be sent with a server-generated default.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -3922,6 +4103,19 @@ def rateGJStars211(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 ) -> str:
+	"""
+	levelID: The level being rated.
+	stars: The star count being assigned.
+	rs: Random seed used when generating the rating checksum.
+	accountID: The account ID of the rater, if logged in.
+	gjp2: The rater's GJP2 token, if logged in.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	chk: Optional precomputed rating checksum.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(1)
 	if chk is None and (rs is not None and
 						accountID is not None and
@@ -3983,6 +4177,15 @@ def rateGJDemon21(
 	rating: int,
 	gdw: int | None = None
 ) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	accountID: The account ID of the rater.
+	gjp2: The rater's GJP2 token.
+	levelID: The demon level being rated.
+	rating: The demon rating value being sent.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(4)
 	
 	data: dict[str, str | int] = {
@@ -4012,8 +4215,24 @@ def getGJMapPacks21(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	page: int | None = None
+	page: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None
 ) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	page: The map pack page to request.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	accountID: The requesting account ID, if logged in.
+	gjp2: The requesting account's GJP2 token, if logged in.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -4032,6 +4251,21 @@ def getGJMapPacks21(
 	if page is not None:
 		data["page"] = page
 	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJMapPacks21.php",
 		data
@@ -4046,8 +4280,26 @@ def getGJGauntlets21(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	special: int | None = None
+	special: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	vkey: int | None = None
 ) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	special: Optional special-case gauntlet filter.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	accountID: The requesting account ID, if logged in.
+	gjp2: The requesting account's GJP2 token, if logged in.
+	vkey: Optional version check key.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -4066,6 +4318,24 @@ def getGJGauntlets21(
 	if special is not None:
 		data["special"] = special
 	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+	
+	if vkey is not None:
+		data["vkey"] = vkey
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJGauntlets21.php",
 		data
@@ -4082,8 +4352,26 @@ def getGJDailyLevel(
 	gdw: int | None = None,
 	accountID: int | None = None,
 	gjp2: str | None = None,
-	weekly: int | None = None
+	weekly: int | None = None,
+	type_: int | None = None,
+	chk: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	accountID: The requesting account ID, if logged in.
+	gjp2: The requesting account's GJP2 token, if logged in.
+	weekly: 0 for daily, 1 for weekly, or use type_ to request a specific daily/weekly.
+	type_: Daily/weekly mode selector.
+	chk: Optional checksum if required.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -4107,6 +4395,21 @@ def getGJDailyLevel(
 	
 	if weekly is not None:
 		data["weekly"] = weekly
+	
+	if type_ is not None:
+		data["type"] = type_
+	
+	if chk is not None:
+		data["chk"] = chk
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJDailyLevel.php",
@@ -4232,33 +4535,69 @@ def getGJLevels21(
 	uuid: int | None = None
 ) -> str:
 	"""
-	type_: Search type, defaults to most liked, types are as follows:
+	str_: Search query, user ID, or comma-separated list of level IDs depending on the type.
+	type_: Search type, defaults to most liked. Valid values are:
 	```markdown
-	| Type | Description                                                                       |
-	| :--: | --------------------------------------------------------------------------------- |
-	|  0   | Search query                                                                      |
-	|  1   | Most downloaded                                                                   |
-	|  2   | Most liked                                                                        |
-	|  3   | Trending                                                                          |
-	|  4   | Recent                                                                            |
-	|  5   | User's levels, uses `str` as the **user ID**                                      |
-	|  6   | Featured                                                                          |
-	|  7   | Magic                                                                             |
-	|  8   | Moderator sent levels                                                             |
-	|  10  | List of levels (not to be confused with type 25, which is for in-game lists), uses `str` as a comma separated list of level IDs |
-	|  11  | Awarded                                                                           |
-	|  12  | Followed (see `followed` parameter)                                               |
-	|  13  | Friends (login required)                                                          |
-	|  15  | Most liked in GD World                                                            |
-	|  16  | Hall of fame                                                                      |
-	|  17  | Featured in GD World                                                              |
-	|  18  | Unknown (always empty, perhaps robtop only?)                                      |
-	|  19  | Unknown (same as type 10 but this type has pagination and no star rate filter)    |
-	|  21  | Daily history                                                                     |
-	|  22  | Weekly history                                                                    |
-	|  25  | Level list, uses `str` as the list ID                                             |
-	|  26  | Unknown (same as type 19 but each page has up to 100 levels instead of 10 on it)  |
+	| Type | Description                                                                                                                     |
+	| :--: | ------------------------------------------------------------------------------------------------------------------------------- |
+	|  0   | Search query (used when opening the original level)                                                                             |
+	|  1   | Most downloaded                                                                                                                 |
+	|  2   | Most liked                                                                                                                      |
+	|  3   | Trending                                                                                                                        |
+	|  4   | Recent                                                                                                                          |
+	|  5   | User's levels, uses `str` as the **user ID**                                                                                    |
+	|  6   | Featured                                                                                                                        |
+	|  7   | Magic                                                                                                                           |
+	|  8   | Moderator sent levels                                                                                                           |
+	|  10  | List of levels, uses `str` as a comma separated list of level IDs                                                               |
+	|  11  | Awarded                                                                                                                         |
+	|  12  | Followed (see `followed` parameter)                                                                                             |
+	|  13  | Friends (login required)                                                                                                        |
+	|  15  | Most liked in GD World                                                                                                          |
+	|  16  | Hall of fame                                                                                                                    |
+	|  17  | Featured in GD World                                                                                                            |
+	|  18  | Unknown (always empty, perhaps robtop only?)                                                                                    |
+	|  19  | Unknown (same as type 10 but this type has pagination and no star-rate filter)                                                |
+	|  21  | Daily history                                                                                                                   |
+	|  22  | Weekly history                                                                                                                  |
+	|  23  | Event history                                                                                                                   |
+	|  24  | Reported levels (Elder Moderator only)                                                                                          |
+	|  25  | Level list, uses `str` as the list ID                                                                                           |
+	|  26  | Local level list (same as type 19 but can return up to 100 levels)                                                              |
+	|  27  | Sent                                                                                                                            |
+	|  28  | GD Lite weekly levels                                                                                                           |
+	|  29  | GD Lite bonus levels (platformer)                                                                                               |
 	```
+	page: Which page to request. Defaults to 0.
+	total: Cached total count to use when fetching paged results.
+	gjp: Legacy GJP token.
+	gjp2: Account GJP2 token if logged in.
+	accountID: The requesting account ID.
+	gdw: 1 if the request is coming from GD World.
+	gauntlet: Gauntlet filter ID.
+	diff: Difficulty filter, use the `diff` table in the docs for values.
+	demonFilter: Demon tier filter, as defined in the docs.
+	len_: Length filter. Values are `-`, `0`, `1`, `2`, `3`, `4`, `5`.
+	uncompleted: 1 to filter for uncompleted levels.
+	onlyCompleted: 1 to filter for completed levels.
+	completedLevels: Comma-separated list of completed level IDs when used with completion filters.
+	featured: 1 to filter featured levels.
+	original: 1 to filter original levels.
+	twoPlayer: 1 to filter two-player levels.
+	coins: 1 to filter levels with coins.
+	epic: 1 to filter epic levels.
+	legendary: 1 to filter legendary levels; the docs note the field is swapped historically with `mythic`.
+	mythic: 1 to filter mythic levels; docs note this field is swapped historically with `legendary`.
+	noStar: 1 to filter unrated levels.
+	star: 1 to filter rated levels.
+	song: Search by song ID.
+	customSong: 1 if `song` refers to a custom Newgrounds track.
+	followed: Comma-separated list of followed account IDs, used for type 12 queries.
+	local: 1 to request "My Online Levels" when using type 5 with a sender user ID.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	udid: The player's UDID.
+	uuid: The player's UUID.
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -4801,7 +5140,13 @@ def getGJComments21(
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	mode: int | None = None,
-	total: int | None = None
+	total: int | None = None,
+	count: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
 	"""
 	mode: Set to 0 for most recent, and 1 for most liked
@@ -4829,6 +5174,24 @@ def getGJComments21(
 	if total is not None:
 		data["total"] = total
 	
+	if count is not None:
+		data["count"] = count
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJComments21.php",
 		data
@@ -4848,7 +5211,11 @@ def getGJCommentHistory(
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	mode: int | None = None,
-	total: int | None = None
+	total: int | None = None,
+	count: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
 	"""
 	mode: Set to 0 for most recent, and 1 for most liked
@@ -4882,6 +5249,18 @@ def getGJCommentHistory(
 	if total is not None:
 		data["total"] = total
 	
+	if count is not None:
+		data["count"] = count
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJCommentHistory.php",
 		data
@@ -4898,8 +5277,24 @@ def getGJAccountComments20(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	total: int | None = None
+	total: int | None = None,
+	count: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
+	"""
+	accountID: The account whose comments are being fetched.
+	page: The page number to request.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	total: Cached total comment count.
+	count: Number of comments to fetch per page.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -4920,6 +5315,18 @@ def getGJAccountComments20(
 	if total is not None:
 		data["total"] = total
 	
+	if count is not None:
+		data["count"] = count
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJAccountComments20.php",
 		data
@@ -4937,17 +5344,24 @@ def uploadGJAccComment20(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	cType: int | None = None
+	cType: int | None = None,
+	userName: str | None = None,
+	chk: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
 	"""
 	cType: The comment type, 0 for level, 1 for user
 	"""
 	secret = Tools.getSecret(1)
 	
+	commentB64 = Tools.b64EncodeUrlSafe(comment)
+	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
 		"gjp2": gjp2,
-		"comment": Tools.b64EncodeUrlSafe(comment),
+		"comment": commentB64,
 		"secret": secret
 	}
 	
@@ -4962,6 +5376,21 @@ def uploadGJAccComment20(
 	
 	if cType is not None:
 		data["cType"] = cType  # 0 = level, 1 = user
+	
+	if userName is not None:
+		data["userName"] = userName
+	
+	if chk is not None:
+		data["chk"] = chk
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJAccComment20.php",
@@ -4980,8 +5409,25 @@ def deleteGJAccComment20(
 	commentID: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
+	cType: int | None = None
 	) -> str:
+	"""
+	accountID: The account deleting the comment.
+	targetAccountID: The target account the comment belongs to.
+	gjp2: The account's GJP2 token.
+	commentID: The account comment ID to delete.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	cType: Comment type, 0 for level comments and 1 for user comments.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5000,6 +5446,18 @@ def deleteGJAccComment20(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if cType is not None:
+		data["cType"] = cType
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJAccComment20.php",
@@ -5020,13 +5478,33 @@ def uploadGJComment21(
 	percent: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
+	chk: str | None = None
 ) -> str:
+	"""
+	accountID: The account posting the comment.
+	gjp2: The account's GJP2 token.
+	userName: The username used for the comment.
+	comment: The comment text, sent base64 URL-safe encoded.
+	levelID: The level the comment is attached to.
+	percent: The percentage or progress value associated with the comment.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	chk: Optional precomputed checksum for the comment request.
+	"""
 	secret = Tools.getSecret(1)
 	commentB64 = Tools.b64EncodeUrlSafe(comment)
-	chk = Tools.genChkLevelComment(
-		userName, commentB64, levelID, percent, 0
-	)
+	if chk is None:
+		chk = Tools.genChkLevelComment(
+			userName, commentB64, levelID, percent, 0
+		)
 	
 	data: dict[str, str | int] = {
 		"accountID": accountID,
@@ -5048,6 +5526,15 @@ def uploadGJComment21(
 	if gdw is not None:
 		data["gdw"] = gdw
 	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJComment21.php", 
 		data
@@ -5065,8 +5552,23 @@ def deleteGJComment20(
 	levelID: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
+	"""
+	accountID: The account deleting the comment.
+	gjp2: The account's GJP2 token.
+	commentID: The level comment ID to delete.
+	levelID: The level the comment belongs to.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5085,6 +5587,15 @@ def deleteGJComment20(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJComment20.php",
@@ -5250,6 +5761,15 @@ def deleteGJLevelList(
 	udid: str | None = None,
 	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account deleting the level list.
+	gjp2: The account's GJP2 token.
+	listID: The level list ID to delete.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(3)
 	
 	data: dict[str, str | int] = {
@@ -5286,6 +5806,11 @@ def getSaveData(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 ) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5445,6 +5970,13 @@ def requestUserAccess(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 ) -> str:
+	"""
+	accountID: The account requesting access.
+	gjp2: The account's GJP2 token.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5473,6 +6005,9 @@ def requestUserAccess(
 	return response.text
 
 def restoreGJItems(udid: str) -> str:
+	"""
+	udid: The player's UDID used to restore saved in-game items.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5491,6 +6026,9 @@ def restoreGJItems(udid: str) -> str:
 	return response.text
 
 def getTop1000() -> str:
+	"""
+	Fetches the global top 1000 leaderboard data from the account endpoint.
+	"""
 	response = requests.get(
 		"http://www.boomlings.com/database/accounts/getTop1000.php",
 		headers={"User-Agent": ""}
@@ -5507,8 +6045,21 @@ def getGJSecretReward(
 	gdw: int | None = None,
 	accountID: int | None = None,
 	gjp2: str | None = None,
-	uuid: int | None = None
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
+	"""
+	rewardKey: The secret reward key provided by the game.
+	udid: The player's UDID.
+	chk: Optional precomputed reward checksum.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	accountID: The requesting account ID if logged in.
+	gjp2: The requesting account's GJP2 token if logged in.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	
 	if chk is None:
@@ -5541,6 +6092,9 @@ def getGJSecretReward(
 	
 	if uuid is not None:
 		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJSecretReward.php",
@@ -5629,8 +6183,23 @@ def getGJChallenges(
 	accountID: int | None = None,
 	gjp2: str | None = None,
 	uuid: int | None = None,
-	world: int | None = None
+	world: int | None = None,
+	gdl: int | None = None,
+	dvs: int | None = None
 ) -> str:
+	"""
+	udid: The player's UDID.
+	chk: The challenge checksum for the request.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	accountID: The requesting account ID if logged in.
+	gjp2: The requesting account's GJP2 token if logged in.
+	uuid: The player's UUID.
+	world: Optional world ID for the challenge list.
+	gdl: 1 if the request is coming from GD Lite.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	if chk is None:
 		chk = Tools.generateQuestChk()
@@ -5666,6 +6235,12 @@ def getGJChallenges(
 	if world is not None:
 		data["world"] = world
 	
+	if gdl is not None:
+		data["gdl"] = gdl
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJChallenges.php",
 		data
@@ -5684,8 +6259,24 @@ def getGJMessages20(
 	gdw: int | None = None,
 	page: int | None = None,
 	total: int | None = None,
-	getSent: int | None = None
+	getSent: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account fetching its messages.
+	gjp2: The account's GJP2 token.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	page: The message page number.
+	total: Cached total message count.
+	getSent: 1 to fetch sent messages instead of received ones.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5712,6 +6303,15 @@ def getGJMessages20(
 	if getSent is not None:
 		data["getSent"] = getSent
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJMessages20.php",
 		data
@@ -5728,8 +6328,22 @@ def downloadGJMessage20(
 	messageID: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account downloading the message.
+	gjp2: The account's GJP2 token.
+	messageID: The message ID to fetch.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5747,6 +6361,15 @@ def downloadGJMessage20(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/downloadGJMessage20.php",
@@ -5766,8 +6389,24 @@ def uploadGJMessage20(
 	body: str,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The sending account ID.
+	gjp2: The sender's GJP2 token.
+	toAccountID: The recipient account ID.
+	subject: The message subject, sent base64 URL-safe encoded.
+	body: The message body, sent base64 URL-safe encoded.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5788,6 +6427,15 @@ def uploadGJMessage20(
 	if gdw is not None:
 		data["gdw"] = gdw
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadGJMessage20.php",
 		data
@@ -5805,8 +6453,23 @@ def deleteGJMessages20(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	isSender: int | None = None
+	isSender: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account deleting the message.
+	gjp2: The account's GJP2 token.
+	messageID: The message ID to delete.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	isSender: 1 if the actor is the sender of the message.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5828,6 +6491,15 @@ def deleteGJMessages20(
 	if isSender is not None:
 		data["isSender"] = isSender
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJMessages20.php",
 		data
@@ -5846,8 +6518,24 @@ def getGJFriendRequests20(
 	gdw: int | None = None,
 	page: int | None = None,
 	total: int | None = None,
-	getSent: int | None = None
+	getSent: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account fetching friend requests.
+	gjp2: The account's GJP2 token.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	page: The request page number.
+	total: Cached total count of friend requests.
+	getSent: 1 to fetch sent requests instead of received requests.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5874,6 +6562,15 @@ def getGJFriendRequests20(
 	if getSent is not None:
 		data["getSent"] = getSent
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJFriendRequests20.php",
 		data
@@ -5890,8 +6587,22 @@ def uploadFriendRequest20(
 	gjp2: str,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account sending the friend request.
+	toAccountID: The recipient account ID.
+	gjp2: The sender's GJP2 token.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5909,6 +6620,15 @@ def uploadFriendRequest20(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/uploadFriendRequest20.php",
@@ -5928,8 +6648,24 @@ def deleteGJFriendRequests20(
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	accounts: str | None = None,
-	isSender: int | None = None
+	isSender: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account deleting the request.
+	gjp2: The account's GJP2 token.
+	targetAccountID: The other account involved in the request.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	accounts: Optional comma-separated list of account IDs.
+	isSender: 1 if the request is being deleted as the sender.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5954,6 +6690,15 @@ def deleteGJFriendRequests20(
 	if isSender is not None:
 		data["isSender"] = isSender
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/deleteGJFriendRequests20.php",
 		data
@@ -5971,8 +6716,23 @@ def acceptGJFriendRequest20(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	requestID: int | None = None
+	requestID: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account accepting the friend request.
+	targetAccountID: The other account involved in the request.
+	gjp2: The account's GJP2 token.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	requestID: Optional friend request ID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -5994,6 +6754,15 @@ def acceptGJFriendRequest20(
 	if requestID is not None:
 		data["requestID"] = requestID
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/acceptGJFriendRequest20.php",
 		data
@@ -6010,8 +6779,22 @@ def readGJFriendRequest20(
 	requestID: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account reading the friend request.
+	gjp2: The account's GJP2 token.
+	requestID: The request ID to mark as read.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -6030,6 +6813,15 @@ def readGJFriendRequest20(
 	if gdw is not None:
 		data["gdw"] = gdw
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/readGJFriendRequest20.php",
 		data
@@ -6046,8 +6838,22 @@ def removeGJFriend20(
 	targetAccountID: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account removing the friend.
+	gjp2: The account's GJP2 token.
+	targetAccountID: The friend account ID being removed.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -6065,6 +6871,15 @@ def removeGJFriend20(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/removeGJFriend20.php",
@@ -6082,8 +6897,22 @@ def blockGJUser20(
 	targetAccountID: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account blocking the user.
+	gjp2: The account's GJP2 token.
+	targetAccountID: The user account ID to block.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -6101,6 +6930,15 @@ def blockGJUser20(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/blockGJUser20.php",
@@ -6118,8 +6956,22 @@ def unblockGJUser20(
 	targetAccountID: int,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	accountID: The account unblocking the user.
+	gjp2: The account's GJP2 token.
+	targetAccountID: The user account ID to unblock.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -6138,6 +6990,15 @@ def unblockGJUser20(
 	if gdw is not None:
 		data["gdw"] = gdw
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/unblockGJUser20.php",
 		data
@@ -6154,7 +7015,10 @@ def getGJUserList20(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	type_: int | None = None
+	type_: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
 	"""
 	type_: 0 for friends, 1 for blocklist. Defaults to 0 if left out
@@ -6179,6 +7043,15 @@ def getGJUserList20(
 	if type_ is not None:
 		data["type"] = type_
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJUserList20.php",
 		data
@@ -6196,8 +7069,19 @@ def getGJSongInfo(
 	accountID: int | None = None,
 	gjp2: str | None = None,
 	udid: str | None = None,
-	uuid: int | None = None
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
+	"""
+	songID: The song ID to look up.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	accountID: The requesting account ID if logged in.
+	gjp2: The requesting account's GJP2 token if logged in.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -6223,6 +7107,9 @@ def getGJSongInfo(
 	if uuid is not None:
 		data["uuid"] = uuid
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJSongInfo.php",
 		data
@@ -6238,8 +7125,21 @@ def getGJTopArtists(
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	page: int | None = None,
-	total: int | None = None
+	total: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
 ) -> str:
+	"""
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	page: The page number to request.
+	total: Cached total artist count.
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8.
+	udid: The player's UDID.
+	uuid: The player's UUID.
+	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
@@ -6261,6 +7161,15 @@ def getGJTopArtists(
 	if total is not None:
 		data["total"] = total
 	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJTopArtists.php",
 		data
@@ -6272,6 +7181,9 @@ def getGJTopArtists(
 	return response.text
 
 def testSong(songID: int) -> str:
+	"""
+	songID: The official or custom song ID to preview.
+	"""
 	response = requests.get(
 		f"http://www.boomlings.com/database/testSong.php?songID={songID}",
 		headers={"User-Agent": ""}
@@ -6284,6 +7196,11 @@ def fetchMusicLibraryDat(
 	expires: int | None = None,
 	token: str | None = None
 ) -> bytes:
+	"""
+	useV2: True to fetch the v2 music library file, False for the legacy file.
+	expires: Optional CDN expiry timestamp used when generating a signed token.
+	token: Optional CDN access token. If omitted and expires is provided, a token is generated automatically.
+	"""
 	endpoint = (
 		"/music/musiclibrary_02.dat" if useV2 else "/music/musiclibrary.dat"
 	)
@@ -6307,6 +7224,10 @@ def fetchSfxLibraryDat(
 	expires: int | None = None,
 	token: str | None = None
 ) -> bytes:
+	"""
+	expires: Optional CDN expiry timestamp used when generating a signed token.
+	token: Optional CDN access token. If omitted and expires is provided, a token is generated automatically.
+	"""
 	endpoint = "/sfx/sfxlibrary.dat"
 	url = "https://geometrydashfiles.b-cdn.net" + endpoint
 	params: dict[str, str | int] = {}
@@ -6334,6 +7255,15 @@ def joinMPLobby(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 ) -> str:
+	"""
+	accountID: The account joining the multiplayer lobby.
+	gjp2: The account's GJP2 token.
+	gameID: The multiplayer game ID.
+	lastCommentID: The last comment ID seen in the lobby.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(2)
 	
 	data: dict[str, str | int] = {
@@ -6371,6 +7301,14 @@ def exitMPLobby(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 ) -> str:
+	"""
+	accountID: The account leaving the multiplayer lobby.
+	gjp2: The account's GJP2 token.
+	gameID: The multiplayer game ID.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(2)
 	
 	data: dict[str, str | int] = {
@@ -6410,6 +7348,17 @@ def uploadMPComment(
 	binaryVersion: int | None = None,
 	gdw: int | None = None
 ) -> str:
+	"""
+	accountID: The account posting the multiplayer comment.
+	gjp2: The account's GJP2 token.
+	comment: The comment text, sent base64 URL-safe encoded.
+	gameID: The multiplayer game ID the message belongs to.
+	extra: Optional random or extra payload value used in checksum generation.
+	chk: Optional precomputed lobby comment checksum.
+	gameVersion: The game version number.
+	binaryVersion: The binary version number.
+	gdw: 1 if the request is coming from GD World.
+	"""
 	secret = Tools.getSecret(2)
 	if extra is None:
 		extra = Tools.generateRs()
