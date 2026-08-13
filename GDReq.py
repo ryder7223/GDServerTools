@@ -2691,6 +2691,38 @@ class Tools:
 	
 	@staticmethod
 	def genChk(keyIndex, values: List[Union[int, str]] | None = None, saltIndex: int = 1) -> str:
+		"""
+		Keys:
+		```
+		1:  Key 11: Player Save Data
+		2:  Key 14251: Player Messages
+		3:  Key 19283: Vault Codes
+		4:  Key 19847: Daily Challenges
+		5:  Key 26364: Level Password
+		6:  Key 29481: Comment Integrity
+		7:  Key 37526: Account Password
+		8:  Key 39673: Level Leaderboard Integrity
+		9:  Key 41274: Level Integrity
+		10: Key 48291: Load Data
+		11: Key 52832: Multiplayer
+		12: Key 57709: Music/SFX Library Secret
+		13: Key 58281: Rating Integrity
+		14: Key 59182: Chest Rewards
+		15: Key 85271: Stat Submission Integrity
+		```
+		Salts:
+		```
+		1: xI25fpAapCQg: Level, getGJMapPacks, getGJGauntlets
+		2: xPT6iUrtws0J: Comment
+		3: ysg6pUrtjn0J: Like or Rate
+		4: xI35fsAapCRg: User Profile
+		5: yPg6pUrtWn0J: Level Leaderboard
+		6: oC36fpYaPtdg: getGJChallenges
+		7: pC26fpYaQCtg: getGJRewards
+		8: ask2fpcaqCQ2: Vault of Secrets + Chamber of Time Codes
+		9: mI29fmAnxgTs: GJP2
+		```
+		"""
 		salt: str = Tools.getSalt(saltIndex)
 		key: int | str = Tools.getXorKey(keyIndex)
 		if values is None:
@@ -2729,6 +2761,20 @@ class Tools:
 						objectIds.append(objId)
 					break
 		return objectIds
+
+	@staticmethod
+	def getCoinCount(objectString: str) -> int:
+		coinCount = 0
+		objects = objectString.split(";")
+		for obj in objects:
+			if not obj.strip():
+				continue
+			fields = obj.split(",")
+			for i in range(0, len(fields) - 1, 2):
+				if fields[i] == "1" and fields[i + 1] == "1329":
+					coinCount += 1
+					break
+		return coinCount
 
 	@staticmethod
 	def _generateClassicLeaderboardSeed(
@@ -3591,7 +3637,6 @@ def uploadGJLevel21(
 	password: int,
 	twoPlayer: int,
 	songID: int,
-	coins: int,
 	requestedStars: int,
 	ldm: int,
 	levelString: str,
@@ -3600,6 +3645,7 @@ def uploadGJLevel21(
 	unlisted: int | None = None,
 	seed2: str | None = None,
 	objects: int | None = None,
+	coins: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
 	wt: int | None = None,
@@ -3640,6 +3686,10 @@ def uploadGJLevel21(
 	if objects is None:
 		objectString = Tools.Encryption.decodeString(levelString, 16)
 		objects = len(Tools.getObjectIDs(objectString))
+
+	if coins is None:
+		objectString = Tools.Encryption.decodeString(levelString, 16)
+		coins = Tools.getCoinCount(objectString)
 
 	data: dict[str, str | int] = {
 		"gameVersion": gameVersion,
@@ -4085,10 +4135,8 @@ def downloadGJLevel22(
 	return response.text
 
 def getGJLevels21(
-	gameVersion: int | None = None,
-	binaryVersion: int | None = None,
-	type_: int | None = None,
 	str_: str | int | None = None,
+	type_: int | None = None,
 	page: int | None = None,
 	total: int | None = None,
 	gjp: str | None = None,
@@ -4115,6 +4163,8 @@ def getGJLevels21(
 	customSong: int | None = None,
 	followed: str | None = None,
 	local: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
 	udid: str | None = None,
 	uuid: int | None = None
 ) -> str:
