@@ -2692,7 +2692,7 @@ class Tools:
 	
 	
 	@staticmethod
-	def genChk(keyIndex: int, values: List[Union[int, str]] | None = None, saltIndex: int = 1) -> str:
+	def genChk(keyIndex: int, values: Sequence[int | str] | None = None, saltIndex: int = 1) -> str:
 		"""
 		Keys:
 		```
@@ -4123,38 +4123,55 @@ def updateGJDesc20(
 	return response.text
 
 def suggestGJStars(
-	gameVersion: int,
-	binaryVersion: int,
 	accountID: int,
 	gjp2: str,
 	levelID: int,
 	stars: int,
 	feature: int,
-	gdw: int = 0
+	gameVersion: int,
+	binaryVersion: int,
+	gdw: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
 	"""
-	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
-	levelID: The level ID being suggested
-	stars: The star count being suggested
-	feature: Feature flag for the suggestion
+	levelID: The ID of the level
+	stars: How many stars that are requested
+	feature: 0 for star rate, 1 for feature, 2 for epic, 3 for legendary, 4 for mythic
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(4)
 	
 	data: dict[str, str | int] = {
-		"gameVersion": gameVersion,
-		"binaryVersion": binaryVersion,
 		"accountID": accountID,
 		"gjp2": gjp2,
 		"levelID": levelID,
 		"stars": stars,
 		"feature": feature,
-		"gdw": gdw,
+		"gameVersion": gameVersion,
+		"binaryVersion": binaryVersion,
 		"secret": secret
 	}
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/suggestGJStars20.php",
@@ -4168,7 +4185,7 @@ def suggestGJStars(
 
 def reportGJLevel(levelID: int | None = None) -> str:
 	"""
-	levelID: The level ID to report. If omitted, the request may still be sent with a server-generated default
+	levelID: The ID of the level being reported
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -4178,72 +4195,69 @@ def reportGJLevel(levelID: int | None = None) -> str:
 	
 	if levelID is not None:
 		data["levelID"] = levelID
+
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/reportGJLevel.php",
 		data
 	)
+
 	if not Tools.checkResponse(response.text):
 		print(f"reportGJLevel Failed: {response.text}")
+
 	return response.text
 
 def rateGJStars211(
+	accountID: int,
+	gjp2: str,
 	levelID: int,
 	stars: int,
+	uuid: int,
 	rs: str | None = None,
-	accountID: int | None = None,
-	gjp2: str | None = None,
 	udid: str | None = None,
-	uuid: int | None = None,
 	chk: str | None = None,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	gdw: int | None = None
+	gdw: int | None = None,
+	dvs: int | None = None
 ) -> str:
 	"""
-	levelID: The level being rated
-	stars: The star count being assigned
-	rs: Random seed used when generating the rating checksum
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	levelID: The ID of the level receiving the star suggestion
+	stars: The amount of stars being suggested
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	rs: 10 randomly generated characters from [A-Za-z0-9]
 	uuid: The player's user ID
-	chk: Optional precomputed rating checksum
+	chk: A string computed for authentication, auto generated if omitted
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(1)
-	if chk is None and (rs is not None and
-						accountID is not None and
-						udid is not None and
-						uuid is not None):
+
+	if rs is None:
+		rs = Tools.generateRs()
+
+	if udid is None:
+		udid = Tools.generateUdid()
+
+	if chk is None:
 		chk = Tools.genChkRateStars(
 			levelID, stars, rs, accountID, udid, uuid
 		)
-	
+
 	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
 		"levelID": levelID,
 		"stars": stars,
+		"uuid": uuid,
+		"udid": udid,
+		"rs": rs,
+		"chk": chk,
 		"secret": secret
 	}
-	
-	if rs is not None:
-		data["rs"] = rs
-	
-	if accountID is not None:
-		data["accountID"] = accountID
-	
-	if gjp2 is not None:
-		data["gjp2"] = gjp2
-	
-	if udid is not None:
-		data["udid"] = udid
-	
-	if uuid is not None:
-		data["uuid"] = uuid
-	
-	if chk is not None:
-		data["chk"] = chk
 	
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
@@ -4253,6 +4267,9 @@ def rateGJStars211(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/rateGJStars211.php",
@@ -4265,22 +4282,28 @@ def rateGJStars211(
 	return response.text
 
 def rateGJDemon21(
-	gameVersion: int,
-	binaryVersion: int,
 	accountID: int,
 	gjp2: str,
 	levelID: int,
 	rating: int,
-	gdw: int | None = None
+	gameVersion: int,
+	binaryVersion: int,
+	gdw: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
-	levelID: The demon level being rated
-	rating: The demon rating value being sent
+	levelID: The ID of the demon being rated
+	rating: 1 for Easy Demon, 2 for Medium Demon, 3 for Hard Demon, 4 for Insane Demon and 5 for Extreme Demon
 	gdw: 1 if the request is coming from GD World
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(4)
 	
@@ -4296,6 +4319,15 @@ def rateGJDemon21(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
+
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/rateGJDemon21.php",
@@ -4308,44 +4340,50 @@ def rateGJDemon21(
 	return response.text
 
 def getGJMapPacks21(
-	gameVersion: int | None = None,
-	binaryVersion: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
 	gdw: int | None = None,
 	page: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
-	dvs: int | None = None,
-	accountID: int | None = None,
-	gjp2: str | None = None
+	dvs: int | None = None
 ) -> str:
 	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gdw: 1 if the request is coming from GD World
+	page: Denotes which page of map packs you want to retrieve, starting with 0
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
-	gdw: 1 if the request is coming from GD World
-	page: The map pack page to request
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
-	accountID: The player's account ID (not to be confused with user ID). Used for authorization
-	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	"""
 	secret = Tools.getSecret(1)
 	
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
+
+	if accountID is not None:
+		data["accountID"] = accountID
 	
-	if gameVersion is not None:
-		data["gameVersion"] = gameVersion
-	
-	if binaryVersion is not None:
-		data["binaryVersion"] = binaryVersion
-	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
 	if gdw is not None:
 		data["gdw"] = gdw
 	
 	if page is not None:
 		data["page"] = page
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
 	
 	if udid is not None:
 		data["udid"] = udid
@@ -4355,12 +4393,6 @@ def getGJMapPacks21(
 	
 	if dvs is not None:
 		data["dvs"] = dvs
-	
-	if accountID is not None:
-		data["accountID"] = accountID
-	
-	if gjp2 is not None:
-		data["gjp2"] = gjp2
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJMapPacks21.php",
@@ -4373,6 +4405,8 @@ def getGJMapPacks21(
 	return response.text
 
 def getGJGauntlets21(
+	accountID: int | None = None,
+	gjp2: str | None = None,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
@@ -4380,15 +4414,13 @@ def getGJGauntlets21(
 	udid: str | None = None,
 	uuid: int | None = None,
 	dvs: int | None = None,
-	accountID: int | None = None,
-	gjp2: str | None = None,
 	vkey: int | None = None
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
-	special: Optional special-case gauntlet filter
+	special: 1 (fetches the 2.2 gauntlets)
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -4402,6 +4434,12 @@ def getGJGauntlets21(
 		"secret": secret
 	}
 	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
 	
@@ -4423,12 +4461,6 @@ def getGJGauntlets21(
 	if dvs is not None:
 		data["dvs"] = dvs
 	
-	if accountID is not None:
-		data["accountID"] = accountID
-	
-	if gjp2 is not None:
-		data["gjp2"] = gjp2
-	
 	if vkey is not None:
 		data["vkey"] = vkey
 	
@@ -4443,27 +4475,27 @@ def getGJGauntlets21(
 	return response.text
 
 def getGJDailyLevel(
-	gameVersion: int | None = None,
-	binaryVersion: int | None = None,
-	gdw: int | None = None,
 	accountID: int | None = None,
 	gjp2: str | None = None,
 	weekly: int | None = None,
 	type_: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	gdw: int | None = None,
 	chk: str | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
 	dvs: int | None = None
 ) -> str:
 	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	weekly: 0 for daily, 1 for weekly. Defaults to 0 if not sent. This parameter is outdated since 2.207
+	type_: 0 for daily, 1 for weekly, 2 for event level
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
-	accountID: The player's account ID (not to be confused with user ID). Used for authorization
-	gjp2: The player's account password, encoded with GJP2. Used for authorization
-	weekly: 0 for daily, 1 for weekly, or use type_ to request a specific daily/weekly
-	type_: Daily/weekly mode selector.
-	chk: Optional checksum if required
+	chk: A string computed for authentication, auto generated if omitted
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -4473,15 +4505,6 @@ def getGJDailyLevel(
 	data: dict[str, str | int] = {
 		"secret": secret
 	}
-	
-	if gameVersion is not None:
-		data["gameVersion"] = gameVersion
-	
-	if binaryVersion is not None:
-		data["binaryVersion"] = binaryVersion
-	
-	if gdw is not None:
-		data["gdw"] = gdw
 	
 	if accountID is not None:
 		data["accountID"] = accountID
@@ -4494,7 +4517,16 @@ def getGJDailyLevel(
 	
 	if type_ is not None:
 		data["type"] = type_
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
 	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if gdw is not None:
+		data["gdw"] = gdw
+
 	if chk is not None:
 		data["chk"] = chk
 	
@@ -4519,11 +4551,11 @@ def getGJDailyLevel(
 
 def downloadGJLevel22(
 	levelID: int,
+	accountID: int | None = None,
+	gjp2: str | None = None,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
-	accountID: int | None = None,
-	gjp2: str | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
 	inc: int | None = None,
@@ -4532,7 +4564,18 @@ def downloadGJLevel22(
 	chk: str | None = None
 ) -> str:
 	"""
-	levelID: -1 for daily, -2 for weekly
+	levelID: The ID of the level to download. Use -1 for the daily level, -2 for the weekly and -3 for the event level
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	gdw: 1 if the request is coming from GD World
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	inc: Whether the amount of downloads should be incremented on the level (requires proper authentication)
+	extras: Used to return some extra data when set to 1, but was disabled sometime in 2022
+	rs: 10 randomly generated characters from [A-Za-z0-9]
+	chk: A string computed for authentication, auto generated if omitted
 	"""
 	secret = Tools.getSecret(1)
 	incForChk = 1 if inc is None else inc
@@ -4551,6 +4594,12 @@ def downloadGJLevel22(
 		"secret": secret
 	}
 	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
 	
@@ -4559,12 +4608,6 @@ def downloadGJLevel22(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
-	
-	if accountID is not None:
-		data["accountID"] = accountID
-	
-	if gjp2 is not None:
-		data["gjp2"] = gjp2
 	
 	if udid is not None:
 		data["udid"] = udid
@@ -4601,11 +4644,9 @@ def getGJLevels21(
 	type_: int | None = None,
 	page: int | None = None,
 	total: int | None = None,
-	gjp: str | None = None,
 	gjp2: str | None = None,
 	accountID: int | None = None,
 	gdw: int | None = None,
-	gauntlet: int | None = None,
 	diff: int | None = None,
 	demonFilter: int | None = None,
 	len_: int | str | None = None,
@@ -4631,63 +4672,61 @@ def getGJLevels21(
 	uuid: int | None = None
 ) -> str:
 	"""
-	str_: Search query, user ID, or comma-separated list of level IDs depending on the type.
+	str_: Search query, user ID, or comma-separated list of level IDs depending on type_
 	type_: Search type, defaults to most liked. Valid values are:
 	```markdown
-	| Type | Description                                                                                                                     |
-	| :--: | ------------------------------------------------------------------------------------------------------------------------------- |
-	|  0   | Search query (used when opening the original level)                                                                             |
-	|  1   | Most downloaded                                                                                                                 |
-	|  2   | Most liked                                                                                                                      |
-	|  3   | Trending                                                                                                                        |
-	|  4   | Recent                                                                                                                          |
-	|  5   | User's levels, uses `str` as the **user ID**                                                                                    |
-	|  6   | Featured                                                                                                                        |
-	|  7   | Magic                                                                                                                           |
-	|  8   | Moderator sent levels                                                                                                           |
-	|  10  | List of levels, uses `str` as a comma separated list of level IDs                                                               |
-	|  11  | Awarded                                                                                                                         |
-	|  12  | Followed (see `followed` parameter)                                                                                             |
-	|  13  | Friends (login required)                                                                                                        |
-	|  15  | Most liked in GD World                                                                                                          |
-	|  16  | Hall of fame                                                                                                                    |
-	|  17  | Featured in GD World                                                                                                            |
-	|  18  | Unknown (always empty, perhaps robtop only?)                                                                                    |
-	|  19  | Unknown (same as type 10 but this type has pagination and no star-rate filter)                                                |
-	|  21  | Daily history                                                                                                                   |
-	|  22  | Weekly history                                                                                                                  |
-	|  23  | Event history                                                                                                                   |
-	|  24  | Reported levels (Elder Moderator only)                                                                                          |
-	|  25  | Level list, uses `str` as the list ID                                                                                           |
-	|  26  | Local level list (same as type 19 but can return up to 100 levels)                                                              |
-	|  27  | Sent                                                                                                                            |
-	|  28  | GD Lite weekly levels                                                                                                           |
-	|  29  | GD Lite bonus levels (platformer)                                                                                               |
+	| Type | Description                                                                      |
+	| :--: | -------------------------------------------------------------------------------- |
+	|  0   | Search query (used when opening the original level)                              |
+	|  1   | Most downloaded                                                                  |
+	|  2   | Most liked                                                                       |
+	|  3   | Trending                                                                         |
+	|  4   | Recent                                                                           |
+	|  5   | User's levels, uses str as the user ID                                           |
+	|  6   | Featured                                                                         |
+	|  7   | Magic                                                                            |
+	|  8   | Moderator sent levels                                                            |
+	|  10  | List of levels, uses str as a comma separated list of level IDs                  |
+	|  11  | Awarded                                                                          |
+	|  12  | Followed (see followed parameter)                                                |
+	|  13  | Friends (login required)                                                         |
+	|  15  | Most liked in GD World                                                           |
+	|  16  | Hall of fame                                                                     |
+	|  17  | Featured in GD World                                                             |
+	|  18  | Unknown (always empty, perhaps robtop only?)                                     |
+	|  19  | Unknown (same as type 10 but this type has pagination and no star-rate filter)   |
+	|  21  | Daily history                                                                    |
+	|  22  | Weekly history                                                                   |
+	|  23  | Event history                                                                    |
+	|  24  | Reported levels (Elder Moderator only)                                           |
+	|  25  | Level list, uses str as the list ID                                              |
+	|  26  | Local level list (same as type 19 but can return up to 100 levels)               |
+	|  27  | Sent                                                                             |
+	|  28  | GD Lite weekly levels                                                            |
+	|  29  | GD Lite bonus levels (platformer)                                                |
 	```
 	page: Which page to request. Defaults to 0
-	total: Cached total count to use when fetching paged results
-	gjp: Legacy GJP token
+	total: Probably the cached total number of levels, default is 0
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gdw: 1 if the request is coming from GD World
-	gauntlet: Gauntlet filter ID
-	diff: Difficulty filter, use the `diff` table in the docs for values
-	demonFilter: Demon tier filter, as defined in the docs
-	len_: Length filter. Values are `-`, `0`, `1`, `2`, `3`, `4`, `5`.
-	uncompleted: 1 to filter for uncompleted levels
-	onlyCompleted: 1 to filter for completed levels
-	completedLevels: Comma-separated list of completed level IDs when used with completion filters
-	featured: 1 to filter featured levels
-	original: 1 to filter original levels
-	twoPlayer: 1 to filter two-player levels
-	coins: 1 to filter levels with coins
-	epic: 1 to filter epic levels
-	legendary: 1 to filter legendary levels; the docs note the field is swapped historically with `mythic`
-	mythic: 1 to filter mythic levels; docs note this field is swapped historically with `legendary`
-	noStar: 1 to filter unrated levels
-	star: 1 to filter rated levels
-	song: Search by song ID
-	customSong: 1 if `song` refers to a custom Newgrounds track
+	diff: Comma-separated list of difficulty values. - = None, -1 = N/A, -2 = Demons (see demonFilter), -3 = Auto, 1 to 5 = Easy to Insane
+	demonFilter: Selects which demon difficulty to search. Will search all demon types if not sent. 1 to 5 = Easy Demon to Extreme Demon
+	len_: Length filter, 0 = Any, 0 to 4 = Tiny to XL, 5 = Platformer
+	uncompleted: Uncompleted filter, either 0 or 1
+	onlyCompleted: Completed filter, either 0 or 1
+	completedLevels: Comma separated list of completed level IDs surrounded by ()
+	featured: Featured filter, either 0 or 1
+	original: Original filter, either 0 or 1
+	twoPlayer: Two Player Mode filter, either 0 or 1
+	coins: Coins filter, either 0 or 1
+	epic: Epic filter, either 1 or not sent
+	legendary: Mythic filter, either 1 or not sent (swapped with mythic)
+	mythic: Legendary filter, either 1 or not sent (swapped with legendary)
+	noStar: Unrated filter, either 1 or not sent
+	star: Rated filter, either 1 or not sent
+	song: Official (or custom) song ID, not sent when off (Stereo Madness = 1)
+	customSong: Whether the song is a Newgrounds song. Either 1 or not sent
 	followed: Comma-separated list of followed account IDs, used for type 12 queries
 	local: 1 to request "My Online Levels" when using type 5 with a sender user ID
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
@@ -4719,9 +4758,6 @@ def getGJLevels21(
 	if total is not None:
 		data["total"] = total
 	
-	if gjp is not None:
-		data["gjp"] = gjp
-	
 	if gjp2 is not None:
 		data["gjp2"] = gjp2
 	
@@ -4730,9 +4766,6 @@ def getGJLevels21(
 	
 	if gdw is not None:
 		data["gdw"] = gdw
-	
-	if gauntlet is not None:
-		data["gauntlet"] = gauntlet
 	
 	if diff is not None:
 		data["diff"] = diff
@@ -4846,12 +4879,18 @@ def getGJLevelScores211(
 	chk: tuple[int, int, int, int, int, int, bool] | None = None,
 ) -> str:
 	"""
-	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
-	percent: If left out, the leaderboard will be fetched without updating your score
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	levelID: The ID of the level or list. Negative if it's a list ID
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	gdw: 1 if the request is coming from GD World
 	time: Time in milliseconds if the user completed the level, otherwise 0
 	points: Always 0
 	plat: Always 0
-	mode: Undocumented, seems to be 0
+	percent: If left out, the leaderboard will be fetched without updating your score
+	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
+	mode: Always 0
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5057,12 +5096,18 @@ def getGJLevelScoresPlat(
 	chk: tuple[int, int, int, int, int, int, bool] | None = None,
 ) -> str:
 	"""
-	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
-	percent: If left out, the leaderboard will be fetched without updating your score
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	levelID: The ID of the level or list. Negative if it's a list ID
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	gdw: 1 if the request is coming from GD World
 	time: Time in milliseconds if the user completed the level, otherwise 0
 	points: The amount of points the user has
 	plat: Always 1
-	mode: Undocumented, seems to be 0
+	percent: If left out, the leaderboard will be fetched without updating your score
+	type_: 0 for Friends, 1 for Top, 2 for Week. Defaults to 0 if left out
+	mode: 0 for Time, 1 for Points
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5232,20 +5277,32 @@ def getGJLevelScoresPlat(
 def getGJComments21(
 	levelID: int,
 	page: int,
-	gameVersion: int | None = None,
-	binaryVersion: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
 	gdw: int | None = None,
 	mode: int | None = None,
 	total: int | None = None,
 	count: int | None = None,
-	accountID: int | None = None,
-	gjp2: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
 	dvs: int | None = None
 ) -> str:
 	"""
+	levelID: The ID of the level or list. Negative if it's a list ID
+	page: Which page of comments you want to see
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gdw: 1 if the request is coming from GD World
 	mode: Set to 0 for most recent, and 1 for most liked
+	total: Probably the cached total number of comments, default is 0
+	count: Number of comments to fetch. Defaults to 10, but doubles if "More Comments" is enabled or in compact view (stacking)
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -5254,12 +5311,12 @@ def getGJComments21(
 		"page": page,
 		"secret": secret
 	}
+
+	if accountID is not None:
+		data["accountID"] = accountID
 	
-	if gameVersion is not None:
-		data["gameVersion"] = gameVersion
-	
-	if binaryVersion is not None:
-		data["binaryVersion"] = binaryVersion
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
 	
 	if gdw is not None:
 		data["gdw"] = gdw
@@ -5272,13 +5329,13 @@ def getGJComments21(
 	
 	if count is not None:
 		data["count"] = count
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
 	
-	if accountID is not None:
-		data["accountID"] = accountID
-	
-	if gjp2 is not None:
-		data["gjp2"] = gjp2
-	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
 	if udid is not None:
 		data["udid"] = udid
 	
@@ -5314,7 +5371,19 @@ def getGJCommentHistory(
 	dvs: int | None = None
 ) -> str:
 	"""
+	userID: The user ID of the target user. This is different from the account ID
+	page: Which page of comments you want to see
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	gdw: 1 if the request is coming from GD World
 	mode: Set to 0 for most recent, and 1 for most liked
+	total: Probably the cached total number of comments, default is 0
+	count: The number of comments you want to get. 20 in normal view, 40 in compact view. Capped at 100
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -5370,6 +5439,7 @@ def getGJCommentHistory(
 def getGJAccountComments20(
 	accountID: int,
 	page: int,
+	gjp2: str | None = None,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	gdw: int | None = None,
@@ -5380,13 +5450,14 @@ def getGJAccountComments20(
 	dvs: int | None = None
 ) -> str:
 	"""
-	accountID: The player's account ID (not to be confused with user ID). Used for authorization
-	page: The page number to request
+	accountID: The account ID of the player whose comments you're getting
+	page: Which page of comments you want to see
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
-	total: Cached total comment count
-	count: Number of comments to fetch per page
+	total: Probably the cached total number of account comments, default is 0
+	count: Amount of account comments that will be returned. Max 20, default 10
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5398,7 +5469,10 @@ def getGJAccountComments20(
 		"page": page,
 		"secret": secret
 	}
-	
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
 	
@@ -5442,13 +5516,24 @@ def uploadGJAccComment20(
 	gdw: int | None = None,
 	cType: int | None = None,
 	userName: str | None = None,
-	chk: str | None = None,
+	chk: tuple[str, str] | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
 	dvs: int | None = None
 ) -> str:
 	"""
-	cType: The comment type, 0 for level, 1 for user
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	comment: The comment's text in plaintext
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	gdw: 1 if the request is coming from GD World
+	cType: The comment type. 0 for level (unused), 1 for account
+	userName: The name of the user
+	chk: The comment chk, pass in a tuple containing (Username, Comment Content)
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -5460,7 +5545,7 @@ def uploadGJAccComment20(
 		"comment": commentB64,
 		"secret": secret
 	}
-	
+
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
 	
@@ -5471,13 +5556,14 @@ def uploadGJAccComment20(
 		data["gdw"] = gdw
 	
 	if cType is not None:
-		data["cType"] = cType  # 0 = level, 1 = user
+		data["cType"] = cType
 	
 	if userName is not None:
 		data["userName"] = userName
 	
 	if chk is not None:
-		data["chk"] = chk
+		chkList = list(chk)
+		data["chk"] = Tools.genChk(6, list((*chkList, 0, 0, 1)), 2)
 	
 	if udid is not None:
 		data["udid"] = udid
@@ -5513,16 +5599,16 @@ def deleteGJAccComment20(
 	) -> str:
 	"""
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
-	targetAccountID: The target account the comment belongs to
+	targetAccountID: Account ID of the comment author
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
-	commentID: The account comment ID to delete
+	commentID: The ID of the comment being deleted (Returned by uploadGJAccComment20)
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
-	cType: Comment type, 0 for level comments and 1 for user comments
+	cType: The comment type. 0 for level (unused), 1 for account
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -5583,17 +5669,17 @@ def uploadGJComment21(
 	"""
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
-	userName: The username used for the comment
-	comment: The comment text, sent base64 URL-safe encoded
-	levelID: The level the comment is attached to
-	percent: The percentage or progress value associated with the comment
+	userName: The commenter's username
+	comment: The comment in plaintext
+	levelID: The ID of the level to comment on. If commenting on a list, the ID should be negative
+	percent: The level percentage shown on the comment as an integer. Only sent if percentage is not 0
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
-	chk: Optional precomputed checksum for the comment request
+	chk: Comment chk, auto generated if omitted
 	"""
 	secret = Tools.getSecret(1)
 	commentB64 = Tools.b64EncodeUrlSafe(comment)
@@ -5654,10 +5740,10 @@ def deleteGJComment20(
 	dvs: int | None = None
 ) -> str:
 	"""
-	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	accountID: Account ID of the user deleting the comment
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
-	commentID: The level comment ID to delete
-	levelID: The level the comment belongs to
+	commentID: ID of the comment
+	levelID: ID of the level the comment is on
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	gdw: 1 if the request is coming from GD World
@@ -5710,18 +5796,30 @@ def uploadGJLevelList(
 	listID: int,
 	listName: str,
 	listDesc: str,
-	listVersion: int,
 	original: int,
 	difficulty: int,
 	unlisted: int,
 	listLevels: str,
+	listVersion: int = 0,
 	seed: str | None = None,
 	seed2: str | None = None,
 	binaryVersion: int | None = None
 ) -> str:
 	"""
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	accountID: Account ID of the user deleting the comment
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	listID: The ID of the list if updating to a newer version, otherwise 0
-	listName: The name of the list, in plain text
+	listName: The name of the list, in plaintext
+	listDesc: The description of the list in plaintext
+	original: The ID of the original list if the list was copied, otherwise 0
+	difficulty: The list's difficulty face. -1 is N/A, and then it's 0-10 where 0 is Auto and 10 is Extreme Demon
+	unlisted: Set to 2 if the list should be unlisted, and to 1 if the list should be unlisted and only viewable by friends
+	listLevels: All level IDs included in the list, separated by 
+	listVersion: Always 0
+	seed: A chk required for authentication, auto generated if omitted
+	seed2: 5 randomly generated characters from [A-Za-z0-9]
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	"""
 	secret = Tools.getSecret(1)
 	if seed2 is None:
@@ -5735,7 +5833,7 @@ def uploadGJLevelList(
 		"gjp2": gjp2,
 		"listID": listID,
 		"listName": listName,
-		"listDesc": listDesc,
+		"listDesc": Tools.b64EncodeUrlSafe(listDesc),
 		"listVersion": listVersion,
 		"original": original,
 		"difficulty": difficulty,
