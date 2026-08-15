@@ -184,7 +184,11 @@ class Parse:
 				"54": "accJetpack",
 				"55": "demonBreakdown",
 				"56": "classicLevelBreakdown",
-				"57": "platformerLevelBreakdown"
+				"57": "platformerLevelBreakdown",
+				"58": "discord",
+				"59": "instagram",
+				"60": "tiktok",
+				"61": "custom"
 			}
 			return result
 
@@ -889,7 +893,11 @@ class Parse:
 		            "hardPlatformerCompletions": hardPlatformerCompletions,
 		            "harderPlatformerCompletions": harderPlatformerCompletions,
 		            "insanePlatformerCompletions": insanePlatformerCompletions
-		        }
+		        },
+		        "discord": discord,
+		        "instagram": instagram,
+		        "tiktok": tiktok,
+		        "custom": custom
 		    }
 		}
 		```
