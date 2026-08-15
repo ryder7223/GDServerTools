@@ -1,5 +1,5 @@
 """
-An API wrapper and response parser for Geometry Dash.
+An API wrapper and response parser for Geometry Dash
 """
 
 import requests
@@ -4401,7 +4401,7 @@ def getGJDailyLevel(
 	type_: int | None = None,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	chk: str | None = None,
+	chk: str | bool | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
 	dvs: int | None = None
@@ -4413,7 +4413,7 @@ def getGJDailyLevel(
 	type_: 0 for daily, 1 for weekly, 2 for event level
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
-	chk: A string computed for authentication, auto generated if omitted
+	chk: A string computed for authentication, set to True to auto generate
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -4442,7 +4442,9 @@ def getGJDailyLevel(
 	if binaryVersion is not None:
 		data["binaryVersion"] = binaryVersion
 
-	if chk is not None:
+	if chk is True:
+		data["chk"] = Tools.generateChestMenuChk()
+	elif chk is not None:
 		data["chk"] = chk
 	
 	if udid is not None:
@@ -4472,10 +4474,10 @@ def downloadGJLevel22(
 	binaryVersion: int | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
-	inc: int | None = None,
+	inc: Literal[0, 1] | None = None,
 	extras: int | None = None,
 	rs: str | None = None,
-	chk: str | None = None
+	chk: tuple[int, Literal[0, 1], str, int, str, int] | None = None
 ) -> str:
 	"""
 	levelID: The ID of the level to download. Use -1 for the daily level, -2 for the weekly and -3 for the event level
@@ -4488,25 +4490,15 @@ def downloadGJLevel22(
 	inc: Whether the amount of downloads should be incremented on the level (requires proper authentication)
 	extras: Used to return some extra data when set to 1, but was disabled sometime in 2022
 	rs: 10 randomly generated characters from [A-Za-z0-9]
-	chk: A string computed for authentication, auto generated if omitted
+	chk: A string computed for authentication, pass in a tuple containing (levelID, inc, rs, accountID, udid, uuid) to generate
 	"""
 	secret = Tools.getSecret(1)
-	incForChk = 1 if inc is None else inc
-	autoChk = False
-	if chk is None and (rs is not None and
-						accountID is not None and
-						udid is not None and
-						uuid is not None):
-		chk = Tools.genChkDownloadLevel(
-			levelID, incForChk, rs, accountID, udid, uuid
-		)
-		autoChk = True
 	
 	data: dict[str, str | int] = {
 		"levelID": levelID,
 		"secret": secret
 	}
-	
+
 	if accountID is not None:
 		data["accountID"] = accountID
 	
@@ -4527,17 +4519,16 @@ def downloadGJLevel22(
 	
 	if inc is not None:
 		data["inc"] = inc
-	elif autoChk:
-		data["inc"] = incForChk
 	
 	if extras is not None:
 		data["extras"] = extras
 	
 	if rs is not None:
 		data["rs"] = rs
-	
+
 	if chk is not None:
-		data["chk"] = chk
+		levelID, inc, rs, accountID, udid, uuid = chk
+		data["chk"] = Tools.genChkDownloadLevel(levelID, inc, rs, accountID, udid, uuid)
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/downloadGJLevel22.php",
