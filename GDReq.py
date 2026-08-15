@@ -2727,12 +2727,11 @@ class Tools:
 		"""
 		salt: str = Tools.getSalt(saltIndex)
 		key: int | str = Tools.getXorKey(keyIndex)
-		if values is None:
-			values = []
+
+		allValues = list(values) if values is not None else []
+		allValues.append(salt)
 	
-		values.append(salt)
-	
-		string = "".join(map(str, values))
+		string = "".join(map(str, allValues))
 		hashed = hashlib.sha1(string.encode()).hexdigest()
 	
 		xored = Tools.xorCipher(hashed, key)
