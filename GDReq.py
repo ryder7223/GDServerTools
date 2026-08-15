@@ -4761,7 +4761,7 @@ def getGJLevelScores211(
 	s1: int | None = None,
 	s2: int | None = None,
 	s3: int | None = None,
-	s4: tuple[int, int, int, bool] | None = None,
+	s4: tuple[int, int, int] | None = None,
 	s5: bool | None = None,
 	s6: str | None = None,
 	s7: bool | None = None,
@@ -4778,7 +4778,7 @@ def getGJLevelScores211(
 	s18: int | None = None,
 	s19: bool | Literal[0] | None = None,
 	s20: int | None = None,
-	chk: tuple[int, int, int, int, int, int, bool] | None = None,
+	chk: tuple[int, int, int, int, int, int] | None = None,
 ) -> str:
 	"""
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
@@ -4798,7 +4798,7 @@ def getGJLevelScores211(
 	s1: User's attempts
 	s2: User's clicks
 	s3: User's attempt time in seconds
-	s4: level seed, pass in a tuple containing (jumps, percent, seconds, hasPlayed)
+	s4: level seed, pass in a tuple containing (jumps, percent, seconds)
 	s5: Random number, Set to True to include
 	s6: List of PB differences (For example from 0 to 50, then 69, it would be 50,19)
 	s7: Randomly Generated 10 character string, set to True to include
@@ -4815,14 +4815,13 @@ def getGJLevelScores211(
 	s18: 0 if level has not been completed, otherwise the amount of collected coins on the best time attempt
 	s19: 0 if level has not been completed, otherwise True
 	s20: The level version
-	chk: Pass in a tuple containing (percent, jumps, attempts, coins, timelyID, seconds, hasPlayed), also include s6 and s7 in the parameters for chk to generate
+	chk: Pass in a tuple containing (percent, jumps, attempts, coins, timelyID, seconds), also include s6 and s7 in the parameters for chk to generate
 
 	attempts: Total level attempts
 	coins: The number of coins collected
 	timelyID: The ordinal number of the daily/weekly, 0 otherwise
 	jumps: Jumps in the current attempt
 	seconds: Duration of attempt
-	hasPlayed: ALways True
 	"""
 	secret = Tools.getSecret(1)
 
@@ -4877,8 +4876,8 @@ def getGJLevelScores211(
 		data["s3"] = s3 + 4085
 	
 	if isinstance(s4, tuple):
-		jumps, percent, seconds, hasPlayed = s4
-		data["s4"] = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, hasPlayed)
+		jumps, percent, seconds = s4
+		data["s4"] = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, True)
 	
 	if s5 is True:
 		data["s5"] = Tools._generateLeaderboardRandom(False)
@@ -4941,8 +4940,8 @@ def getGJLevelScores211(
 	if (s6 is not None and
 		s7 is not None and
 		isinstance(chk, list)):
-		percent, jumps, attempts, coins, timelyID, seconds, hasPlayed = chk
-		seed = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, hasPlayed)
+		percent, jumps, attempts, coins, timelyID, seconds = chk
+		seed = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, True)
 		data["chk"] = Tools.genChk(8, [accountID, levelID, percent, jumps, attempts, seed, s6, 1, coins, timelyID, data["s7"]], 5)
 	
 	response = Tools.makeReq(
@@ -4973,7 +4972,7 @@ def getGJLevelScoresPlat(
 	s1: int | None = None,
 	s2: int | None = None,
 	s3: int | None = None,
-	s4: tuple[int, int, int, bool] | None = None,
+	s4: tuple[int, int, int] | None = None,
 	s5: bool | None = None,
 	s6: str | None = None,
 	s7: bool | None = None,
@@ -4990,7 +4989,7 @@ def getGJLevelScoresPlat(
 	s18: int | None = None,
 	s19: bool | Literal[0] | None = None,
 	s20: int | None = None,
-	chk: tuple[int, int, int, int, int, int, bool] | None = None,
+	chk: tuple[int, int, int, int, int, int] | None = None,
 ) -> str:
 	"""
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
@@ -5010,7 +5009,7 @@ def getGJLevelScoresPlat(
 	s1: User's attempts
 	s2: User's clicks
 	s3: User's attempt time in seconds
-	s4: level seed, pass in a tuple containing (jumps, percent, seconds, hasPlayed)
+	s4: level seed, pass in a tuple containing (jumps, percent, seconds)
 	s5: Random number, Set to True to include
 	s6: List of PB differences (For example from 0 to 50, then 69, it would be 50,19)
 	s7: Randomly Generated 10 character string, set to True to include
@@ -5027,14 +5026,13 @@ def getGJLevelScoresPlat(
 	s18: 0 if level has not been completed, otherwise the amount of collected coins on the best time attempt
 	s19: 0 if level has not been completed, otherwise True
 	s20: The level version
-	chk: Pass in a tuple containing (percent, jumps, attempts, coins, timelyID, seconds, hasPlayed), also include s6 and s7 in the parameters for chk to generate
+	chk: Pass in a tuple containing (percent, jumps, attempts, coins, timelyID, seconds), also include s6 and s7 in the parameters for chk to generate
 
 	attempts: Total level attempts
 	coins: The number of coins collected
 	timelyID: The ordinal number of the daily/weekly, 0 otherwise
 	jumps: Jumps in the current attempt
 	seconds: Duration of attempt
-	hasPlayed: ALways True
 	"""
 	secret = Tools.getSecret(1)
 
@@ -5089,8 +5087,8 @@ def getGJLevelScoresPlat(
 		data["s3"] = s3 + 4085
 	
 	if isinstance(s4, tuple):
-		jumps, percent, seconds, hasPlayed = s4
-		data["s4"] = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, hasPlayed)
+		jumps, percent, seconds = s4
+		data["s4"] = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, True)
 	
 	if s5 is True:
 		data["s5"] = Tools._generateLeaderboardRandom(False)
@@ -5153,8 +5151,8 @@ def getGJLevelScoresPlat(
 	if (s6 is not None and
 		s7 is not None and
 		isinstance(chk, list)):
-		percent, jumps, attempts, coins, timelyID, seconds, hasPlayed = chk
-		seed = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, hasPlayed)
+		percent, jumps, attempts, coins, timelyID, seconds = chk
+		seed = Tools._generateClassicLeaderboardSeed(jumps, percent, seconds, True)
 		data["chk"] = Tools.genChk(8, [accountID, levelID, percent, jumps, attempts, seed, s6, 1, coins, timelyID, data["s7"]], 5)
 	
 	response = Tools.makeReq(
