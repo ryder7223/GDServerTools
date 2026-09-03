@@ -52,8 +52,7 @@ class Parse:
 			if not entry:
 				continue
 
-			if entry.startswith("~"):
-				entry = entry[1:]
+			entry = entry.strip("~")
 
 			song = Parse._parseKeyValuePairs(entry, splitter="~|~")
 
@@ -217,7 +216,8 @@ class Parse:
 				"11": "playerColor2",
 				"14": "iconType",
 				"15": "glow",
-				"16": "accountID"
+				"16": "accountID",
+				"51": "color3"
 			}
 			return result
 
@@ -225,6 +225,9 @@ class Parse:
 			result = {
 				"1": "userName",
 				"2": "playerID",
+				"3": "stars",
+				"4": "demons",
+				"8": "creatorPoints",
 				"9": "icon",
 				"10": "playerColor",
 				"11": "playerColor2",
@@ -234,7 +237,9 @@ class Parse:
 				"32": "friendRequestID",
 				"35": "message",
 				"37": "age",
-				"41": "NewFriendRequest"
+				"41": "NewFriendRequest",
+				"51": "color3",
+				"52": "moons"
 			}
 			return result
 
@@ -316,7 +321,8 @@ class Parse:
 				"14": "iconType",
 				"15": "special",
 				"16": "accountID",
-				"42": "age"
+				"42": "age",
+				"51": "colour3"
 			}
 			return result
 
@@ -363,8 +369,10 @@ class Parse:
 				"48": "settingsString",
 				"52": "songIDs",
 				"53": "sfxIDs",
-				"54": "unknown",
-				"57": "verificationTime"
+				"54": "songSize",
+				"57": "verificationTime",
+				"62": "exactUploadTime",
+				"63": "exactUpdateTime"
 			}
 			return result
 
@@ -384,7 +392,8 @@ class Parse:
 				"12": "extraArtistIDs",
 				"13": "new",
 				"14": "newType",
-				"15": "extraArtistNames"
+				"15": "extraArtistNames",
+				"16": "downloadSoundtrackOverride"
 			}
 			return result
 
@@ -508,8 +517,10 @@ class Parse:
 		            "settingsString": settingsString,
 		            "songIDs": songIDs,
 		            "sfxIDs": sfxIDs,
-		            "unknown": unknown,
-		            "verificationTime": verificationTime
+		            "songSize": songSize,
+		            "verificationTime": verificationTime,
+		            "exactUploadTime": exactUploadTime,
+		            "exactUpdateTime": exactUpdateTime
 		        },
 		        ...
 		    ],
@@ -537,7 +548,8 @@ class Parse:
 		            "extraArtistIDs": extraArtistIDs,
 		            "new": new,
 		            "newType": newType,
-		            "extraArtistNames": extraArtistNames
+		            "extraArtistNames": extraArtistNames,
+		            "downloadSoundtrackOverride": downloadSoundtrackOverride
 		        },
 		        ...
 		    ],
@@ -618,7 +630,8 @@ class Parse:
 		                "playerColor2": playerColor2,
 		                "iconType": iconType,
 		                "glow": glow,
-		                "accountID": accountID
+		                "accountID": accountID,
+		                "color3": color3
 		            }
 		        }
 		    ],
@@ -1269,6 +1282,9 @@ class Parse:
 		        {
 		            "userName": userName,
 		            "playerID": playerID,
+		            "stars": stars,
+		            "demons": demons,
+		            "creatorPoints": creatorPoints,
 		            "icon": icon,
 		            "playerColor": playerColor,
 		            "playerColor2": playerColor2,
@@ -1278,8 +1294,11 @@ class Parse:
 		            "friendRequestID": friendRequestID,
 		            "message": message,
 		            "age": age,
-		            "NewFriendRequest": NewFriendRequest
-		        }
+		            "NewFriendRequest": NewFriendRequest,
+		            "color3": color3,
+		            "moons": moons
+		        },
+		        ...
 		    ],
 		    "pagination": {
 		        "total": total,
@@ -1636,8 +1655,10 @@ class Parse:
 		            "iconType": iconType,
 		            "special": special,
 		            "accountID": accountID,
-		            "age": age
-		        }
+		            "age": age,
+		            "color3": color2
+		        },
+		        ...
 		    ]
 		}
 		```
@@ -4580,6 +4601,7 @@ def getGJLevels21(
 ) -> str:
 	"""
 	str_: Search query, user ID, or comma-separated list of level IDs depending on type_
+
 	type_: Search type, defaults to most liked. Valid values are:
 	```markdown
 	| Type | Description                                                                      |
