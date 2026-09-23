@@ -204,7 +204,8 @@ class Parse:
 				"9": "age",
 				"10": "percent",
 				"11": "modBadge",
-				"12": "moderatorChatColor"
+				"12": "moderatorChatColor",
+				"15": "timestamp"
 			}
 			return result
 
@@ -621,7 +622,8 @@ class Parse:
 		                "age": age,
 		                "percent": percent,
 		                "modBadge": modBadge,
-		                "moderatorChatColor": moderatorChatColor
+		                "moderatorChatColor": moderatorChatColor,
+		                "timestamp": timestamp
 		            },
 		            "sender": {
 		                "userName": userName,
@@ -687,7 +689,8 @@ class Parse:
 		                "age": age,
 		                "percent": percent,
 		                "modBadge": modBadge,
-		                "moderatorChatColor": moderatorChatColor
+		                "moderatorChatColor": moderatorChatColor,
+		                "timestamp": timestamp
 		            }
 		        }
 		    ],
@@ -1217,14 +1220,16 @@ class Parse:
 		            ],
 		            "listReward": listReward,
 		            "listRewardRequirement": listRewardRequirement
-		        }
+		        },
+		        ...
 		    ],
 		    "creators": [
 		        {
 		            "userID": userID,
 		            "username": username,
 		            "accountID": accountID
-		        }
+		        },
+		        ...
 		    ],
 		    "pagination": {
 		        "total": total,
@@ -4575,7 +4580,7 @@ def getGJLevels21(
 	total: int | None = None,
 	gjp2: str | None = None,
 	accountID: int | None = None,
-	diff: int | None = None,
+	diff: str | None = None,
 	demonFilter: int | None = None,
 	len_: int | str | None = None,
 	uncompleted: int | None = None,
@@ -4597,7 +4602,9 @@ def getGJLevels21(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	udid: str | None = None,
-	uuid: int | None = None
+	uuid: int | None = None,
+	inc: Literal[0, 1] | None = None,
+	dvs: int | None = None,
 ) -> str:
 	"""
 	str_: Search query, user ID, or comma-separated list of level IDs depending on type_
@@ -4661,6 +4668,8 @@ def getGJLevels21(
 	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
+	inc: Whether the amount of downloads should be incremented on the list (requires proper authentication)
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -4754,6 +4763,12 @@ def getGJLevels21(
 	
 	if uuid is not None:
 		data["uuid"] = uuid
+
+	if inc is not None:
+		data["inc"] = inc
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	response = Tools.makeReq(
 		"http://www.boomlings.com/database/getGJLevels21.php",
@@ -5758,7 +5773,7 @@ def getGJLevelLists(
 	page: int | None = None,
 	accountID: int | None = None,
 	gjp2: str | None = None,
-	diff: int | None = None,
+	diff: str | None = None,
 	demonFilter: int | None = None,
 	star: int | None = None,
 	followed: str | None = None,
@@ -5977,6 +5992,7 @@ def likeGJItem211(
 	gjp2: str | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
+	dvs: int | None = None,
 	rs: str | None = None,
 	special: int | None = None,
 	like: int | None = None,
@@ -5991,6 +6007,7 @@ def likeGJItem211(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	rs: 10 randomly generated characters
 	special: (Level/List = 0, comment = Level/List ID, profile post = accountID)
 	like: (0 = dislike, 1 = like)
@@ -6036,6 +6053,9 @@ def likeGJItem211(
 	
 	if uuid is not None:
 		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
 	
 	if rs is not None:
 		data["rs"] = rs
@@ -7432,5 +7452,61 @@ def uploadMPComment(
 	
 	if not Tools.checkResponse(response.text):
 		print(f"uploadMPComment Failed: {response.text}")
+	
+	return response.text
+
+
+def getCustomContentURL(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+	
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getCustomContentURL.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJTopArtists Failed: {response.text}")
 	
 	return response.text
