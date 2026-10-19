@@ -17,7 +17,6 @@ import urllib.request
 import os
 import ssl
 import urllib3
-from urllib3.exceptions import _TYPE_REDUCE_RESULT
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
