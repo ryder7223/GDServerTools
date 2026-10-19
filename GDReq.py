@@ -17,6 +17,7 @@ import urllib.request
 import os
 import ssl
 import urllib3
+from urllib3.exceptions import _TYPE_REDUCE_RESULT
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -119,6 +120,20 @@ class Parse:
 			return None
 
 	@staticmethod
+	def _parseThreadPagination(lastSegment: str):
+		try:
+			total, offset, amount, invites, interval = lastSegment.split(":")
+			return {
+				"total": int(total),
+				"offset": int(offset),
+				"amount": int(amount),
+				"invites": int(invites),
+				"interval": int(interval)
+			}
+		except Exception:
+			return None
+
+	@staticmethod
 	def _getObjectMap(type_):
 		"""
 		Type 1: User
@@ -133,6 +148,14 @@ class Parse:
 		Type 10: Message
 		Type 11: Map Pack
 		Type 12: List
+		Type 13: Notification
+		Type 14: SFX Pack
+		Type 15: Thread Invite
+		Type 16: Thread Former User
+		Type 17: Thread Invite User
+		Type 18: Thread Message
+		Type 19: Thread Metadata
+		Type 20: Thread
 		"""
 		if type_ == 1:
 			result = {
@@ -187,7 +210,13 @@ class Parse:
 				"58": "discord",
 				"59": "instagram",
 				"60": "tiktok",
-				"61": "custom"
+				"61": "custom",
+				"62": "groupState",
+				"63": "gO",
+				"64": "friendsSince",
+				"67": "followers",
+				"68": "following",
+				"69": "isFollowing"
 			}
 			return result
 
@@ -445,6 +474,154 @@ class Parse:
 			}
 			return result
 
+		elif type_ == 13:
+			result = {
+				"1": "notificationID",
+				"2": "type",
+				"3": "emoteIcon",
+				"4": "title",
+				"5": "description",
+				"6": "age",
+				"7": "isNew",
+				"8": "hasLevel",
+				"9": "levelID",
+				"10": "achievement",
+				"13": "hasChest",
+				"14": "chestType",
+				"15": "accountID",
+				"16": "username"
+			}
+			return result
+
+		elif type_ == 14:
+			result = {
+				"1": "soundID",
+				"2": "soundName",
+				"3": "description",
+				"5": "version",
+				"10": "downloads",
+				"14": "likes",
+				"19": "rated",
+				"28": "uploadDate",
+				"29": "updateDate",
+				"49": "accountID",
+				"50": "username",
+				"51": "soundString",
+				"59": "actions",
+				"60": "sounds",
+				"64": "icon"
+			}
+			return result
+
+		elif type_ == 15:
+			result = {
+				"1": "threadID",
+				"2": "accountID",
+				"3": "username",
+				"4": "title",
+				"6": "inviteAge",
+				"7": "lastMessage",
+				"9": "description",
+				"11": "muted",
+				"13": "ignoredInvite",
+				"14": "icon",
+				"15": "color1",
+				"16": "color2",
+				"17": "color3",
+				"18": "iconType",
+				"19": "special",
+				"20": "emoteIcon",
+				"21": "inviteTimestamp"
+			}
+			return result
+
+		elif type_ == 16:
+			result = {
+				"1": "accountID",
+				"2": "userID",
+				"3": "username",
+				"4": "iconID",
+				"5": "color1",
+				"6": "color2",
+				"7": "color3",
+				"8": "iconType",
+				"9": "special"
+			}
+			return result
+
+		elif type_ == 17:
+			result = {
+				"1": "accountID",
+				"2": "userID",
+				"3": "username",
+				"4": "invitedBy",
+				"5": "iconID",
+				"6": "color1",
+				"7": "color2",
+				"8": "color3",
+				"9": "iconType",
+				"10": "special",
+				"11": "stars",
+				"12": "moons",
+				"13": "demons",
+				"14": "secretCoins",
+				"15": "userCoins",
+				"16": "diamonds",
+				"17": "friendsSince"
+			}
+			return result
+
+		elif type_ == 18:
+			result = {
+				"1": "messageID",
+				"2": "senderAccountID",
+				"3": "messageContent",
+				"4": "sentTimestamp",
+				"5": "isDeleted"
+			}
+			return result
+
+		elif type_ == 19:
+			result = {
+				"1": "threadID",
+				"3": "memberCount",
+				"4": "description",
+				"5": "mv",
+				"6": "showLoadEarlier",
+				"9": "title",
+				"10": "locked"
+			}
+			return result
+
+		elif type_ == 20:
+			result = {
+				"1": "threadID",
+				"2": "accountID",
+				"3": "username",
+				"4": "title",
+				"5": "newMessages",
+				"6": "lastSenderID",
+				"7": "lastMessage",
+				"8": "members",
+				"9": "lastSenderUsername",
+				"10": "ownerID",
+				"11": "muted",
+				"13": "threadType",
+				"15": "pinned",
+				"16": "icon",
+				"17": "color1",
+				"18": "color2",
+				"19": "color3",
+				"20": "iconType",
+				"21": "special",
+				"22": "description",
+				"23": "emoteIcon",
+				"24": "lastMessageTimestamp",
+				"25": "modBadgeLevel",
+				"26": "status"
+			}
+			return result
+
 		else:
 			return {}
 
@@ -463,10 +640,52 @@ class Parse:
 		Type 10: Message
 		Type 11: Map Pack
 		Type 12: List
+		Type 13: Notification
+		Type 14: SFX Pack
+		Type 15: Thread Invite
+		Type 16: Thread Former User
+		Type 17: Thread Invite User
+		Type 18: Thread Message
+		Type 19: Thread Metadata
+		Type 20: Thread
 		"""
 		for oldKey, newKey in Parse._getObjectMap(type_).items():
 			if oldKey in parsed:
 				parsed[newKey] = parsed.pop(oldKey)
+
+	@staticmethod
+	def _parseValues(values: list, type_: int) -> dict:
+		"""
+		Type 1: User
+		Type 2: Comment
+		Type 3: Comment User
+		Type 4: Friend Request
+		Type 5: Gauntlet
+		Type 6: Gauntlet Names
+		Type 7: Level Leaderboard
+		Type 8: Level
+		Type 9: Song
+		Type 10: Message
+		Type 11: Map Pack
+		Type 12: List
+		Type 13: Notification
+		Type 14: SFX Pack
+		Type 15: Thread Invite
+		Type 16: Thread Former User
+		Type 17: Thread Invite User
+		Type 18: Thread Message
+		Type 19: Thread Metadata
+		Type 20: Thread
+		"""
+		result = Parse._getObjectMap(type_)
+		parsed = {}
+	
+		for index, value in enumerate(values, start=1):
+			key = result.get(str(index))
+			if key is not None:
+				parsed[key] = value
+	
+		return parsed
 
 	@staticmethod
 	def getGJLevels21(rawText: str, normalise: bool = True):
@@ -2287,6 +2506,724 @@ class Parse:
 			"mapPacks": mapBlocks
 		}
 
+
+	@staticmethod
+	def getGJDeathData(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "gameManager": gameManager,    # Decoded string
+		    "levelManager": levelManager,  # Decoded string
+		    "gameVersion": gameVersion,
+		    "binaryVersion": binaryVersion,
+		    "levels": {
+		        levelID: stars,
+		        ...
+		    },
+		    "mapPacks": [
+		        {
+		            "packID": packID,
+		            "packName": packName,
+		            "levels": [
+		                levelID,
+		                ...
+		            ],
+		            "stars": stars,
+		            "coins": coins,
+		            "difficulty": difficulty,
+		            "textColor": {
+		                "r": r,
+		                "g": g,
+		                "b": b
+		            },
+		            "barColor": {
+		                "r": r,
+		                "g": g,
+		                "b": b
+		            }
+		        }
+		    ]
+		}
+		```
+		'''
+		part1, part2, part3 = rawText.split(";")
+
+
+		deathData = Tools.Encryption.decodeString(part3, 16)
+
+		deathData1, deathData2 = deathData.split("|")
+
+
+		
+
+		deathBlocks = []
+		for block in deathData1.split(";"):
+			deathBlocks.append(block.split(","))
+
+		deathBlocks2 = []
+		for block in deathData2.split(","):
+			deathBlocks2.append(block)
+
+		if normalise is True:
+			pass
+
+		return {"1": part1,
+				"2": part2,
+				"deathData": {"deaths": deathBlocks,
+						"percentages": deathBlocks2}
+		}
+
+
+	@staticmethod
+	def getGJSongUsage(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "totalUploaded": totalUploaded,
+		    "totalRated": totalRated,
+		    "gameVersion": gameVersion,
+		    "totalRatedDownloads": totalRatedDownloads,
+		    "levelTypes": [{
+		    	"rating": rating,
+		    	"difficulty": difficulty,
+		    	"amount": amount
+		    	},
+		    	...
+		    ]
+		}
+		```
+		'''
+		part1, part2 = rawText.split("#")
+		totalUploaded, totalRated, totalRatedDownloads = part1.split(",")
+
+		levelTypes = []
+		if "|" in part2:
+			for block in part2.split("|"):
+				rateType, rating, amount = block.split(":")
+				levelTypes.append({
+					"rating": rateType,
+					"difficulty": rating,
+					"amount": amount
+					})
+
+
+		if normalise is True:
+			pass
+
+		return {"totalUploaded": totalUploaded,
+				"totalRated": totalRated,
+				"totalRatedDownloads": totalRatedDownloads,
+				"levelTypes": levelTypes
+		}
+
+	@staticmethod
+	def getGJNotifications(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "notifications": [
+		        {
+		            "notificationID": notificationID,
+		            "iconType": iconType,
+		            "milestone": milestone,
+		            "message": message,
+		            "age": age,
+		            "levelID": levelID,
+		            "achievement": achievement
+		        },
+		        ...
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount
+		    }
+		}
+		```
+		'''
+		notifications, paginationPart = rawText.rsplit("#", 1)
+		pagination = Parse._parsePagination(paginationPart)
+	
+		notificationList_ = []
+		for block in notifications.split("|"):
+			notification = Parse._parseKeyValuePairs(block, ":")
+
+			notification["4"] = Tools.b64DecodeUrlSafe(notification["4"])
+			notification["5"] = Tools.b64DecodeUrlSafe(notification["5"])
+
+			if normalise is True:
+				Parse._remap(notification, 13)
+			notificationList_.append(notification)
+
+
+		return {
+			"notifications": notificationList_,
+			"pagination": pagination
+		}
+
+	@staticmethod
+	def downloadGJEditorSound(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "sfxPackData": {
+		        "soundID": soundID,
+		        "soundName": soundName,
+		        "description": description,
+		        "version": version,
+		        "downloads": downloads,
+		        "likes": likes,
+		        "rated": rated,
+		        "uploadDate": uploadDate,
+		        "updateDate": updateDate,
+		        "accountID": accountID,
+		        "username": username,
+		        "soundString": soundString,
+		        "actions": actions,
+		        "sounds": sounds,
+		        "icon": icon
+		    },
+		    "hash": hash,
+		}
+		```
+		'''
+		data = rawText.split("#")
+		sfxPackData = Parse._parseKeyValuePairs(data[0], ":")
+		result = {
+			"sfxPackData": sfxPackData,
+			"hash": data[1]
+		}
+
+		for key in result["sfxPackData"]:
+			if key == "3":
+				result["sfxPackData"][key] = Parse._decode(result["sfxPackData"][key])
+
+		if normalise is True:
+			Parse._remap(result["sfxPackData"], 14)
+
+		return result
+
+	@staticmethod
+	def getGJEditorSounds(rawText: str, normalise: bool = True):
+		'''
+		Format:
+		
+		```py
+		{
+		    "sfx": [
+		    	{
+		            "soundID": soundID,
+		            "soundName": soundName,
+		            "description": description,
+		            "version": version,
+		            "downloads": downloads,
+		            "likes": likes,
+		            "rated": rated,
+		            "uploadDate": uploadDate,
+		            "updateDate": updateDate,
+		            "accountID": accountID,
+		            "username": username,
+		            "soundString": soundString,
+		            "actions": actions,
+		            "sounds": sounds,
+		            "icon": icon
+		       },
+		    ...
+		    ],
+		    "creators": [{
+		        "userID": userID,
+		        "username": username,
+		        "accountID": accountID
+		        },
+		    ...
+		    ],
+		    "hash": hash,
+		}
+		```
+		'''
+		data = rawText.split("#")
+
+		sfx = []
+		for block in data[0].split("|"):
+			parsed = Parse._parseKeyValuePairs(block, ":")
+
+			for key in parsed:
+				if key == "3":
+					parsed[key] = Parse._decode(parsed[key])
+
+			if normalise is True:
+				Parse._remap(parsed, 14)
+
+			sfx.append(parsed)
+
+		creators = []
+		for block in data[1].split("|"):
+			userID, username, accountID = block.split(":")
+			parsed = {
+				"userID": userID,
+				"username": username,
+				"accountID": accountID
+			}
+			creators.append(parsed)
+
+		result = {
+			"sfx": sfx,
+			"creators": creators,
+			"pagination": Parse._parsePagination(data[2]),
+			"hash": data[3]
+		}
+		return result
+
+	@staticmethod
+	def getGJFollowing(rawText: str):
+		'''
+		Format:
+		
+		```py
+		{
+		    "accountIDs": [...],
+		}
+		```
+		'''
+		accountIDs = rawText.split(",")
+
+		result = {}
+		result["accountIDs"] = []
+
+		for accountID in accountIDs:
+			result["accountIDs"].append(accountID)
+
+		return result
+
+	@staticmethod
+	def getGJThreadInvites(rawText: str):
+		'''
+		Format:
+	
+		```py
+		{
+		    "invites": [
+		        {
+		            "threadID": threadID,
+		            "accountID": accountID,
+		            "username": username,
+		            "title": title,
+		            "inviteAge": inviteAge,
+		            "lastMessage": lastMessage,
+		            "description": description,
+		            "muted": muted,
+		            "ignoredInvite": ignoredInvite,
+		            "icon": icon,
+		            "color1": color1,
+		            "color2": color2,
+		            "color3": color3,
+		            "iconType": iconType,
+		            "special": special,
+		            "emoteIcon": emoteIcon,
+		            "inviteTimestamp": inviteTimestamp
+		        },
+		        ...
+		    ]
+		}
+		```
+		'''
+		if rawText == "none":
+			return {"invites": []}
+
+	
+		invites = []
+		for block in rawText.split("|"):
+			invite = block.split(":")
+			data = Parse._parseValues(invite, 15)
+
+			for key in data:
+				if key == "username":
+					data[key] = Parse._decode(data[key])
+
+				if key == "title":
+					data[key] = Parse._decode(data[key])
+
+				if key == "description":
+					data[key] = Parse._decode(data[key])
+
+			invites.append(data)
+
+
+		return {
+			"invites": invites
+		}
+
+	@staticmethod
+	def getGJThreadMembers(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "members": [
+		        {
+		            "userName": userName,
+		            "userID": userID,
+		            "username": username,
+		            "stars": stars,
+		            "demons": demons,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "secretCoins": secretCoins,
+		            "iconType": iconType,
+		            "accountID": accountID,
+		            "userCoins": userCoins,
+		            "diamonds": diamonds,
+		            "color3": color3,
+		            "moons": moons
+		        },
+		        ...
+		    ],
+		    "formerMembers": [
+		        {
+		            "accountID": accountID,
+		            "userID": userID,
+		            "username": username,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "color3": color3,
+		            "iconType": iconType,
+		            "special": special
+		        },
+		        ...
+		    ],
+		    "invites": [
+		        {
+		            "accountID": accountID,
+		            "userID": userID,
+		            "username": username,
+		            "invitedBy": invitedBy,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "color3": color3,
+		            "iconType": iconType,
+		            "special": special,
+		            "stars": stars,
+		            "moons": moons,
+		            "demons": demons,
+		            "secretCoins": secretCoins,
+		            "userCoins": userCoins,
+		            "diamonds": diamonds,
+		            "friendsSince": friendsSince
+		        },
+		        ...
+		    ]
+		}
+		```
+		'''
+		members, formerMembers, invites = rawText.split("#")
+
+		result = {}
+
+		users = []
+		if len(members) > 0:
+			for block in members.split("|"):
+				parsed = Parse._parseKeyValuePairs(block, ":")
+	
+				if normalise is True:
+					Parse._remap(parsed, 1)
+	
+				users.append(parsed)
+
+		result["members"] = users
+
+		formerUsers = []
+		if len(formerMembers) > 0:
+			for block in formerMembers.split("|"):
+				members = block.split(":")
+				data = Parse._parseValues(members, 16)
+	
+				for key in data:
+					if key == "username":
+						data[key] = Parse._decode(data[key])
+
+				formerUsers.append(data)
+
+		result["formerMembers"] = formerUsers
+
+		invitesList = []
+		if len(invites) > 0:
+			for block in invites.split("|"):
+				userInvite = block.split(":")
+				data = Parse._parseValues(userInvite, 17)
+	
+				for key in data:
+					if key == "username":
+						data[key] = Parse._decode(data[key])
+
+				invitesList.append(data)
+
+		result["invites"] = invitesList
+
+		return result
+
+	@staticmethod
+	def getGJThreadMessages(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "messages": [
+		        {
+		            "messageID": messageID,
+		            "senderAccountID": senderAccountID,
+		            "messageContent": messageContent,
+		            "sentTimestamp": sentTimestamp,
+		            "isDeleted": isDeleted
+		        },
+		        ...
+		    ],
+		    "members": [
+		        {
+		            "userName": userName,
+		            "userID": userID,
+		            "username": username,
+		            "stars": stars,
+		            "demons": demons,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "secretCoins": secretCoins,
+		            "iconType": iconType,
+		            "accountID": accountID,
+		            "userCoins": userCoins,
+		            "diamonds": diamonds,
+		            "color3": color3,
+		            "moons": moons
+		        },
+		        ...
+		    ],
+		    "formerMembers": [
+		        {
+		            "accountID": accountID,
+		            "userID": userID,
+		            "username": username,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "color3": color3,
+		            "iconType": iconType,
+		            "special": special
+		        },
+		        ...
+		    ],
+		    "invites": [
+		        {
+		            "accountID": accountID,
+		            "userID": userID,
+		            "username": username,
+		            "invitedBy": invitedBy,
+		            "iconID": iconID,
+		            "color1": color1,
+		            "color2": color2,
+		            "color3": color3,
+		            "iconType": iconType,
+		            "special": special,
+		            "stars": stars,
+		            "moons": moons,
+		            "demons": demons,
+		            "secretCoins": secretCoins,
+		            "userCoins": userCoins,
+		            "diamonds": diamonds,
+		            "friendsSince": friendsSince
+		        },
+		        ...
+		    ],
+		    "metadata": [
+		        {
+		            "threadID": threadID,
+		            "memberCount": memberCount,
+		            "description": description,
+		            "mv": mv,
+		            "showLoadEarlier": showLoadEarlier,
+		            "title": title,
+		            "locked": locked
+		        },
+		        ...
+		    ],
+		    "lastMessageID": lastMessageID,
+		    "unk": [...]
+		}
+		```
+		'''
+		messages, members, formerMembers, invites, metadata, lastMessageID, unk = rawText.split("#")
+
+		result = {}
+
+		messagesList = []
+		if len(messages) > 0:
+			for block in messages.split("|"):
+				splitMessages = block.split(":")
+				data = Parse._parseValues(splitMessages, 18)
+
+				for key in data:
+					if key == "messageContent":
+						data[key] = Parse._decode(data[key])
+	
+				messagesList.append(data)
+
+		result["messages"] = messagesList
+
+		users = []
+		if len(members) > 0:
+			for block in members.split("|"):
+				parsed = Parse._parseKeyValuePairs(block, ":")
+	
+				if normalise is True:
+					Parse._remap(parsed, 1)
+	
+				users.append(parsed)
+
+		result["members"] = users
+
+		formerUsers = []
+		if len(formerMembers) > 0:
+			for block in formerMembers.split("|"):
+				members = block.split(":")
+				data = Parse._parseValues(members, 16)
+	
+				for key in data:
+					if key == "username":
+						data[key] = Parse._decode(data[key])
+
+				formerUsers.append(data)
+
+		result["formerMembers"] = formerUsers
+
+		invitesList = []
+		if len(invites) > 0:
+			for block in invites.split("|"):
+				userInvite = block.split(":")
+				data = Parse._parseValues(userInvite, 17)
+	
+				for key in data:
+					if key == "username":
+						data[key] = Parse._decode(data[key])
+
+				invitesList.append(data)
+
+		result["invites"] = invitesList
+
+		parsedMetadata = {}
+		if len(metadata) > 0:
+			threadMetadata = metadata.split(":")
+			data = Parse._parseValues(threadMetadata, 19)
+
+			for key in data:
+				if key == "description":
+					data[key] = Parse._decode(data[key])
+
+				if key == "title":
+					data[key] = Parse._decode(data[key])
+
+			parsedMetadata = data
+
+		result["metadata"] = parsedMetadata
+
+		result["lastMessageID"] = lastMessageID
+
+		unkList = []
+		if len(unk) > 0:
+			unkList = unk.split(",")
+
+		result["unk"] = unkList
+
+		return result
+
+	@staticmethod
+	def getGJThreads(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "threads": [
+		        {
+		            "threadID": threadID,
+		            "accountID": accountID,
+		            "username": username,
+		            "title": title,
+		            "newMessages": newMessages,
+		            "lastSenderID": lastSenderID,
+		            "lastMessage": lastMessage,
+		            "members": members,
+		            "lastSenderUsername": lastSenderUsername,
+		            "ownerID": ownerID,
+		            "muted": muted,
+		            "threadType": threadType,
+		            "pinned": pinned,
+		            "icon": icon,
+		            "color1": color1,
+		            "color2": color2,
+		            "color3": color3,
+		            "iconType": iconType,
+		            "special": special,
+		            "description": description,
+		            "emoteIcon": emoteIcon,
+		            "lastMessageTimestamp": lastMessageTimestamp,
+		            "modBadgeLevel": modBadgeLevel,
+		            "status": status
+		        },
+		        ...
+		    ],
+		    "pagination": {
+		        "total": total,
+		        "offset": offset,
+		        "amount": amount,
+		        "invites": invites,
+		        "interval": interval
+		    }
+		}
+		```
+		'''
+		threads, pageInfo = rawText.split("#")
+
+		result = {}
+
+		theadsList = []
+		if len(threads) > 0:
+			for block in threads.split("|"):
+				splitThread = block.split(":")
+				data = Parse._parseValues(splitThread, 20)
+
+				for key in data:
+					if key == "username":
+						data[key] = Parse._decode(data[key])
+
+					if key == "title":
+						data[key] = Parse._decode(data[key])
+
+					if key == "lastSenderUsername":
+						data[key] = Parse._decode(data[key])
+
+					if key == "description":
+						data[key] = Parse._decode(data[key])
+	
+				theadsList.append(data)
+
+		result["threads"] = theadsList
+
+		result["pagination"] = Parse._parseThreadPagination(pageInfo)
+
+		return result
+
 class Tools:
 
 	class Encryption:
@@ -3240,7 +4177,7 @@ def backupGJAccountNew(
 	saveData: The save data for CCGameManager.dat compressed with gzip, then a semicolon ; and the save data for CCLocalLevels.dat compressed with gzip
 	uuid: The player's user ID
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
@@ -3345,7 +4282,7 @@ def syncGJAccountNew(
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -3478,7 +4415,7 @@ def getGJScores20(
 	type_: Can be top, relative, friends, or creators. If left out it defaults to top
 	count: Returns the amount of players specified. Limited to 100
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -3543,7 +4480,7 @@ def getGJUserInfo20(
 	"""
 	targetAccountID: The account ID of the person you want the info of
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -3600,7 +4537,7 @@ def getGJUsers20(
 	) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	str_: The name or user ID of the user you want to search for
 	page: The page of users you want. Redundant as it only returns 1 user
 	total: Likely the cached total page count
@@ -3721,7 +4658,7 @@ def updateGJUserScore22(
 	sinfog: Amount of completed gauntlet non-demon levels
 	sinfoe: Amount of completed event non-demon levels
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -3859,7 +4796,7 @@ def deleteGJLevelUser20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	levelID: The level ID to remove from the user's list
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -3956,7 +4893,7 @@ def uploadGJLevel21(
 	seed2: Upload seed2 value; auto-generated if omitted
 	objects: Number of objects in the level, auto-detected if omitted
 	coins: Number of coins in the level, auto-detected if omitted
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	wt: The amount of time spent in the editor of a level (local copy)
@@ -4072,7 +5009,7 @@ def updateGJDesc20(
 	levelID: The level ID whose description is being updated
 	levelDesc: The new description text
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -4119,7 +5056,7 @@ def suggestGJStars(
 	stars: How many stars that are requested
 	feature: 0 for star rate, 1 for feature, 2 for epic, 3 for legendary, 4 for mythic
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -4202,7 +5139,7 @@ def rateGJStars211(
 	uuid: The player's user ID
 	chk: A string computed for authentication, auto generated if omitted
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
 	secret = Tools.getSecret(1)
@@ -4262,7 +5199,7 @@ def rateGJDemon21(
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	levelID: The ID of the demon being rated
@@ -4317,7 +5254,7 @@ def getGJMapPacks21(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	page: Denotes which page of map packs you want to retrieve, starting with 0
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -4375,7 +5312,7 @@ def getGJGauntlets21(
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	special: 1 (fetches the 2.2 gauntlets)
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -4445,7 +5382,7 @@ def getGJDailyLevel(
 	weekly: 0 for daily, 1 for weekly. Defaults to 0 if not sent. This parameter is outdated since 2.207
 	type_: 0 for daily, 1 for weekly, 2 for event level
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	chk: A string computed for authentication, set to True to auto generate
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -4517,7 +5454,7 @@ def downloadGJLevel22(
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	inc: Whether the amount of downloads should be incremented on the level (requires proper authentication)
@@ -4665,7 +5602,7 @@ def getGJLevels21(
 	followed: Comma-separated list of followed account IDs, used for type 12 queries
 	local: 1 to request "My Online Levels" when using type 5 with a sender user ID
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	inc: Whether the amount of downloads should be incremented on the list (requires proper authentication)
@@ -4822,7 +5759,7 @@ def getGJLevelScores211(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	levelID: The ID of the level or list. Negative if it's a list ID
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	time: Time in milliseconds if the user completed the level, otherwise 0
 	points: Always 0
 	plat: Always 0
@@ -5033,7 +5970,7 @@ def getGJLevelScoresPlat(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	levelID: The ID of the level or list. Negative if it's a list ID
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	time: Time in milliseconds if the user completed the level, otherwise 0
 	points: The amount of points the user has
 	plat: Always 1
@@ -5225,7 +6162,7 @@ def getGJComments21(
 	total: Probably the cached total number of comments, default is 0
 	count: Number of comments to fetch. Defaults to 10, but doubles if "More Comments" is enabled or in compact view (stacking)
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5298,7 +6235,7 @@ def getGJCommentHistory(
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	mode: Set to 0 for most recent, and 1 for most liked
 	total: Probably the cached total number of comments, default is 0
 	count: The number of comments you want to get. 20 in normal view, 40 in compact view. Capped at 100
@@ -5371,7 +6308,7 @@ def getGJAccountComments20(
 	page: Which page of comments you want to see
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	total: Probably the cached total number of account comments, default is 0
 	count: Amount of account comments that will be returned. Max 20, default 10
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -5438,7 +6375,7 @@ def uploadGJAccComment20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	comment: The comment's text in plaintext
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	cType: The comment type. 0 for level (unused), 1 for account
 	userName: The name of the user
 	chk: The comment chk, pass in a tuple containing (Username, Comment Content)
@@ -5510,7 +6447,7 @@ def deleteGJAccComment20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	commentID: The ID of the comment being deleted (Returned by uploadGJAccComment20)
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5576,7 +6513,7 @@ def uploadGJComment21(
 	levelID: The ID of the level to comment on. If commenting on a list, the ID should be negative
 	percent: The level percentage shown on the comment as an integer. Only sent if percentage is not 0
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5642,7 +6579,7 @@ def deleteGJComment20(
 	commentID: ID of the comment
 	levelID: ID of the level the comment is on
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5715,7 +6652,7 @@ def uploadGJLevelList(
 	listVersion: Always 0
 	seed: A chk required for authentication, auto generated if omitted
 	seed2: 5 randomly generated characters from [A-Za-z0-9]
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -5783,7 +6720,7 @@ def getGJLevelLists(
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	type_: Search type, defaults to most liked, types are as follows:
 	```markdown
 	| Type | Description                                      |
@@ -5887,7 +6824,7 @@ def deleteGJLevelList(
 	listID: The level list ID to delete
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	"""
@@ -5936,7 +6873,7 @@ def getSaveData(
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	"""
 	secret = Tools.getSecret(1)
 	
@@ -6002,7 +6939,7 @@ def likeGJItem211(
 	itemID: The ID of the level, comment, or account comment
 	type_: 1 for level, 2 for level comment, 3 for account comment, 4 for list
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -6095,7 +7032,7 @@ def requestUserAccess(
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -6183,7 +7120,7 @@ def getGJSecretReward(
 	rewardKey: The input reward key string
 	chk: Optional precomputed reward checksum
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	uuid: The player's user ID
@@ -6254,7 +7191,7 @@ def getGJRewards(
 	rewardType: 0 for getting info about the chests, 1 to get a new small chest, 2 to get a new large chest. Defaults to 0 if left out
 	chk: Rewards CHK using the chest rewards key, auto-generated of omitted
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	uuid: The player's user ID
 	r1: A random 3-5 digit number, set to True to auto-generate
 	r2: A random 3-5 digit number, set to True to auto-generate
@@ -6332,7 +7269,7 @@ def getGJChallenges(
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	chk: The challenge checksum for the request
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	uuid: The player's user ID
@@ -6400,7 +7337,7 @@ def getGJMessages20(
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	page: The message page number
 	total: Cached total message count
 	getSent: 1 to fetch sent messages instead of received ones
@@ -6465,7 +7402,7 @@ def downloadGJMessage20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	messageID: The message ID to fetch
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -6517,13 +7454,15 @@ def uploadGJMessage20(
 	uuid: int | None = None
 ) -> str:
 	"""
+	WARNING: This endpoint is deprecated and seems to be always returning -1 now
+
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	toAccountID: The recipient account ID
 	subject: The message subject, sent base64 URL-safe encoded
 	body: The message body, sent base64 URL-safe encoded
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -6580,7 +7519,7 @@ def deleteGJMessages20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	messageID: The message ID to delete
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	isSender: 1 if the actor is the sender of the message
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -6639,7 +7578,7 @@ def getGJFriendRequests20(
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	page: The request page number
 	total: Cached total count of friend requests
 	getSent: 1 to fetch sent requests instead of received requests
@@ -6704,7 +7643,7 @@ def uploadFriendRequest20(
 	toAccountID: The recipient account ID
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -6760,7 +7699,7 @@ def deleteGJFriendRequests20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	targetAccountID: The accountID of the player you are declining the friend request or 0 if multiple requests are being declined
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accounts: Account IDs seperated by , for players whose requests are being declined. Sent only if there are multiple requests being declined
 	isSender: 1 if the player is the sender of the friend request(s) to the target account(s)
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -6823,7 +7762,7 @@ def acceptGJFriendRequest20(
 	targetAccountID: The other account involved in the request
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	requestID: The ID of the friend request being accepted
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -6881,7 +7820,7 @@ def readGJFriendRequest20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	requestID: The ID of the received friend request
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -6935,7 +7874,7 @@ def removeGJFriend20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	targetAccountID: The friend account ID being removed
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -6989,7 +7928,7 @@ def blockGJUser20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	targetAccountID: The account ID of the person being blocked
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -7043,7 +7982,7 @@ def unblockGJUser20(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	targetAccountID: The account ID of the person getting unblocked
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
 	uuid: The player's user ID
@@ -7096,7 +8035,7 @@ def getGJUserList20(
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	type_: 0 for friends, 1 for blocklist. Defaults to 0 if left out
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -7151,7 +8090,7 @@ def getGJSongInfo(
 	"""
 	songID: The newgrounds ID of the song you want information about
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -7207,7 +8146,7 @@ def getGJTopArtists(
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	page: Which page of the artists you want to see
 	total: Cached total artist count
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -7332,7 +8271,7 @@ def joinMPLobby(
 	gameID: The ID of the multiplayer lobby
 	lastCommentID: Your last multiplayer comment ID. It's unknown what the initial value is
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	"""
 	secret = Tools.getSecret(2)
 	
@@ -7372,7 +8311,7 @@ def exitMPLobby(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	gameID: The ID of the multiplayer lobby
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	"""
 	secret = Tools.getSecret(2)
 	
@@ -7417,7 +8356,7 @@ def uploadMPComment(
 	extra: Optional random or extra payload value used in checksum generation
 	chk: Optional precomputed lobby comment checksum
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	"""
 	secret = Tools.getSecret(2)
 	if extra is None:
@@ -7467,7 +8406,7 @@ def getCustomContentURL(
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	binaryVersion: A number representing the game's small version. The current value is 47 for 2.2081 on PC and 48 for 2.2082 on mobile
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
@@ -7507,6 +8446,982 @@ def getCustomContentURL(
 	)
 	
 	if not Tools.checkResponse(response.text):
-		print(f"getGJTopArtists Failed: {response.text}")
+		print(f"getCustomContentURL Failed: {response.text}")
+	
+	return response.text
+
+def getGJSongUsage(
+	songID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
+) -> str:
+	"""
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"songID": songID,
+		"secret": secret
+	}
+	
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJSongUsage.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJSongUsage Failed: {response.text}")
+	
+	return response.text
+
+
+def getGJDeathData(
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	levelVersion: int | None = None,
+	levelID: int | None = None,
+	refresh: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+	
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if levelVersion is not None:
+		data["levelVersion"] = levelVersion
+
+	if levelID is not None:
+		data["levelID"] = levelID
+
+	if refresh is not None:
+		data["refresh"] = refresh
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJDeathData.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJDeathData Failed: {response.text}")
+	
+	return response.text
+
+def getGJNotifications(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	page: int | None = None,
+	total: int | None = None,
+	mask: str | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	page: Which page of notifications you want, starting at 0. Defaults to the first if left out
+	total: The amount of notifications to fetch, defaults to 10. Seemingly has no upper boundary
+	mask: Bit mask for enabled/disabled notification types. Defaults to 65535 (all enabled) if left out
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+
+	To use mask, enter a string of 6 numbers, 1 = enabled, 0 = disabled.
+	```
+	1 - Friend Uploads
+	2 - Followed Uploads
+	3 - Downloads
+	4 - Followers
+	5 - Friend Accepts
+	6 - Friend Rates
+	```
+	These are the positions:
+	`654321`
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+	
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if page is not None:
+		data["page"] = page
+
+	if total is not None:
+		data["total"] = total
+
+	if mask is not None:
+		mask = mask[:2] + "1" + mask[3:]
+		data["mask"] = mask
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJNotifications.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJNotifications Failed: {response.text}")
+	
+	return response.text
+
+def downloadGJEditorSound(
+	soundID: int,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None
+) -> str:
+	"""
+	soundID: The ID of the sound pack you want to download
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"soundID": soundID,
+		"secret": secret
+	}
+	
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/downloadGJEditorSound.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"downloadGJEditorSound Failed: {response.text}")
+	
+	return response.text
+
+def deleteGJEditorSound(
+	accountID: int,
+	gjp2: str,
+	soundID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	soundID: The ID of the pack being deleted
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(3)
+	
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"soundID": soundID,
+		"secret": secret
+	}
+	
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/deleteGJEditorSound.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"deleteGJEditorSound Failed: {response.text}")
+	
+	return response.text
+
+def getGJEditorSounds(
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	str_: str | None = None,
+	type_: int | None = None,
+	page: int | None = None,
+	star: Literal[0, 1] | None = None,
+	total: int | None = None,
+	count: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	str_: Search query, user ID or level list depending on type_
+	type_: Search type, defaults to most liked
+	page: Which page to request, defaults to 0
+	star: Whether to only return featured editor sound packs, does not seem to be used in game
+	total: Does not seem to affect anything, sent as 0
+	count: Does not seem to affect anything, sent as 10
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+
+	```
+	| Type | Description                            |
+	| ---- | -------------------------------------- |
+	| 0  | Search query                             |
+	| 1  | Most downloaded                          |
+	| 2  | Most liked                               |
+	| 3  | Trending                                 |
+	| 4  | Recent                                   |
+	| 5  | User's packs, uses str as the account ID |
+	| 6  | Featured                                 |
+	| 11 | Awarded (unused in-game)                 |
+	| 13 | Friends (login required)                 |
+	```
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"secret": secret
+	}
+	
+	if accountID is not None:
+		data["accountID"] = accountID
+	
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+
+	if str_ is not None:
+		data["str"] = str_
+
+	if type_ is not None:
+		data["type"] = type_
+
+	if page is not None:
+		data["page"] = page
+
+	if star is not None:
+		data["star"] = star
+
+	if total is not None:
+		data["total"] = total
+
+	if count is not None:
+		data["count"] = count
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJEditorSounds.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJEditorSounds Failed: {response.text}")
+	
+	return response.text
+
+def uploadGJEditorSound(
+	accountID: int,
+	gjp2: str,
+	soundName: str,
+	soundData: str,
+	soundDesc: str | None = None,
+	actionCount: int | None = None,
+	soundCount: int | None = None,
+	emote: str | None = None,
+	soundID: int | None = None,
+	unlisted: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	soundName: The name of the pack, in plain text
+	soundData: The sound pack's encoded data
+	soundDesc: 	The description of the pack, in plain text
+	actionCount: Sent as the amount of actions with a sound attached to them, but doesn't seem to do anything
+	soundCount: Send as the amount of sounds used, but doesn't seem to do anything
+	emote: The emote to be used as the icon of the pack
+	soundID: The ID of the list if updating to a newer version, otherwise 0
+	unlisted: Set to 4 if the pack should be unlisted, and to 3 if the pack should be unlisted and only viewable by friends
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"soundName": soundName,
+		"soundData": soundData,
+		"secret": secret
+	}
+	
+	if soundDesc is not None:
+		data["soundDesc"] = Tools.b64EncodeUrlSafe(soundDesc)
+	
+	if actionCount is not None:
+		data["actionCount"] = actionCount
+
+	if soundCount is not None:
+		data["soundCount"] = soundCount
+
+	if emote is not None:
+		data["emote"] = emote
+
+	if soundID is not None:
+		data["soundID"] = soundID
+
+	if unlisted is not None:
+		data["unlisted"] = unlisted
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/uploadGJEditorSound.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"uploadGJEditorSound Failed: {response.text}")
+	
+	return response.text
+
+def followGJUser(
+	targetAccountID: int,
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None
+) -> str:
+	"""
+	targetAccountID: Who to follow
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"targetAccountID": targetAccountID,
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/followGJUser.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"followGJUser Failed: {response.text}")
+	
+	return response.text
+
+def getGJFollowing(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	ack: Literal[0, 1] | None = None
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	ack: Probably whether to refresh the following user list
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	if ack is not None:
+		data["ack"] = ack
+	
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJFollowing.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJFollowing Failed: {response.text}")
+	
+	return response.text
+
+def muteGJUser(
+	targetAccountID: int,
+	accountID: int,
+	gjp2: str,
+	mute: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	targetAccountID: Who to mute / unmute
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	mute: 1 to mute, 0 to unmute. If left out, defaults to 1
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"targetAccountID": targetAccountID,
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if mute is not None:
+		data["mute"] = mute
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/muteGJUser.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"muteGJUser Failed: {response.text}")
+	
+	return response.text
+
+def unfollowGJUser(
+	targetAccountID: int,
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	targetAccountID: Who to unfollow
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"targetAccountID": targetAccountID,
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+	
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/unfollowGJUser.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"unfollowGJUser Failed: {response.text}")
+	
+	return response.text
+
+def getGJThreadInvites(
+	accountID: int,
+	gjp2: str,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJThreadInvites.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJThreadInvites Failed: {response.text}")
+	
+	return response.text
+
+def getGJThreadMembers(
+	accountID: int,
+	gjp2: str,
+	threadID: int,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	threadID: The ID of the thread to fetch messages from
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"threadID": threadID,
+		"secret": secret
+	}
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+	
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJThreadMembers.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJThreadMembers Failed: {response.text}")
+	
+	return response.text
+
+def getGJThreadMessages(
+	accountID: int,
+	gjp2: str,
+	threadID: int,
+	beforeID: int | None = None,
+	afterID: int | None = None,
+	aroundID: int | None = None,
+	mv: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	threadID: The ID of the thread to fetch messages from
+	beforeID: All fetched messages will be older than this message ID
+	afterID: All fetched messages will be newer than this message ID
+	aroundID: All fetched messages will be around this message ID. Used when jumping to a message from search
+	mv: Unknown. Only sent when refreshing the thread
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"threadID": threadID,
+		"secret": secret
+	}
+
+	if beforeID is not None:
+		data["beforeID"] = beforeID
+
+	if afterID is not None:
+		data["afterID"] = afterID
+
+	if aroundID is not None:
+		data["aroundID"] = aroundID
+
+	if mv is not None:
+		data["mv"] = mv
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJThreadMessages.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJThreadMessages Failed: {response.text}")
+	
+	return response.text
+
+def getGJThreads(
+	accountID: int,
+	gjp2: str,
+	page: int | None = None,
+	filter: int | None = None,
+	removed: int | None = None,
+	user: list[int] | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	page: The page of threads you want to fetch, starting from 0. Defaults to the first if left out
+	filter: Which threads to show: 0 for all (default), 1 for DM, 2 for Group
+	removed: Unknown, always sent as 1
+	user: Filter for threads that have these users. List of account IDs
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int | list] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if page is not None:
+		data["page"] = page
+
+	if filter is not None:
+		data["filter"] = filter
+
+	if removed is not None:
+		data["removed"] = removed
+
+	if user is not None:
+		userString = ",".join(map(str, user))
+		data["user"] = userString
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJThreads.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJThreads Failed: {response.text}")
 	
 	return response.text
