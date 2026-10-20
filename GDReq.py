@@ -4,7 +4,8 @@ An API wrapper and response parser for Geometry Dash
 
 import requests
 import base64
-from typing import Any, Union, List, Sequence, Literal
+from typing import Any, Union, List, Sequence, Literal, overload, TypedDict
+from typing_extensions import Unpack
 import hashlib
 import re
 import gzip
@@ -17,6 +18,7 @@ import urllib.request
 import os
 import ssl
 import urllib3
+import time
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -2558,12 +2560,14 @@ class Parse:
 		
 
 		deathBlocks = []
-		for block in deathData1.split(";"):
-			deathBlocks.append(block.split(","))
+		if len(deathData1) > 0:
+			for block in deathData1.split(";"):
+				deathBlocks.append(block.split(","))
 
 		deathBlocks2 = []
-		for block in deathData2.split(","):
-			deathBlocks2.append(block)
+		if len(deathData2) > 0:
+			for block in deathData2.split(","):
+				deathBlocks2.append(block)
 
 		if normalise is True:
 			pass
@@ -3147,7 +3151,7 @@ class Parse:
 		return result
 
 	@staticmethod
-	def getGJThreads(rawText: str, normalise: bool = True):
+	def getGJThreads(rawText: str):
 		'''
 		Format:
 	
@@ -3220,6 +3224,95 @@ class Parse:
 		result["threads"] = theadsList
 
 		result["pagination"] = Parse._parseThreadPagination(pageInfo)
+
+		return result
+
+	@staticmethod
+	def searchGJThreadMessages(rawText: str, normalise: bool = True):
+		'''
+		Format:
+	
+		```py
+		{
+		    "messages": [
+		        {
+		            "messageID": messageID,
+		            "senderAccountID": senderAccountID,
+		            "messageContent": messageContent,
+		            "sentTimestamp": sentTimestamp,
+		            "isDeleted": isDeleted
+		        },
+		        ...
+		    ],
+		    "pages": pages
+		}
+		```
+		'''
+		messages, pageInfo = rawText.split("#")
+
+		result = {}
+
+		messagesList = []
+		if messages != "none":
+			for block in messages.split("|"):
+				splitThread = block.split(":")
+				data = Parse._parseValues(splitThread, 18)
+
+				for key in data:
+					if key == "messageContent":
+						data[key] = Parse._decode(data[key])
+	
+				messagesList.append(data)
+
+		result["messages"] = messagesList
+
+		result["pages"] = pageInfo
+
+		return result
+
+	@staticmethod
+	def sendGJThreadMessage(rawText: str, normalise: bool = True):
+		'''
+		Format for success:
+	
+		```py
+		{
+		    "threadID": threadID,
+		    "messageID": messageID
+		}
+		```
+		Format for error:
+		```py
+		{
+		    "title": title,
+		    "description": description,
+		    "error": error
+		}
+		```
+		'''
+		result = {}
+
+		# Error message
+		if "#" in rawText:
+			_, _, _, _, info, _, _, _, error = rawText.split("#")
+
+			title, description = info.split(":")
+
+			title = title.split("=")[1]
+			description = description.split("=")[1]
+
+			title = Parse._decode(title)
+			description = Parse._decode(description)
+
+			result["title"] = title
+			result["description"] = description
+			result["error"] = error
+
+		# Success
+		else:
+			threadID, messageID = rawText.split(":")
+			result["threadID"] = threadID
+			result["messageID"] = messageID
 
 		return result
 
@@ -4159,7 +4252,12 @@ class Tools:
 		combined = "H4sIAAAAAAAAA" + fragment
 		raw = base64.urlsafe_b64decode(combined.encode())
 		return zlib.decompress(raw, 15 | 32).decode()
-		
+	
+	@staticmethod
+	def unixTime() -> int:
+		timestamp = int(time.time())
+		return timestamp
+
 def backupGJAccountNew(
 	accountID: int,
 	gjp2: str,
@@ -9422,5 +9520,481 @@ def getGJThreads(
 	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJThreads Failed: {response.text}")
+	
+	return response.text
+
+def searchGJThreadMessages(
+	accountID: int,
+	gjp2: str,
+	threadID: int,
+	query: str,
+	beforeID: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	threadID: The ID of the thread to search messages in
+	query: The search query
+	beforeID: All fetched messages will be older than this message ID
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int | list] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"threadID": threadID,
+		"query": Tools.b64EncodeUrlSafe(query),
+		"secret": secret
+	}
+
+	if beforeID is not None:
+		data["beforeID"] = beforeID
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/searchGJThreadMessages.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"searchGJThreadMessages Failed: {response.text}")
+	
+	return response.text
+
+def sendGJThreadMessage(
+	accountID: int,
+	gjp2: str,
+	threadID: int | None = None,
+	body: str | None = None,
+	isDM: int | None = None,
+	toAccountID: int | None = None,
+	subject: str | None = None,
+	description: str | None = None,
+	emote: str | None = None,
+	targets: str | None = None,
+	token: bool | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	dvs: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	threadID: The ID of the thread to send a message to. 0 if starting a new thread
+	body: The message body in plain text
+	isDM: 1 if starting a DM thread
+	toAccountID: If starting a DM thread, the account ID of the person the DM thread will be shared with, 0 otherwise
+	subject: If starting a group thread, the name of the thread in plain text
+	description: If starting a group thread, the description of the thread in plain text
+	emote: If starting a group thread, the emote used as the icon in plain text
+	targets: If starting a group thread, the account IDs of the people you want to invite, separated by commas, in plain text
+	token: Sent as the current UNIX timestamp (in seconds) left-shifted by 0x14 (20), set to True to include
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int | list] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if threadID is not None:
+		data["threadID"] = threadID
+
+	if body is not None:
+		data["body"] = Tools.b64EncodeUrlSafe(body)
+
+	if isDM is not None:
+		data["isDM"] = isDM
+
+	if toAccountID is not None:
+		data["toAccountID"] = toAccountID
+
+	if subject is not None:
+		data["subject"] = Tools.b64EncodeUrlSafe(subject)
+
+	if description is not None:
+		data["description"] = Tools.b64EncodeUrlSafe(description)
+
+	if emote is not None:
+		data["emote"] = Tools.b64EncodeUrlSafe(emote)
+
+	if targets is not None:
+		data["targets"] = Tools.b64EncodeUrlSafe(targets)
+
+	if token is not None:
+		timestamp = Tools.unixTime()
+		data["token"] = timestamp << 0x14
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/sendGJThreadMessage.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"sendGJThreadMessage Failed: {response.text}")
+	
+	return response.text
+
+class _GJThreadOptions(TypedDict, total=False):
+	gameVersion: int
+	binaryVersion: int
+	udid: str
+	uuid: int
+	dvs: int
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[1],
+	threadID: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[2],
+	threadID: int,
+	value: str,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[3],
+	threadID: Literal[0],
+	value: list[int],
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[4],
+	threadID: int,
+	value: list[int],
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[5],
+	threadID: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[6],
+	threadID: int,
+	value: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[7],
+	threadID: int,
+	value: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[8],
+	threadID: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[9],
+	threadID: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[10],
+	threadID: int,
+	value: Literal[0, 1],
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[11],
+	threadID: int,
+	value: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[12],
+	threadID: int,
+	value: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[13],
+	threadID: int,
+	value: Literal[0, 1],
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[14],
+	threadID: int,
+	value: str,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[15],
+	threadID: int,
+	value: Literal[0, 1],
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[16],
+	threadID: int,
+	value: str,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+
+@overload
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	*,
+	mode: Literal[18],
+	threadID: int,
+	**kwargs: Unpack[_GJThreadOptions],
+) -> str: ...
+
+def updateGJThread(
+	accountID: int,
+	gjp2: str,
+	threadID: int | None = None,
+	mode: int | None = None,
+	value: int | str | list[int] | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	threadID: The thread to update, required for mode 3
+	mode: The type of action to perform
+	value: 	Action-specific value in plain text
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+
+	mode descriptions:
+	```
+	1. Clear message history
+	2. Rename thread
+	3. Mark as read
+	4. Invite users
+	5. Leave thread
+	6. Kick member
+	7. Transfer ownership
+	8. Accept invite
+	9. Ignore invite
+	10. Mute/unmute thread
+	11. Take back invite
+	12. Delete message
+	13. Invite permissions
+	14. Change description
+	15. Pin/unpin thread
+	16. Change emote icon
+	18. Remove thread after getting kicked
+	```
+	value descriptions per mode:
+	```
+	1. Not sent
+	2. The new name
+	3. List of thread IDs to mark as read. The threadID param is sent as 0
+	4. List of account IDs
+	5. Not sent
+	6. Account ID of the person you want to kick
+	7. Account ID of the new owner
+	8. Not sent
+	9. Not sent
+	10. 1 to mute, 0 to unmute
+	11. Account ID of the person you want to take back the invite for
+	12. The message ID
+	13. 1 for Owner Only, 0 for Anyone
+	14. The new description
+	15. 1 to pin, 0 to unpin
+	16. The new emote to use as the icon
+	18. Not sent
+	```
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int | list] = {
+		"accountID": accountID,
+		"gjp2": gjp2,
+		"secret": secret
+	}
+
+	if threadID is not None:
+		data["threadID"] = threadID
+
+	if mode is not None:
+		data["mode"] = mode
+
+	if value is not None:
+		if isinstance(value, list):
+			value = ",".join(map(str, value))
+		else:
+			value = str(value)
+
+		data["value"] = Tools.b64EncodeUrlSafe(value)
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/updateGJThread.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"updateGJThread Failed: {response.text}")
 	
 	return response.text
