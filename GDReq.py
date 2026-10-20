@@ -5674,6 +5674,10 @@ def getGJLevels21(
 	|  27  | Sent                                                                             |
 	|  28  | GD Lite weekly levels                                                            |
 	|  29  | GD Lite bonus levels (platformer)                                                |
+	|  31  | Hyped                                                                            |
+	|  32  | Daily history (without the current daily)                                        |
+	|  33  | Weekly history (without the current weekly)                                      |
+	|  34  | Event history (without the current event level)                                  |
 	```
 	page: Which page to request. Defaults to 0
 	total: Probably the cached total number of levels, default is 0
@@ -9599,9 +9603,9 @@ def sendGJThreadMessage(
 	token: bool | None = None,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
-	dvs: int | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
+	dvs: int | None = None,
 ) -> str:
 	"""
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
@@ -9996,5 +10000,65 @@ def updateGJThread(
 	
 	if not Tools.checkResponse(response.text):
 		print(f"updateGJThread Failed: {response.text}")
+	
+	return response.text
+
+def getGJContentStatus(
+	accountID: int | None = None,
+	gjp2: str | None = None,
+	special: int | None = None,
+	gameVersion: int | None = None,
+	binaryVersion: int | None = None,
+	udid: str | None = None,
+	uuid: int | None = None,
+	dvs: int | None = None,
+) -> str:
+	"""
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+	special: Unknown
+	gameVersion: A number representing the game's version. The current value is 22 for 2.2
+	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
+	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
+	uuid: The player's user ID
+	dvs: Platform type, iOS = 1, Android = 2, Windows = 3, macOS = 8
+	"""
+	secret = Tools.getSecret(1)
+	
+	data: dict[str, str | int | list] = {
+		"secret": secret
+	}
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = Tools.b64EncodeUrlSafe(gjp2)
+
+	if special is not None:
+		data["special"] = special
+
+	if gameVersion is not None:
+		data["gameVersion"] = gameVersion
+	
+	if binaryVersion is not None:
+		data["binaryVersion"] = binaryVersion
+	
+	if udid is not None:
+		data["udid"] = udid
+	
+	if uuid is not None:
+		data["uuid"] = uuid
+
+	if dvs is not None:
+		data["dvs"] = dvs
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/getGJContentStatus.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"getGJContentStatus Failed: {response.text}")
 	
 	return response.text
