@@ -335,7 +335,15 @@ class Parse:
 				"51": "NCS I",
 				"52": "NCS II",
 				"53": "Space",
-				"54": "Cosmos"
+				"54": "Cosmos",
+				"55": "Random",
+				"56": "Chance",
+				"57": "Future",
+				"58": "Utopia",
+				"59": "Cinema",
+				"60": "Love",
+				"61": "Duality",
+				"62": "Paradox"
 			}
 			return result
 
@@ -2590,12 +2598,13 @@ class Parse:
 		    "totalRated": totalRated,
 		    "gameVersion": gameVersion,
 		    "totalRatedDownloads": totalRatedDownloads,
-		    "levelTypes": [{
-		    	"rating": rating,
-		    	"difficulty": difficulty,
-		    	"amount": amount
-		    	},
-		    	...
+		    "levelTypes": [
+		        {
+		            "rating": rating,
+		            "difficulty": difficulty,
+		            "amount": amount
+		        },
+		        ...
 		    ]
 		}
 		```
@@ -2722,7 +2731,7 @@ class Parse:
 		```py
 		{
 		    "sfx": [
-		    	{
+		        {
 		            "soundID": soundID,
 		            "soundName": soundName,
 		            "description": description,
@@ -3228,7 +3237,7 @@ class Parse:
 		return result
 
 	@staticmethod
-	def searchGJThreadMessages(rawText: str, normalise: bool = True):
+	def searchGJThreadMessages(rawText: str):
 		'''
 		Format:
 	
@@ -3271,7 +3280,7 @@ class Parse:
 		return result
 
 	@staticmethod
-	def sendGJThreadMessage(rawText: str, normalise: bool = True):
+	def sendGJThreadMessage(rawText: str):
 		'''
 		Format for success:
 	
