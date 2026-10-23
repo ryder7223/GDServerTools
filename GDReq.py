@@ -894,7 +894,7 @@ class Parse:
 				comments.append(parsed)
 
 			result["comments"] = comments
-			
+
 		result["pagination"] = pagination
 
 		return result
@@ -3346,14 +3346,14 @@ class Tools:
 			"""
 			```
 			- Type 1: Player Save Data
-			- Type 2:  Player Messages
-			- Type 3:  Vault Codes
-			- Type 4:  Daily Challenges
-			- Type 5:  Level Password
-			Type 6:  Comment Integrity
-			Type 7:  Account Password
-			Type 8:  Level Leaderboard Integrity
-			Type 9:  Level Integrity
+			- Type 2: Player Messages
+			- Type 3: Vault Codes
+			- Type 4: Daily Challenges
+			- Type 5: Level Password
+			Type 6: Comment Integrity
+			Type 7: Account Password
+			Type 8: Level Leaderboard Integrity
+			Type 9: Level Integrity
 			Type 10: Load Data
 			Type 11: Multiplayer
 			- Type 12: Music/SFX Library Secret
@@ -3445,14 +3445,14 @@ class Tools:
 			"""
 			```
 			- Type 1: Player Save Data
-			- Type 2:  Player Messages
-			- Type 3:  Vault Codes
-			- Type 4:  Daily Challenges
-			- Type 5:  Level Password
-			Type 6:  Comment Integrity
-			Type 7:  Account Password
-			Type 8:  Level Leaderboard Integrity
-			Type 9:  Level Integrity
+			- Type 2: Player Messages
+			- Type 3: Vault Codes
+			- Type 4: Daily Challenges
+			- Type 5: Level Password
+			Type 6: Comment Integrity
+			Type 7: Account Password
+			Type 8: Level Leaderboard Integrity
+			Type 9: Level Integrity
 			Type 10: Load Data
 			Type 11: Multiplayer
 			- Type 12: Music/SFX Library Secret
@@ -4519,7 +4519,7 @@ def getGJScores20(
 ) -> str:
 	"""
 	stat: The user statistic to use when ordering top, relative and friends leaderboards. 0 = stars, 1 = moons, 2 = demons, 3 = coins, defaults to 0
-	accountID: 	The player's account ID (not to be confused with user ID). Used for authorization
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	type_: Can be top, relative, friends, or creators. If left out it defaults to top
 	count: Returns the amount of players specified. Limited to 100
@@ -4739,7 +4739,7 @@ def updateGJUserScore22(
 	"""
 	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
-	stars: 	The amount of stars the user has
+	stars: The amount of stars the user has
 	moons: The amount of moons the user has
 	demons: The amount of demons the user has, including official levels
 	diamonds: The amount of diamonds the user has
@@ -4762,7 +4762,7 @@ def updateGJUserScore22(
 	dinfow: Amount of completed weeklies. Sent only together with dinfo
 	dinfog: Amount of completed gauntlet demons. Sent only together with dinfo
 	dinfoe: Amount of completed event demons. Sent only together with dinfo
-	sinfo: 	List of counts of completed levels of each non-demon difficulty, separately for classic and platformer levels. Includes official levels. Format: autoClassic,easyClassic,normalClassic,hardClassic,harderClassic,insaneClassic,autoPlatformer,easyPlatformer,normalPlatformer,hardPlatformer,harderPlatformer,insanePlatformer
+	sinfo: List of counts of completed levels of each non-demon difficulty, separately for classic and platformer levels. Includes official levels. Format: autoClassic,easyClassic,normalClassic,hardClassic,harderClassic,insaneClassic,autoPlatformer,easyPlatformer,normalPlatformer,hardPlatformer,harderPlatformer,insanePlatformer
 	sinfod: Amount of completed dailies
 	sinfog: Amount of completed gauntlet non-demon levels
 	sinfoe: Amount of completed event non-demon levels
@@ -6758,7 +6758,7 @@ def uploadGJLevelList(
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
-	accountID: Account ID of the user deleting the comment
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	listID: The ID of the list if updating to a newer version, otherwise 0
 	listName: The name of the list, in plaintext
@@ -6820,64 +6820,6 @@ def uploadGJLevelList(
 	
 	return response.text
 
-from typing import Literal, TypedDict, overload, Unpack
-
-
-class _GJLevelListsOptions(TypedDict, total=False):
-	gameVersion: int
-	binaryVersion: int
-	accountID: int
-	gjp2: str
-	page: int
-	diff: str
-	demonFilter: int
-	star: Literal[1]
-	udid: str
-	uuid: int
-	dvs: int
-
-
-@overload
-def getGJLevelLists(
-	*,
-	type_: Literal[0],
-	str_: str,
-	**kwargs: Unpack[_GJLevelListsOptions],
-) -> str: ...
-
-@overload
-def getGJLevelLists(
-	*,
-	type_: Literal[1, 2, 3, 4, 6, 7, 11, 13, 27],
-	str_: str | int | None = None,
-	**kwargs: Unpack[_GJLevelListsOptions],
-) -> str: ...
-
-@overload
-def getGJLevelLists(
-	*,
-	type_: Literal[5],
-	str_: int,
-	**kwargs: Unpack[_GJLevelListsOptions],
-) -> str: ...
-
-@overload
-def getGJLevelLists(
-	*,
-	type_: Literal[12],
-	followed: str,
-	str_: str | int | None = None,
-	**kwargs: Unpack[_GJLevelListsOptions],
-) -> str: ...
-
-@overload
-def getGJLevelLists(
-	*,
-	type_: None = None,
-	str_: str | int | None = None,
-	**kwargs: Unpack[_GJLevelListsOptions],
-) -> str: ...
-
 def getGJLevelLists(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -6914,9 +6856,9 @@ def getGJLevelLists(
 	|  13  | Friends (login required)                       |
 	|  27  | Sent lists                                     |
 	```
-	str_: Search query, user ID or level list depending on type
+	str_: Search query, user ID or level list depending on type_, required when type_ is 5
 	page: Which page to request, defaults to 0
-	accountID: Account ID of the user deleting the comment
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	diff: Comma-separated list of difficulty values. - = None, -1 = N/A, -2 = Demons (see demonFilter), -3 = Auto, 1 to 5 = Easy to Insane
 	demonFilter: Selects which demon difficulty to search. Will search all demon types if not sent. 1 to 5 = Easy Demon to Extreme Demon
@@ -9063,7 +9005,7 @@ def uploadGJEditorSound(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	soundName: The name of the pack, in plain text
 	soundData: The sound pack's encoded data
-	soundDesc: 	The description of the pack, in plain text
+	soundDesc: The description of the pack, in plain text
 	actionCount: Sent as the amount of actions with a sound attached to them, but doesn't seem to do anything
 	soundCount: Send as the amount of sounds used, but doesn't seem to do anything
 	emote: The emote to be used as the icon of the pack
@@ -9983,7 +9925,7 @@ def updateGJThread(
 	gjp2: The player's account password, encoded with GJP2. Used for authorization
 	threadID: The thread to update, required for mode 3
 	mode: The type of action to perform
-	value: 	Action-specific value in plain text
+	value: Action-specific value in plain text
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -10135,5 +10077,70 @@ def getGJContentStatus(
 	
 	if not Tools.checkResponse(response.text):
 		print(f"getGJContentStatus Failed: {response.text}")
+	
+	return response.text
+
+def reportGJContent(
+	targetID: int,
+	type_: int,
+	reasons: list[int],
+	messageID: int | None = None,
+	special: int | None = None,
+	accountID: int | None = None,
+	gjp2: str | None = None,
+) -> str:
+	"""
+	targetID: The ID of the content being reported
+	type_: The type of object being reported. 0 - user, 1 - level, 2 - list, 3 - comment (level or list), 4 - profile post, 5 - legacy message, 6 - friend request, 7 - comment on sound pack, 8 - thread, 9 - sound pack
+	reasons: List of report reasons
+	messageID: The message ID being reported (type 8 only, when reporting a specific message and not the entire thread)
+	special: Extra ID. For types 3 and 7 (comment), this is the level/list/sound pack ID (negative if list ID). For type 4 (profile post), this is the account ID of the poster
+	accountID: The player's account ID (not to be confused with user ID). Used for authorization
+	gjp2: The player's account password, encoded with GJP2. Used for authorization
+
+	Reasons:
+	```
+	| ID | In-Game Name          | Applicable to Types       |
+	| -- | --------------------- | -------------------       |
+	| 0  | Inappropriate Content | All                       |
+	| 1  | Harassment / Hate     | All                       |
+	| 2  | Spam / Trolling       | All                       |
+	| 3  | Scam / Phishing       | 0, 1, 2, 3, 4, 5, 6, 7, 8 |
+	| 4  | Cheating / Hacking    | 0                         |
+	| 5  | Impersonation         | 0                         |
+	| 6  | Stolen / Reupload     | 1, 2, 9                   |
+	| 7  | Threats / Danger      | 0, 1, 2, 3, 4, 5, 6, 7, 8 |
+	```
+	"""
+	secret = Tools.getSecret(1)
+
+	reasonsString = ",".join(map(str, reasons))
+	
+	data: dict[str, str | int | list] = {
+		"targetID": targetID,
+		"type": type_,
+		"reasons": reasonsString,
+		"secret": secret
+	}
+
+	if messageID is not None:
+		data["messageID"] = messageID
+
+	if special is not None:
+		data["special"] = special
+
+	if accountID is not None:
+		data["accountID"] = accountID
+
+	if gjp2 is not None:
+		data["gjp2"] = gjp2
+
+	response = Tools.makeReq(
+		"http://www.boomlings.com/database/reportGJContent.php",
+		data
+	)
+	
+	if not Tools.checkResponse(response.text):
+		print(f"reportGJContent Failed: {response.text}")
 	
 	return response.text
