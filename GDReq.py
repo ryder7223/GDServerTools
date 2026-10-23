@@ -873,28 +873,31 @@ class Parse:
 		}
 		```
 		'''	
+		result = {"comments": [], "pagination": {}}
+
 		mainPart, paginationPart = rawText.rsplit("#", 1)
 		pagination = Parse._parsePagination(paginationPart)
+		
+		if len(mainPart) > 0:
+			commentBlocks = mainPart.split("|")
+		
+			comments = []
+			for block in commentBlocks:
+				parsed = Parse._parseLevelCommentBlock(block)
+				if not parsed:
+					continue
 	
-		commentBlocks = mainPart.split("|")
+				if normalise is True:
+					Parse._remap(parsed["content"], 2)
+					Parse._remap(parsed["sender"], 3)
 	
-		comments = []
-		for block in commentBlocks:
-			parsed = Parse._parseLevelCommentBlock(block)
-			if not parsed:
-				continue
+				comments.append(parsed)
 
-			if normalise is True:
-				Parse._remap(parsed["content"], 2)
-				Parse._remap(parsed["sender"], 3)
+			result["comments"] = comments
+			
+		result["pagination"] = pagination
 
-
-			comments.append(parsed)
-	
-		return {
-			"comments": comments,
-			"pagination": pagination
-		}
+		return result
 
 	@staticmethod
 	def getGJAccountComments20(rawText: str, normalise: bool = True):
@@ -6257,6 +6260,7 @@ def getGJComments21(
 	mode: int | None = None,
 	total: int | None = None,
 	count: int | None = None,
+	cType: int | None = None,
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
 	udid: str | None = None,
@@ -6271,6 +6275,7 @@ def getGJComments21(
 	mode: Set to 0 for most recent, and 1 for most liked
 	total: Probably the cached total number of comments, default is 0
 	count: Number of comments to fetch. Defaults to 10, but doubles if "More Comments" is enabled or in compact view (stacking)
+	cType: If set to 6, levelID is a sound pack ID. Not sent otherwise
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
 	binaryVersion: A number representing the game's small version. The current value is 51 for 2.209 on PC and mobile
 	udid: The player's UDID (Unique Device Identifier). Used to identify unregistered users
@@ -6299,6 +6304,9 @@ def getGJComments21(
 	
 	if count is not None:
 		data["count"] = count
+
+	if cType is not None:
+		data["cType"] = cType
 
 	if gameVersion is not None:
 		data["gameVersion"] = gameVersion
@@ -6812,6 +6820,64 @@ def uploadGJLevelList(
 	
 	return response.text
 
+from typing import Literal, TypedDict, overload, Unpack
+
+
+class _GJLevelListsOptions(TypedDict, total=False):
+	gameVersion: int
+	binaryVersion: int
+	accountID: int
+	gjp2: str
+	page: int
+	diff: str
+	demonFilter: int
+	star: Literal[1]
+	udid: str
+	uuid: int
+	dvs: int
+
+
+@overload
+def getGJLevelLists(
+	*,
+	type_: Literal[0],
+	str_: str,
+	**kwargs: Unpack[_GJLevelListsOptions],
+) -> str: ...
+
+@overload
+def getGJLevelLists(
+	*,
+	type_: Literal[1, 2, 3, 4, 6, 7, 11, 13, 27],
+	str_: str | int | None = None,
+	**kwargs: Unpack[_GJLevelListsOptions],
+) -> str: ...
+
+@overload
+def getGJLevelLists(
+	*,
+	type_: Literal[5],
+	str_: int,
+	**kwargs: Unpack[_GJLevelListsOptions],
+) -> str: ...
+
+@overload
+def getGJLevelLists(
+	*,
+	type_: Literal[12],
+	followed: str,
+	str_: str | int | None = None,
+	**kwargs: Unpack[_GJLevelListsOptions],
+) -> str: ...
+
+@overload
+def getGJLevelLists(
+	*,
+	type_: None = None,
+	str_: str | int | None = None,
+	**kwargs: Unpack[_GJLevelListsOptions],
+) -> str: ...
+
 def getGJLevelLists(
 	gameVersion: int | None = None,
 	binaryVersion: int | None = None,
@@ -6826,7 +6892,7 @@ def getGJLevelLists(
 	followed: str | None = None,
 	udid: str | None = None,
 	uuid: int | None = None,
-	dvs: int | None = None
+	dvs: int | None = None,
 ) -> str:
 	"""
 	gameVersion: A number representing the game's version. The current value is 22 for 2.2
